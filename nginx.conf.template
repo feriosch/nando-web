@@ -1,0 +1,33 @@
+# Rendered by the nginx image's envsubst step; Cloud Run sets PORT.
+server {
+    listen ${PORT};
+    root /usr/share/nginx/html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json application/manifest+json image/svg+xml;
+
+    # Client-side routes (/settings, /calories, ...) fall back to the app.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Must never be cached, or the installed app would keep running an old build.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+    }
+
+    location = /manifest.webmanifest {
+        types { application/manifest+json webmanifest; }
+        add_header Cache-Control "no-cache";
+    }
+
+    # Hashed by Vite, so safe to cache forever; a missing one is a real 404, not the app.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+}
