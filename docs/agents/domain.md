@@ -4,6 +4,8 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
+> **This repo shares its domain docs with `nando-server`.** The canonical glossary is `../nando-server/GLOSSARY.md` and ADRs live in `../nando-server/docs/adr/`. Read and write those; never create a `GLOSSARY.md` or `docs/adr/` here.
+
 - **`GLOSSARY.md`** at the repo root, or
 - **`GLOSSARY-MAP.md`** at the repo root if it exists: it points at one `GLOSSARY.md` per context. Read each one relevant to the topic.
 - **`docs/adr/`**: read ADRs that touch the area you're about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
