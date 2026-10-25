@@ -22,18 +22,25 @@ export type NotificationScope = {
   }
 }
 
-// What Core sends in each push.
-type Payload = { title: string; body: string; url: string }
+// The Notification Core sends in each push message.
+type NotificationPayload = { title: string; body: string; url: string }
 
-// Every push must show something, or Safari revokes the Push Subscription; a push we can't
-// read still shows a plain Notification.
-const fallback: Payload = { title: 'Nando', body: '', url: '/' }
+// Every push message must show a Notification, or Safari revokes the Push Subscription; one we
+// can't read still shows a plain one.
+const fallback: NotificationPayload = { title: 'Nando', body: '', url: '/' }
 
-function readPayload(data: PushEvent['data']): Payload {
+function readPayload(data: PushEvent['data']): NotificationPayload {
+  if (!data) return fallback
+  let sent: Partial<NotificationPayload> | null
   try {
-    return { ...fallback, ...JSON.parse(data!.text()) }
+    sent = JSON.parse(data.text())
   } catch {
     return fallback
+  }
+  return {
+    title: sent?.title ?? fallback.title,
+    body: sent?.body ?? fallback.body,
+    url: sent?.url ?? fallback.url,
   }
 }
 
@@ -50,17 +57,24 @@ export function registerNotificationHandlers(scope: NotificationScope) {
 
   scope.addEventListener('notificationclick', (event) => {
     event.notification.close()
-    const { url } = event.notification.data as Pick<Payload, 'url'>
+    const { url } = event.notification.data as Pick<NotificationPayload, 'url'>
     event.waitUntil(openAt(scope, url))
   })
 }
 
-// Reuses an open Nando window if there is one. Only windows this service worker controls are
-// listed, and only those can be navigated. Focus comes first, while the tap still counts as
-// user activation.
+// Reuses an open Nando window if there is one, and opens a new one if that window can't be
+// moved to the link. Only windows this service worker controls are listed, and only those can
+// be navigated. Focus comes first, while the tap still counts as user activation.
 async function openAt(scope: NotificationScope, url: string) {
   const [open] = await scope.clients.matchAll({ type: 'window' })
-  if (!open) return scope.clients.openWindow(url)
-  await open.focus()
-  await open.navigate(url)
+  if (open) {
+    try {
+      await open.focus()
+      await open.navigate(url)
+      return
+    } catch {
+      // Fall through to a new window.
+    }
+  }
+  await scope.clients.openWindow(url)
 }

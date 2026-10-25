@@ -42,7 +42,7 @@ bun run lint
 Nando is installed from Safari's Share → Add to Home Screen and opens standalone. `vite-plugin-pwa` builds `manifest.webmanifest` and `sw.js` from `src/sw.ts`, and the iOS tags are in `index.html`.
 
 - **Offline shell**: the build is precached and every navigation is answered with `index.html`, so the app opens without a connection. API calls are never cached; logging needs a connection.
-- **Notifications**: each push Core sends carries JSON `{ "title", "body", "url" }`, where `url` is a path in the app such as `/calories` (default `/`). Tapping the Notification focuses an open Nando window and goes to `url`, or opens a new one there. A push that can't be read still shows a plain "Nando" Notification, because Safari revokes a Push Subscription whose push shows nothing.
+- **Notifications**: each push message Core sends carries one Notification as JSON `{ "title", "body", "url" }`, where `url` is a path in the app such as `/calories` (default `/`). Tapping the Notification focuses an open Nando window and goes to `url`, or opens a new one there. A push message that can't be read still shows a plain "Nando" Notification, because Safari revokes a Push Subscription whose push message shows nothing.
 - **Icons**: `public/icon.svg` is the source. After changing it, run `bun run icons` to regenerate the PNGs and `favicon.ico` in `public/`, and commit them.
 
 ## Container image

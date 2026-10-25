@@ -3,20 +3,25 @@ import { registerNotificationHandlers } from './notifications'
 
 type Shown = { title: string; options: NotificationOptions }
 
-type Window = { url: string; focused: boolean }
+type FakeWindow = { url: string; focused: boolean }
 
-// openAt: where an already open Nando window is, if there is one.
-function fakeServiceWorker({ openAt }: { openAt?: string } = {}) {
+const caloriesReminder = { title: 'Calories', body: 'Nothing logged today', url: '/calories' }
+
+function fakeServiceWorker({
+  existingWindowAt,
+  navigateFails = false,
+}: { existingWindowAt?: string; navigateFails?: boolean } = {}) {
   const listeners = new Map<string, (event: never) => void>()
   const shown: Shown[] = []
   const opened: string[] = []
-  const windows: Window[] = openAt ? [{ url: openAt, focused: false }] : []
+  const windows: FakeWindow[] = existingWindowAt ? [{ url: existingWindowAt, focused: false }] : []
 
-  const windowClient = (w: Window) => ({
+  const windowClient = (w: FakeWindow) => ({
     focus: async () => {
       w.focused = true
     },
     navigate: async (url: string) => {
+      if (navigateFails) throw new TypeError('navigate failed')
       w.url = url
     },
   })
@@ -66,19 +71,19 @@ function fakeServiceWorker({ openAt }: { openAt?: string } = {}) {
 }
 
 describe('service worker Notifications', () => {
-  it('shows a pushed Notification with its title and body', async () => {
+  it('shows the Notification Core sends with its title and body', async () => {
     const sw = fakeServiceWorker()
     registerNotificationHandlers(sw.scope)
 
-    await sw.push({ title: 'Calories', body: 'Nothing logged today', url: '/calories' })
+    await sw.push(caloriesReminder)
 
     expect(sw.shown).toHaveLength(1)
     expect(sw.shown[0].title).toBe('Calories')
     expect(sw.shown[0].options.body).toBe('Nothing logged today')
   })
 
-  // Safari revokes a Push Subscription whose push doesn't show a Notification.
-  it('still shows a Notification for a push with no payload', async () => {
+  // Safari revokes a Push Subscription whose push message doesn't show a Notification.
+  it('still shows a Notification for a push message with no payload', async () => {
     const sw = fakeServiceWorker()
     registerNotificationHandlers(sw.scope)
 
@@ -88,7 +93,7 @@ describe('service worker Notifications', () => {
     expect(sw.shown[0].title).toBe('Nando')
   })
 
-  it('still shows a Notification for a push whose payload is not JSON', async () => {
+  it('still shows a Notification for a push message whose payload is not JSON', async () => {
     const sw = fakeServiceWorker()
     registerNotificationHandlers(sw.scope)
 
@@ -98,10 +103,21 @@ describe('service worker Notifications', () => {
     expect(sw.shown[0].title).toBe('Nando')
   })
 
+  it('shows a Notification titled Nando that opens Home when the payload leaves its fields null', async () => {
+    const sw = fakeServiceWorker()
+    registerNotificationHandlers(sw.scope)
+    await sw.push({ title: null, body: null, url: null })
+
+    await sw.tap(sw.shown[0])
+
+    expect(sw.shown[0].title).toBe('Nando')
+    expect(sw.opened).toEqual(['/'])
+  })
+
   it("opens Nando at the Notification's link when it is tapped", async () => {
     const sw = fakeServiceWorker()
     registerNotificationHandlers(sw.scope)
-    await sw.push({ title: 'Calories', body: 'Nothing logged today', url: '/calories' })
+    await sw.push(caloriesReminder)
 
     await sw.tap(sw.shown[0])
 
@@ -109,13 +125,23 @@ describe('service worker Notifications', () => {
   })
 
   it('brings an already open Nando to the front at the link instead of opening another', async () => {
-    const sw = fakeServiceWorker({ openAt: '/settings' })
+    const sw = fakeServiceWorker({ existingWindowAt: '/settings' })
     registerNotificationHandlers(sw.scope)
-    await sw.push({ title: 'Calories', body: 'Nothing logged today', url: '/calories' })
+    await sw.push(caloriesReminder)
 
     await sw.tap(sw.shown[0])
 
     expect(sw.opened).toEqual([])
     expect(sw.windows).toEqual([{ url: '/calories', focused: true }])
+  })
+
+  it('opens a new Nando window at the link when the open one cannot be moved there', async () => {
+    const sw = fakeServiceWorker({ existingWindowAt: '/settings', navigateFails: true })
+    registerNotificationHandlers(sw.scope)
+    await sw.push(caloriesReminder)
+
+    await sw.tap(sw.shown[0])
+
+    expect(sw.opened).toEqual(['/calories'])
   })
 })
