@@ -9,7 +9,9 @@ Web app for Nando: Bun, Vite, React, TypeScript, React Router and TanStack Query
   - `shell/`: the hamburger menu listing Modules, **Home** (every Home Card, Core's first) and the single **Settings** screen (every Settings Section, Core's first). `createRoutes(registry)` builds all routes.
   - `api/`: the API client. Every request is sent with `credentials: "include"` so the session cookie goes along; a non-2xx response throws `ApiError` with its `status`.
   - `core.ts`: Core's own Home Cards and Settings Sections.
+  - `sw/`: what the service worker does with Notifications (see **PWA** below).
 - `src/modules/<module>`: one Module each (`calories`), exporting its `Module`.
+- `src/sw.ts`: the service worker's entry point.
 - `src/registry.ts`: the only file that lists every Module. Core never imports a Module, and a Module imports only Core, never another Module.
 
 UI strings are English only and kept simple so i18n can be layered on later.
@@ -34,6 +36,14 @@ bun run test       # Vitest + Testing Library
 bun run typecheck
 bun run lint
 ```
+
+## PWA
+
+Nando is installed from Safari's Share → Add to Home Screen and opens standalone. `vite-plugin-pwa` builds `manifest.webmanifest` and `sw.js` from `src/sw.ts`, and the iOS tags are in `index.html`.
+
+- **Offline shell**: the build is precached and every navigation is answered with `index.html`, so the app opens without a connection. API calls are never cached; logging needs a connection.
+- **Notifications**: each push Core sends carries JSON `{ "title", "body", "url" }`, where `url` is a path in the app such as `/calories` (default `/`). Tapping the Notification focuses an open Nando window and goes to `url`, or opens a new one there. A push that can't be read still shows a plain "Nando" Notification, because Safari revokes a Push Subscription whose push shows nothing.
+- **Icons**: `public/icon.svg` is the source. After changing it, run `bun run icons` to regenerate the PNGs and `favicon.ico` in `public/`, and commit them.
 
 ## Container image
 
