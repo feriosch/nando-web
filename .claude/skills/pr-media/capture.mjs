@@ -134,7 +134,6 @@ async function settle(page) {
 
 const captured = []
 const failed = []
-const pending = [] // GIF conversions
 
 // A shot or flow that throws is reported and skipped, so the rest still run (on a base branch,
 // a screen the PR adds doesn't exist yet).
@@ -143,7 +142,8 @@ async function attempt(name, work) {
     await work()
   } catch (error) {
     failed.push(name)
-    console.error(`✗ ${name}: ${error.message.split('\n')[0]}`)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`✗ ${name}: ${message.split('\n')[0]}`)
   }
 }
 
@@ -165,36 +165,44 @@ const shot = (name, run, { fullPage = false } = {}) =>
 const flow = (name, run, { start = '/' } = {}) =>
   attempt(name, async () => {
     const videoDir = mkdtempSync(path.join(tmpdir(), 'pr-media-'))
-    const { context, page, passkeys } = await open(browser, {
-      recordVideo: { dir: videoDir, size: device.viewport },
-    })
-    const opened = Date.now()
-    let skip
     try {
-      await page.goto(start)
-      await settle(page)
-      skip = (Date.now() - opened) / 1000
-      await run(page, { passkeys })
-      await settle(page)
-      await page.waitForTimeout(1200) // hold the end state
+      const { context, page, passkeys } = await open(browser, {
+        recordVideo: { dir: videoDir, size: device.viewport },
+      })
+      const opened = Date.now()
+      let skip
+      try {
+        await page.goto(start)
+        await settle(page)
+        skip = (Date.now() - opened) / 1000
+        await run(page, { passkeys })
+        await settle(page)
+        await page.waitForTimeout(1200) // hold the end state
+      } finally {
+        await context.close()
+      }
+      const webm = await page.video().path()
+      const filter = 'fps=12,scale=402:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse'
+      execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(skip), '-i', webm, '-vf', filter, path.join(outDir, `${name}.gif`)])
+      captured.push(`${name}.gif`)
     } finally {
-      await context.close()
+      rmSync(videoDir, { recursive: true, force: true })
     }
-    const gif = path.join(outDir, `${name}.gif`)
-    const filter = 'fps=12,scale=402:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse'
-    captured.push(`${name}.gif`)
-    pending.push(
-      page
-        .video()
-        .path()
-        .then((webm) => {
-          execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(skip), '-i', webm, '-vf', filter, gif])
-          rmSync(videoDir, { recursive: true, force: true })
-        }),
-    )
   })
 
 // ---- run -----------------------------------------------------------------------------------
+const answers = async () => {
+  try {
+    return (await fetch(origin)).ok
+  } catch {
+    return false
+  }
+}
+// Something else on the port (often a Vite left by an interrupted run) would be captured instead.
+if (await answers()) {
+  console.error(`port ${PORT} is already in use; stop what's on it (\`lsof -ti :${PORT} | xargs kill\`) and retry`)
+  process.exit(1)
+}
 const vite = spawn(path.join(root, 'node_modules/.bin/vite'), ['--port', String(PORT), '--strictPort'], {
   cwd: root,
   env: { ...process.env, VITE_API_BASE_URL: origin },
@@ -207,19 +215,21 @@ const stopVite = () => {
   } catch {}
 }
 process.on('exit', stopVite)
+// Vite runs in its own process group, so Ctrl-C doesn't reach it: stop it here.
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => process.exit(130))
+let viteExit = null
+vite.on('exit', (code) => (viteExit = code))
 
 let browser
 try {
   for (let tries = 0; ; tries++) {
-    try {
-      if ((await fetch(origin)).ok) break
-    } catch {}
+    if (viteExit !== null) throw new Error(`Vite exited (code ${viteExit}) before it was up`)
+    if (await answers()) break
     if (tries > 100) throw new Error(`Vite did not start on ${origin} (is ${PORT} free, and \`bun install\` done in ${root}?)`)
     await new Promise((resolve) => setTimeout(resolve, 300))
   }
   browser = await chromium.launch()
   await scenario.default({ shot, flow })
-  await Promise.all(pending)
   writeFileSync(path.join(outDir, 'captured.json'), JSON.stringify(captured, null, 2)) // order for publish.mjs
   console.log(`${captured.length} file(s) in ${outDir}:\n${captured.map((file) => `  ${file}`).join('\n')}`)
   if (failed.length) process.exitCode = 1

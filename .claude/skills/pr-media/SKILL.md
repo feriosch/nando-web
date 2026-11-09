@@ -13,7 +13,7 @@ Read the PR's diff (`git diff origin/main...HEAD -- src`) and write the **shot l
 
 ## 2. Scenario
 
-Write the shot list as a scenario file **outside the repo** (the scratchpad, or `$TMPDIR`). Format under **Scenario reference** below. Give each API call the screens make (`api.get` / `api.post` in the diff) a realistic answer, named in the Glossary's terms.
+Write the shot list as a scenario file **outside the repo** (the scratchpad, or `${TMPDIR:-/tmp}`). Format under **Scenario reference** below. Give each API call the screens make (`api.get` / `api.post` in the diff) a realistic answer, named in the Glossary's terms.
 
 ## 3. Capture
 
@@ -29,10 +29,12 @@ It starts its own Vite on port 5199 and writes `<name>.png` / `<name>.gif` to `<
 Capture the same scenario on the base branch so the comment shows Before and After side by side. Skip this when the PR only adds screens.
 
 ```sh
-git worktree add --detach "$TMPDIR/pr-media-base" origin/main
-ln -s "$PWD/node_modules" "$TMPDIR/pr-media-base/node_modules"   # if bun.lock differs, `bun install` there instead
-node .claude/skills/pr-media/capture.mjs <scenario.mjs> <base-out-dir> --root "$TMPDIR/pr-media-base"
-git worktree remove --force "$TMPDIR/pr-media-base"
+base="${TMPDIR:-/tmp}/pr-media-base"
+git fetch origin main
+git worktree add --detach "$base" origin/main
+ln -s "$PWD/node_modules" "$base/node_modules"   # if bun.lock differs, `bun install` there instead
+node .claude/skills/pr-media/capture.mjs <scenario.mjs> <base-out-dir> --root "$base"
+git worktree remove --force "$base"
 ```
 
 Shots of screens the base doesn't have yet fail with `✗` and show as _new_. That is expected.
@@ -45,7 +47,7 @@ node .claude/skills/pr-media/publish.mjs <pr-number> <out-dir> [--before <base-o
 
 It commits the files to `pr-<n>/` on the **`pr-media`** branch, the one branch besides the PR's own that this skill pushes to. It is never merged. The script prints the comment body. Pass the session's commit attribution lines as `--trailer`s.
 
-Post the body as a comment on the PR. If the PR already has a comment starting with `<!-- pr-media -->`, edit that comment instead, so the PR keeps one media comment. With `gh`: `gh pr comment <n> --body-file <file>` (add `--edit-last` to replace your last comment). With the GitHub MCP tools: `pull_request_read` (`get_comments`) to find it, then `update_issue_comment` or `add_issue_comment`. Add the footer your session requires on GitHub posts.
+Post the body as a comment on the PR. If the PR already has a comment starting with `<!-- pr-media -->`, edit that comment instead, so the PR keeps one media comment. With `gh`: find it with `gh api repos/{owner}/{repo}/issues/<n>/comments --jq '.[] | select(.body | startswith("<!-- pr-media -->")) | .id'`, then `gh api -X PATCH repos/{owner}/{repo}/issues/comments/<id> -F body=@<file>`, or if there is none, `gh pr comment <n> --body-file <file>`. With the GitHub MCP tools: `pull_request_read` (`get_comments`) to find it, then `update_issue_comment` or `add_issue_comment`. Add the footer your session requires on GitHub posts.
 
 ## Scenario reference
 

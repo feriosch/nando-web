@@ -51,17 +51,23 @@ const before = beforeDir ? media(beforeDir) : []
 const work = mkdtempSync(path.join(tmpdir(), 'pr-media-'))
 const scratchBranch = `pr-media-publish-${process.pid}`
 let sha
+let added = false
 try {
+  // Only a missing branch (ls-remote exit 2) starts a new history; any other failure stops here.
   let exists = true
   try {
-    git(repo, 'fetch', '--quiet', 'origin', `+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}`)
-  } catch {
+    git(repo, 'ls-remote', '--exit-code', '--heads', 'origin', BRANCH)
+  } catch (error) {
+    if (error.status !== 2) throw error
     exists = false
   }
   if (exists) {
+    git(repo, 'fetch', '--quiet', 'origin', `+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}`)
     git(repo, 'worktree', 'add', '--quiet', '--detach', work, `origin/${BRANCH}`)
+    added = true
   } else {
     git(repo, 'worktree', 'add', '--quiet', '--detach', work)
+    added = true
     git(work, 'switch', '--quiet', '--orphan', scratchBranch)
     writeFileSync(
       path.join(work, 'README.md'),
@@ -87,14 +93,15 @@ try {
   git(work, 'push', '--quiet', 'origin', `HEAD:refs/heads/${BRANCH}`)
   sha = git(work, 'rev-parse', 'HEAD')
 } finally {
-  git(repo, 'worktree', 'remove', '--force', work)
+  if (added) git(repo, 'worktree', 'remove', '--force', work)
+  else rmSync(work, { recursive: true, force: true })
   try {
     git(repo, 'branch', '-D', scratchBranch)
   } catch {}
 }
 
 // ---- the comment -----------------------------------------------------------------------------
-const url = (side, file) => `https://github.com/${slug}/blob/${sha}/pr-${pr}/${side}/${file}?raw=true`
+const url = (side, file) => `https://github.com/${slug}/blob/${sha}/pr-${pr}/${side}/${encodeURIComponent(file)}?raw=true`
 const img = (side, file) => `<img src="${url(side, file)}" width="260">`
 const label = (file) => `<b>${file.replace(/\.(png|gif)$/, '')}</b>${file.endsWith('.gif') ? ' (GIF)' : ''}`
 
