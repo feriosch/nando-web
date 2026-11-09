@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, Weight } from 'lucide-react'
+import { Weight } from 'lucide-react'
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import { useToday } from '../today'
+import { CardHeader, CardLink, cardClasses } from '../ui/HomeCard'
 import { lucideProps } from '../ui/icons'
 import type { Body } from './body'
 import { formatWeekShort } from './weeks'
@@ -19,12 +20,10 @@ export function BodyCard() {
   const { today } = useToday()
 
   return (
-    <div className="relative rounded-[22px] bg-surface p-[18px] shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-opacity has-[[data-card-link]:active]:opacity-70">
-      <div className="flex items-center gap-2 text-sub">
-        <Weight {...lucideProps} />
-        <h2 className="my-0 text-[15px] font-semibold text-sub">Body</h2>
-        {body.data && <ChevronRight {...lucideProps} className="ml-auto" />}
-      </div>
+    <div className={`${cardClasses} bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04)]`}>
+      <CardHeader icon={<Weight {...lucideProps} />} chevron={body.data !== undefined}>
+        Body
+      </CardHeader>
       {body.isError && (
         // Above the card's link, which stays while a reload of loaded data fails.
         <div className="relative z-10">
@@ -50,7 +49,7 @@ export function BodyCard() {
             )}
             {body.data.change !== null && <span>{signed(body.data.change)} kg vs the week before</span>}
           </Details>
-          <CardLink>
+          <CardLink to="/weigh-ins">
             <span className="sr-only">Weigh-ins</span>
           </CardLink>
         </>
@@ -59,7 +58,9 @@ export function BodyCard() {
         <>
           <p className="mt-2 mb-0 text-[17px]">No Weigh-ins yet.</p>
           <p className="mt-1 mb-0 text-[15px]">
-            <CardLink className="text-accent no-underline">Log a Weigh-in</CardLink>
+            <CardLink to="/weigh-ins" className="text-accent no-underline">
+              Log a Weigh-in
+            </CardLink>
           </p>
         </>
       )}
@@ -79,20 +80,6 @@ function Details({ children }: { children: ReactNode[] }) {
         </Fragment>
       ))}
     </p>
-  )
-}
-
-// The link to Weigh-ins, stretched over the whole card so a tap anywhere on it opens Weigh-ins.
-function CardLink({ className = '', children }: { className?: string; children: ReactNode }) {
-  return (
-    <Link
-      to="/weigh-ins"
-      viewTransition
-      data-card-link
-      className={`outline-none after:absolute after:inset-0 after:rounded-[22px] focus-visible:after:outline-2 focus-visible:after:outline-accent ${className}`}
-    >
-      {children}
-    </Link>
   )
 }
 

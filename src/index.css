@@ -74,6 +74,13 @@
   --warn-bar: #ff7b6b;
 }
 
+/* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
+.on-board {
+  --ink: var(--board-ink);
+  --sub: var(--board-sub);
+  --fill: var(--board-track);
+}
+
 @theme {
   --font-sans: var(--body-font);
 }

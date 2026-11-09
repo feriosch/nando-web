@@ -1,7 +1,8 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router'
-import { addDays, formatDayAs, mondayOf } from '../../core/days'
+import { formatWeekShort, weekBefore } from '../../core/body/weeks'
+import { addDays, mondayOf } from '../../core/days'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
@@ -109,9 +110,8 @@ function Week({ monday, today, days }: { monday: string; today: string; days: Da
 function weekName(monday: string, today: string): string {
   const thisWeek = mondayOf(today)
   if (monday === thisWeek) return 'This week'
-  if (monday === addDays(thisWeek, -7)) return 'Last week'
-  const otherYear = monday.slice(0, 4) !== today.slice(0, 4)
-  return `Week of ${formatDayAs(monday, { day: 'numeric', month: 'short', ...(otherYear && { year: 'numeric' }) })}`
+  if (monday === weekBefore(thisWeek)) return 'Last week'
+  return `Week of ${formatWeekShort(monday, today)}`
 }
 
 // Such as "Mon 9 Nov: 1,620 / 2,000 kcal" over a bar of how much of the Daily Limit it used, or
@@ -132,7 +132,7 @@ function DayLine({ day }: { day: DaySummary }) {
       {consumedCalories !== null && dailyLimit !== null && (
         <Bar
           used={usedOf(consumedCalories, dailyLimit)}
-          over={consumedCalories > dailyLimit}
+          over={day.overLimit === true}
           className="mt-1.5 h-1 bg-fill"
           fill="bg-accent"
         />

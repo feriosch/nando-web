@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight } from 'lucide-react'
-import { Link } from 'react-router'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
-import { lucideProps } from '../../core/ui/icons'
+import { CardHeader, CardLink, cardClasses } from '../../core/ui/HomeCard'
 import { boardClasses, Figures } from './Board'
 import type { DaySummary } from './calories'
 import { BowlIcon } from './icon'
@@ -22,14 +20,8 @@ export function CaloriesCard() {
   })
 
   return (
-    <div
-      className={`relative rounded-[22px] p-[18px] transition-opacity has-[[data-card-link]:active]:opacity-70 ${boardClasses}`}
-    >
-      <div className="flex items-center gap-2 text-board-sub">
-        <BowlIcon />
-        <h2 className="my-0 text-[15px] font-semibold text-board-sub">Calories</h2>
-        <ChevronRight {...lucideProps} className="ml-auto" />
-      </div>
+    <div className={`${cardClasses} ${boardClasses}`}>
+      <CardHeader icon={<BowlIcon />}>Calories</CardHeader>
       {(settings.isError || card.isError) && (
         // Above the card's link.
         <div className="relative z-10">
@@ -47,15 +39,9 @@ export function CaloriesCard() {
           <Figures view={card.data} unlogged="Nothing logged today yet." />
         </div>
       )}
-      {/* Stretched over the whole card, so a tap anywhere on it opens the Day view. */}
-      <Link
-        to="/calories"
-        viewTransition
-        data-card-link
-        className="outline-none after:absolute after:inset-0 after:rounded-[22px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
-      >
+      <CardLink to="/calories">
         <span className="sr-only">Today</span>
-      </Link>
+      </CardLink>
     </div>
   )
 }

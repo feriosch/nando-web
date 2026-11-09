@@ -1127,11 +1127,16 @@ describe('History', () => {
     await findHistoryDays()
     await user.click(screen.getByRole('button', { name: 'Show older' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the history.")
+    // Said at the bottom, where older Days were asked for, in place of "Show older".
+    const lists = screen.getAllByRole('list')
+    expect(lists.at(-1)!.compareDocumentPosition(screen.getByRole('alert')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Show older' })).not.toBeInTheDocument()
     failOlder = false
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect((await findHistoryDays(60))[39]).toHaveTextContent('Thu 1 Oct: 1,900 / 2,200 kcal')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show older' })).toBeInTheDocument()
   })
 })
 

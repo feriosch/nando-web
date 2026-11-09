@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react'
 import { kcal, usedOf, type DaySummary } from './calories'
 
-// The walnut board's look: the board colour, its ink, rounded and lifted off the screen. Inside it the
-// theme's sub, ink and fill read the board's own, so the blocks a board holds (such as `LoadProblem`)
-// stay legible on it.
-export const boardClasses =
-  'bg-board text-board-ink shadow-[0_2px_8px_rgb(0_0_0/0.12)] [--fill:var(--board-track)] [--ink:var(--board-ink)] [--sub:var(--board-sub)]'
+// The walnut board's look: the board colour and its ink, lifted off the screen. `on-board`
+// (src/index.css) has the theme's ink, sub and fill read the board's own inside it.
+export const boardClasses = 'on-board bg-board text-board-ink shadow-[0_2px_8px_rgb(0_0_0/0.12)]'
 
 // The Day view's summary card, on the walnut board.
 export function Board({ view }: { view: DaySummary }) {
@@ -28,19 +26,27 @@ export function Figures({ view, unlogged }: { view: DaySummary; unlogged: ReactN
       </>
     )
   }
-  return <Logged consumedCalories={view.consumedCalories} dailyLimit={view.dailyLimit} remaining={view.remaining} />
+  return (
+    <Logged
+      consumedCalories={view.consumedCalories}
+      dailyLimit={view.dailyLimit}
+      remaining={view.remaining}
+      over={view.overLimit === true}
+    />
+  )
 }
 
 function Logged({
   consumedCalories,
   dailyLimit,
   remaining,
+  over,
 }: {
   consumedCalories: number
   dailyLimit: number | null
   remaining: number | null
+  over: boolean
 }) {
-  const over = remaining !== null && remaining < 0
   return (
     <>
       <p className="my-0 flex items-baseline gap-1.5">
@@ -57,7 +63,7 @@ function Logged({
       )}
       {remaining !== null && (
         <p className={`mt-2 mb-0 text-[15px] ${over ? 'text-warn-bar' : 'text-board-sub'}`}>
-          {over ? `${kcal(-remaining)} kcal over the Daily Limit` : `${kcal(remaining)} kcal left`}
+          {remaining < 0 ? `${kcal(-remaining)} kcal over the Daily Limit` : `${kcal(remaining)} kcal left`}
         </p>
       )}
     </>
