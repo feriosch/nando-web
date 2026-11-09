@@ -48,16 +48,26 @@ jobs:
       # Compares the index.html web.<domain> serves with this image's. Its
       # hashed asset names change with every build, so this fails on Cloud
       # Run's placeholder (which answers 200 on any path) and on an older
-      # revision. Retries while the domain mapping picks up the new revision.
+      # revision. Retries for about a minute while the domain mapping picks up
+      # the new revision.
       - name: smoke check
         run: |
           docker run --rm --entrypoint cat "$IMAGE" /usr/share/nginx/html/index.html > built.html
-          for attempt in 1 2 3 4 5; do
-            if curl -fsS -o served.html "$WEB_ORIGIN/" && cmp -s built.html served.html; then
+          for attempt in $(seq 12); do
+            if curl -fsS --max-time 10 -o served.html "$WEB_ORIGIN/" && cmp -s built.html served.html; then
               echo "$WEB_ORIGIN serves this build"
               exit 0
             fi
             sleep 5
           done
           echo "$WEB_ORIGIN did not serve this build's index.html" >&2
+          # Asset names tell an older build from this one; no assets at all
+          # means the placeholder or an error page, so show its first bytes.
+          echo "Expected: $(grep -o 'assets/[^"]*' built.html | tr '\n' ' ')" >&2
+          if served="$(grep -o 'assets/[^"]*' served.html 2>/dev/null)"; then
+            echo "Served:   $(echo "$served" | tr '\n' ' ')" >&2
+          else
+            echo "Served (first 300 bytes):" >&2
+            head -c 300 served.html >&2 2>/dev/null || echo "(no response)" >&2
+          fi
           exit 1
