@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import type { RouteObject } from 'react-router'
 
-// A small summary shown on Home.
+// A small summary shown on Home. It draws its own card, in the theme of whoever contributed it.
 export type HomeCard = {
   id: string
   Component: ComponentType

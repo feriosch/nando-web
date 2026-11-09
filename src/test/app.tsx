@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { createApiClient } from '../core/api/client'
 import { core } from '../core/core'
@@ -91,18 +92,24 @@ export function fakePush({
 // A browser that can't receive Notifications, so screens that don't test them leave them alone.
 export const noPush = fakePush({ supported: false }).push
 
+// `app` wrapped as main.tsx wraps it: Core's services, and a new query cache that doesn't retry.
+export function withProviders(
+  app: ReactNode,
+  { api, passkeys = noPasskeys, push = noPush }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push },
+) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return (
+    <CoreProvider api={api} passkeys={passkeys} push={push}>
+      <QueryClientProvider client={queryClient}>{app}</QueryClientProvider>
+    </CoreProvider>
+  )
+}
+
 // The whole app as main.tsx builds it, with Core's real Home Cards, Settings Sections and screens
 // and the given Modules (none by default), opened at `path`.
 export function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], push: Push = noPush, modules: Module[] = []) {
   const registry: Registry = { core, modules }
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
-    <CoreProvider api={api} passkeys={noPasskeys} push={push}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CoreProvider>,
-  )
+  render(withProviders(<RouterProvider router={router} />, { api, push }))
   return router
 }

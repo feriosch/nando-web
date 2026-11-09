@@ -9,7 +9,17 @@ async function bodyCard() {
   return heading.closest('article') as HTMLElement
 }
 
+const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
+
 describe('Body Home Card', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-09T03:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('shows the latest Weigh-in with its week, its BMI and the change since the week before', async () => {
     const { api } = fakeApi({
       'GET /api/body': { status: 200, body: { latest: { week: '2026-10-19', kg: 72.4 }, bmi: 23.6, change: -0.4 } },
@@ -19,9 +29,20 @@ describe('Body Home Card', () => {
     const card = await bodyCard()
     expect(await within(card).findByText('72.4 kg')).toBeInTheDocument()
     // It can be weeks old, so the card says which week it is from.
-    expect(within(card).getByText('Week of 19 Oct 2026')).toBeInTheDocument()
+    expect(within(card).getByText('Week of 19 Oct')).toBeInTheDocument()
     expect(within(card).getByText('BMI 23.6')).toBeInTheDocument()
     expect(within(card).getByText('−0.4 kg vs the week before')).toBeInTheDocument()
+  })
+
+  it('names the year of a latest Weigh-in from an earlier year in the Owner Time Zone', async () => {
+    const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
+      'GET /api/body': { status: 200, body: { latest: { week: '2025-12-29', kg: 74.0 }, bmi: 24.2, change: null } },
+    })
+    renderApp('/', api)
+
+    const card = await bodyCard()
+    expect(await within(card).findByText('Week of 29 Dec 2025')).toBeInTheDocument()
   })
 
   it('says there are no Weigh-ins yet, and its link opens the Weigh-ins screen', async () => {
@@ -73,8 +94,6 @@ describe('Body Home Card', () => {
     expect(router.state.location.pathname).toBe('/settings')
   })
 })
-
-const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
 
 // The Weigh-in form for one week on the Weigh-ins screen, found by its name ("This week", "Last week").
 async function weekForm(name: string) {
@@ -146,10 +165,15 @@ describe('Weigh-ins', () => {
     ])
     const history = screen.getByRole('list', { name: 'History' })
     await waitFor(() =>
-      expect(within(history).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-        'Week of 2 Nov 2026: 72.6 kg',
-        'Week of 26 Oct 2026: 73.1 kg',
-        'Week of 19 Oct 2026: 73.5 kg',
+      // Each row: the week on the left, its weight on the right.
+      expect(
+        within(history)
+          .getAllByRole('listitem')
+          .map((item) => Array.from(item.children, (part) => part.textContent)),
+      ).toEqual([
+        ['Week of 2 Nov 2026', '72.6 kg'],
+        ['Week of 26 Oct 2026', '73.1 kg'],
+        ['Week of 19 Oct 2026', '73.5 kg'],
       ]),
     )
     expect(within(history).queryByRole('textbox')).not.toBeInTheDocument()
@@ -313,6 +337,19 @@ describe('Weigh-ins', () => {
 
     expect(await within(thisWeek).findByRole('alert')).toBeInTheDocument()
     expect(within(thisWeek).queryByText('Saved.')).not.toBeInTheDocument()
+  })
+
+  it('says there are no Weigh-ins yet under History when there are none', async () => {
+    const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
+      'GET /api/weigh-ins': { status: 200, body: [] },
+    })
+    renderApp('/weigh-ins', api)
+
+    await weekForm('This week')
+    expect(screen.getByRole('heading', { name: 'History' })).toBeInTheDocument()
+    expect(screen.getByText('No Weigh-ins yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'History' })).not.toBeInTheDocument()
   })
 
   it.each(['72.45', '0', '501', 'heavy'])("doesn't send %s kg, and says what a weight must be", async (typed) => {

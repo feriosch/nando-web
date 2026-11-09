@@ -4,10 +4,9 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { useEffect } from 'react'
 import { describe, expect, it } from 'vitest'
 import { createApiClient } from '../api/client'
-import { CoreProvider } from '../CoreProvider'
 import { useApi } from '../services'
 import type { Registry } from '../module'
-import { noPush } from '../../test/app'
+import { withProviders } from '../../test/app'
 import { createRoutes } from '../shell/routes'
 import type { Passkeys } from './passkeys'
 
@@ -91,11 +90,7 @@ function TodaysEntries() {
 
 function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], passkeys: Passkeys) {
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
-  render(
-    <CoreProvider api={api} passkeys={passkeys} push={noPush}>
-      <RouterProvider router={router} />
-    </CoreProvider>,
-  )
+  render(withProviders(<RouterProvider router={router} />, { api, passkeys }))
   return router
 }
 
@@ -114,7 +109,12 @@ describe('Sign in', () => {
     expect(await screen.findByText('Latest Weigh-in: 72 kg')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
     expect(asked).toEqual([requestOptions])
-    expect(sent.at(-1)).toEqual({ method: 'POST', path: '/auth/signin/finish', body: assertion })
+    // Home then loads what it shows; the last sign-in request is the one that finished it.
+    expect(sent.filter((request) => request.path.startsWith('/auth/')).at(-1)).toEqual({
+      method: 'POST',
+      path: '/auth/signin/finish',
+      body: assertion,
+    })
   })
 
   it("doesn't ask for a Passkey until the Owner taps, since WebAuthn must start from a tap", async () => {
@@ -210,7 +210,11 @@ describe('Enrollment', () => {
     expect(router.state.location.pathname).toBe('/')
     expect(sent[0]).toEqual({ method: 'POST', path: '/auth/register/begin', body: { code: 'BY95P-1SQMF' } })
     expect(asked).toEqual([creationOptions])
-    expect(sent.at(-1)).toEqual({ method: 'POST', path: '/auth/register/finish', body: attestation })
+    expect(sent.filter((request) => request.path.startsWith('/auth/')).at(-1)).toEqual({
+      method: 'POST',
+      path: '/auth/register/finish',
+      body: attestation,
+    })
   })
 
   it("says the Enrollment Code didn't work when it is unknown, used or expired, without asking for Face ID", async () => {

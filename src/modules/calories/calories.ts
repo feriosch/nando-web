@@ -1,3 +1,5 @@
+import { formatDayAs } from '../../core/days'
+
 // How a Day stands against its Daily Limit, as the Calories API describes every Day. An Unlogged Day
 // has `consumedCalories`, `remaining` and `overLimit` null: it is not recorded, never 0 kcal.
 export type DaySummary = {
@@ -36,9 +38,7 @@ export function consumedAgainstLimit(consumedCalories: number, dailyLimit: numbe
 
 // `day` for the Owner to read, such as "Mon 9 Nov".
 export function formatDay(day: string): string {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).format(
-    new Date(`${day}T00:00:00Z`),
-  )
+  return formatDayAs(day, { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 // A Meal: something the Owner eats repeatedly, saved by name with its kcal per serving.
