@@ -1,0 +1,35 @@
+# PR checks: the same commands as README's Test section, then the production
+# build inside the image main will deploy.
+name: PR checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: typecheck, lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # The Dockerfile's Bun, so CI checks what the image builds with.
+          bun-version: 1.2.13
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      # Vitest (package.json's test script), not Bun's own runner.
+      - run: bun run test
+
+  image:
+    name: build image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Runs `bun run build` (tsc -b && vite build) as main's image does, and
+      # catches a broken Dockerfile or nginx template before merge. The API
+      # origin is a placeholder: the build only needs one to be set.
+      - run: docker build --build-arg VITE_API_BASE_URL=https://api.example.com .
