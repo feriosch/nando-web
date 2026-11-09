@@ -29,7 +29,7 @@ A **theme** is a palette plus a display font, applied by a class on a container 
 | accent-ink | `text-accent-ink` | text on accent |
 | display font | `font-display` | large titles and other display text |
 
-Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the summary card), `bar-fill` and `warn-bar` (over the Daily Limit). Body text is always `font-sans`, the system font.
+Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the walnut board: the Day view's summary and the Home Card), `bar-fill` and `warn-bar` (over the Daily Limit). On the board, `on-board` has `ink`, `sub` and `fill` read the board's own, so blocks such as `LoadProblem` and `CardHeader` stay legible there. Body text is always `font-sans`, the system font.
 
 Themes today: **Paper** (`theme-paper`, Core) and **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font).
 
@@ -50,6 +50,7 @@ All in `src/core/ui/`:
 - `SectionHeader`: 13px uppercase in `sub`; an `h2`. `tone="accent"` and an `icon` for a Module's Settings Section.
 - `GroupedList` + `ListRow`: surface, 14px corners, 0.5px separators, rows at least 52px, optional `footer`. The 16px side margins are the screen's own padding (the shell's `<main>`). Inside a `Sheet`, which is on the surface itself, its rows are on `bg`.
 - `FieldRow` (`FieldRow.tsx`): a text field as a `ListRow`, its label on the left and the field right-aligned, filling the rest. A form's fields are a `GroupedList` of these; `lang="ja"` on one that takes Japanese.
+- `CardHeader`, `CardLink` and `cardClasses` (`HomeCard.tsx`): a Home Card's frame (22px corners, dimmed while pressed; add the card's own colours), its header row (icon, title as an `h2`, chevron) in `sub`, and the link stretched over the whole card. Whatever else in the card must stay tappable sits above the link with `relative z-10`.
 - `Notice` and `EmptyNote` (`Notice.tsx`): a note about the whole screen in a box on `fill` (`role="alert"` for a problem), and the line in `sub` that stands in for an empty list or something that isn't there.
 - `Sheet`: React Aria `Modal` sliding up over a scrim, 22px top corners, grab handle, `title` as its heading. `role="alertdialog"` for one that asks before going on or says what went wrong. A sheet opened over another stacks on top of it. `useLastShown` (`useLastShown.ts`) keeps a sheet's content while it slides away after its value is gone.
 - `Button`: pill, `variant="accent"` for the one main action, `quiet` (fill) for the rest; `size="large"` is full width and 50px tall, for the action that ends a screen or sheet.

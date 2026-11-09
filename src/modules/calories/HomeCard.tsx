@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
+import { CardHeader, CardLink, cardClasses } from '../../core/ui/HomeCard'
+import { boardClasses, Figures } from './Board'
 import type { DaySummary } from './calories'
-import { Summary } from './Summary'
+import { BowlIcon } from './icon'
 
-// The Calories Home Card: today's Consumed Calories against the Daily Limit.
+// The Calories Home Card, on the walnut board: today's Consumed Calories against the Daily Limit.
+// The whole card opens today in the Day view.
 export function CaloriesCard() {
   const api = useApi()
   // Keyed by today so a Home screen left open moves on to the new Day at midnight.
@@ -17,23 +19,29 @@ export function CaloriesCard() {
     enabled: today !== undefined,
   })
 
-  // A plain card until the Calories Home Card gets its own look.
   return (
-    <div className="rounded-[14px] bg-surface px-4 py-1 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
-      <h2>Calories</h2>
+    <div className={`${cardClasses} ${boardClasses}`}>
+      <CardHeader icon={<BowlIcon />}>Calories</CardHeader>
       {(settings.isError || card.isError) && (
-        <LoadProblem
-          message="Couldn't load today's Calories."
-          retry={() => {
-            if (settings.isError) settings.refetch()
-            if (card.isError) card.refetch()
-          }}
-        />
+        // Above the card's link.
+        <div className="relative z-10">
+          <LoadProblem
+            message="Couldn't load today's Calories."
+            retry={() => {
+              if (settings.isError) settings.refetch()
+              if (card.isError) card.refetch()
+            }}
+          />
+        </div>
       )}
-      {card.data && <Summary view={card.data} />}
-      <p>
-        <Link to="/calories">Today</Link>
-      </p>
+      {card.data && (
+        <div className="mt-3">
+          <Figures view={card.data} unlogged="Nothing logged today yet." />
+        </div>
+      )}
+      <CardLink to="/calories">
+        <span className="sr-only">Today</span>
+      </CardLink>
     </div>
   )
 }

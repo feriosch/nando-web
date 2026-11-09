@@ -1,13 +1,10 @@
-import { addDays, dayOf, formatDayAs } from '../days'
+import { addDays, dayOf, formatDayAs, mondayOf } from '../days'
 
 // A week is named by the Monday it starts on, as YYYY-MM-DD.
 
 // The Monday of the week `now` falls in, in `timeZone`.
 export function weekOf(now: Date, timeZone: string): string {
-  const today = dayOf(now, timeZone)
-  const date = new Date(`${today}T00:00:00Z`)
-  const daysSinceMonday = (date.getUTCDay() + 6) % 7
-  return addDays(today, -daysSinceMonday)
+  return mondayOf(dayOf(now, timeZone))
 }
 
 // The week before `week`.

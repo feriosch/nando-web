@@ -36,6 +36,11 @@ export function consumedAgainstLimit(consumedCalories: number, dailyLimit: numbe
   return dailyLimit === null ? `${kcal(consumedCalories)} kcal` : `${kcal(consumedCalories)} / ${kcal(dailyLimit)} kcal`
 }
 
+// How much of the Daily Limit a Day used, from 0 to 1: 1 once it is all used, and 1 when the limit is 0.
+export function usedOf(consumedCalories: number, dailyLimit: number): number {
+  return dailyLimit === 0 ? 1 : Math.min(consumedCalories / dailyLimit, 1)
+}
+
 // `day` for the Owner to read, such as "Mon 9 Nov".
 export function formatDay(day: string): string {
   return formatDayAs(day, { weekday: 'short', day: 'numeric', month: 'short' })
