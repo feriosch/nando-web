@@ -1,21 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { addDays, dayOf, isDay } from '../../core/days'
-import { useNow } from '../../core/now'
+import { addDays, isDay } from '../../core/days'
 import { ApiError } from '../../core/api/client'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
-import type { CoreSettings } from '../../core/settings/settings'
+import { useToday } from '../../core/today'
 import './calories.css'
+import { Summary } from './Summary'
 import { formatDay, kcal, parseWhole, type DaySummary, type DayView, type Entry, type Meal, type NewEntry } from './calories'
 
 // The Day view: a Day's Entries and how it stands against its Daily Limit.
 export function Day() {
   const api = useApi()
-  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
-  const [now] = useNow()
-  const today = settings.data ? dayOf(now, settings.data.timeZone) : undefined
+  const { today, settings } = useToday()
   // Today unless the address names another Day, as the picker (or the history) does.
   const [searchParams, setSearchParams] = useSearchParams()
   const asked = searchParams.get('day')
@@ -57,6 +55,9 @@ export function Day() {
         />
       )}
       {view.data && (editable ? <EditableDay key={view.data.day} view={view.data} /> : <ReadOnlyDay view={view.data} />)}
+      <p>
+        <Link to="history">History</Link>
+      </p>
       <p>
         <Link to="meals">Meals</Link>
       </p>
@@ -321,22 +322,6 @@ function ServingsStepper({ servings, onChange }: { servings: number; onChange: (
         +
       </button>
     </span>
-  )
-}
-
-function Summary({ view }: { view: DayView }) {
-  if (view.consumedCalories === null) return <p>Nothing logged.</p>
-  return (
-    <>
-      <p>
-        {view.dailyLimit === null
-          ? `${kcal(view.consumedCalories)} kcal`
-          : `${kcal(view.consumedCalories)} / ${kcal(view.dailyLimit)} kcal`}
-      </p>
-      {view.remaining !== null && (
-        <p>{view.remaining < 0 ? `${kcal(-view.remaining)} kcal over` : `${kcal(view.remaining)} kcal left`}</p>
-      )}
-    </>
   )
 }
 

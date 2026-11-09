@@ -28,6 +28,12 @@ export function kcal(n: number): string {
   return new Intl.NumberFormat('en-US').format(n)
 }
 
+// A logged Day's Consumed Calories against its Daily Limit, such as "1,800 / 2,000 kcal", or just
+// "1,800 kcal" without one.
+export function consumedAgainstLimit(consumedCalories: number, dailyLimit: number | null): string {
+  return dailyLimit === null ? `${kcal(consumedCalories)} kcal` : `${kcal(consumedCalories)} / ${kcal(dailyLimit)} kcal`
+}
+
 // `day` for the Owner to read, such as "Mon 9 Nov".
 export function formatDay(day: string): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }).format(
