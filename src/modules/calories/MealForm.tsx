@@ -75,6 +75,8 @@ function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (va
 
   function submit(event: FormEvent) {
     event.preventDefault()
+    // One save at a time: a second tap on Save while one is under way does nothing.
+    if (mutation.isPending) return
     const name = fields.name.trim()
     const kcal = parseWhole(fields.kcal, 0, 10_000)
     if (name.length === 0 || kcal === null) {
@@ -128,7 +130,9 @@ function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (va
         <input type="checkbox" checked={fields.pinned} onChange={(event) => setFields({ ...fields, pinned: event.target.checked })} />
         Pinned
       </label>
-      <button type="submit">Save</button>
+      <button type="submit" disabled={mutation.isPending}>
+        Save
+      </button>
       {meal && !meal.archived && (
         <button type="button" onClick={() => archive.mutate()}>
           Archive

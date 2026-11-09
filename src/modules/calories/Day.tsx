@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { addDays, dayOf } from '../../core/days'
+import { addDays, dayOf, isDay } from '../../core/days'
 import { useNow } from '../../core/now'
 import { ApiError } from '../../core/api/client'
 import { useApi } from '../../core/services'
@@ -14,12 +14,12 @@ import { formatDay, kcal, parseWhole, type DaySummary, type DayView, type Entry,
 export function Day() {
   const api = useApi()
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
-  const now = useNow()
+  const [now] = useNow()
   const today = settings.data ? dayOf(now, settings.data.timeZone) : undefined
   // Today unless the address names another Day, as the picker (or the history) does.
   const [searchParams, setSearchParams] = useSearchParams()
   const asked = searchParams.get('day')
-  const day = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : today
+  const day = asked && isDay(asked) ? asked : today
   const editableFrom = today && addDays(today, -7)
   const editable = day !== undefined && today !== undefined && day >= editableFrom! && day <= today
   const view = useQuery({
@@ -46,7 +46,7 @@ export function Day() {
           />
         </label>
       )}
-      {day && today && !editable && <p>This Day can no longer be changed.</p>}
+      {day && today && !editable && <p>{day > today ? 'This Day hasn’t started yet.' : 'This Day can no longer be changed.'}</p>}
       {(settings.isError || view.isError) && (
         <LoadProblem
           message="Couldn't load the Day."
@@ -56,7 +56,7 @@ export function Day() {
           }}
         />
       )}
-      {view.data && (editable ? <EditableDay view={view.data} /> : <ReadOnlyDay view={view.data} />)}
+      {view.data && (editable ? <EditableDay key={view.data.day} view={view.data} /> : <ReadOnlyDay view={view.data} />)}
       <p>
         <Link to="meals">Meals</Link>
       </p>
@@ -85,8 +85,7 @@ function EditableDay({ view }: { view: DayView }) {
   const [editing, setEditing] = useState<string | null>(null)
   return (
     <>
-      {guard.warning}
-      {guard.problem && <p role="alert">{guard.problem}</p>}
+      {guard.sheet}
       <Summary view={view} />
       <h2 id="calories-entries">Entries</h2>
       <ul aria-labelledby="calories-entries">
@@ -150,7 +149,7 @@ function EditEntryForm({ entry, guard, done }: { entry: Entry; guard: Guard; don
       return
     }
     setProblem(null)
-    guard.check(parsed.kcalPerServing * parsed.servings, () => save.mutate(parsed), { replacing: entry.id })
+    guard.check(parsed.kcalPerServing * parsed.servings, () => save.mutateAsync(parsed), { replacing: entry.id })
   }
 
   return (
@@ -183,19 +182,36 @@ function useLog(day: string, guard: Guard) {
 }
 
 // Asks the server what an Entry of `kcal` (or, with `replacing`, that Entry changed to `kcal`)
-// would make of `day`, and goes ahead only if that stays within the Daily Limit. Otherwise
-// `warning` asks the Owner first. A log or change that fails says why in `problem`.
+// would make of `day`, and goes ahead only if that stays within the Daily Limit. Otherwise it asks
+// the Owner first. One log or change at a time: a second tap while one is under way does nothing.
+// `sheet`, kept in view at the bottom of the screen, asks before going over and says why a log or
+// change failed.
 function useGuard(day: string) {
   const api = useApi()
+  const busy = useRef(false)
   const [problem, setProblem] = useState<string | null>(null)
   const fail = (error: unknown, failed: string) => {
     // The Day left the Editable Window while the screen was open.
     const outside = error instanceof ApiError && error.status === 409
     setProblem(outside ? 'That Day can no longer be changed. Only today and the 7 Days before it can.' : failed)
   }
-  const [pending, setPending] = useState<{ after: DaySummary; proceed: () => void; replacing?: string } | null>(null)
+  type Proceed = () => Promise<unknown>
+  const [pending, setPending] = useState<{ after: DaySummary; proceed: Proceed; replacing?: string } | null>(null)
 
-  async function check(entryKcal: number, proceed: () => void, { replacing }: { replacing?: string } = {}) {
+  // Runs `proceed`, whose own failure is reported by its mutation, then takes the next tap.
+  async function run(proceed: Proceed) {
+    try {
+      await proceed()
+    } catch {
+      // Already said in `problem`.
+    } finally {
+      busy.current = false
+    }
+  }
+
+  async function check(entryKcal: number, proceed: Proceed, { replacing }: { replacing?: string } = {}) {
+    if (busy.current) return
+    busy.current = true
     const query = new URLSearchParams({ kcal: String(entryKcal) })
     if (replacing) query.set('replacing', replacing)
     setProblem(null)
@@ -204,10 +220,12 @@ function useGuard(day: string) {
       after = await api.get<DaySummary>(`/api/calories/days/${day}/preview?${query}`)
     } catch (error) {
       fail(error, replacing ? "Couldn't change the Entry." : "Couldn't log the Entry.")
+      busy.current = false
       return
     }
+    // Still busy while the Owner is asked.
     if (after.overLimit) setPending({ after, proceed, replacing })
-    else proceed()
+    else await run(proceed)
   }
 
   const warning = pending && (
@@ -218,19 +236,36 @@ function useGuard(day: string) {
       <button
         type="button"
         onClick={() => {
-          pending.proceed()
           setPending(null)
+          run(pending.proceed)
         }}
       >
         {pending.replacing ? 'Save anyway' : 'Log anyway'}
       </button>
-      <button type="button" onClick={() => setPending(null)}>
+      <button
+        type="button"
+        onClick={() => {
+          setPending(null)
+          busy.current = false
+        }}
+      >
         Cancel
       </button>
     </div>
   )
 
-  return { check, warning, problem, fail }
+  const sheet =
+    warning ||
+    (problem && (
+      <div className="calories-sheet">
+        <p role="alert">{problem}</p>
+        <button type="button" onClick={() => setProblem(null)}>
+          OK
+        </button>
+      </div>
+    ))
+
+  return { check, sheet, fail }
 }
 
 type Guard = ReturnType<typeof useGuard>
@@ -251,7 +286,7 @@ function QuickList({ day, guard }: { day: string; guard: Guard }) {
             key={meal.id}
             meal={meal}
             log={(servings, done) =>
-              guard.check(meal.kcal * servings, () => log.mutate({ mealId: meal.id, servings }, { onSuccess: done }))
+              guard.check(meal.kcal * servings, () => log.mutateAsync({ mealId: meal.id, servings }).then(done))
             }
           />
         ))}
@@ -324,15 +359,10 @@ function OneOffForm({ day, guard }: { day: string; guard: Guard }) {
     }
     setProblem(null)
     guard.check(parsed.kcalPerServing * parsed.servings, () =>
-      log.mutate(
-        { ...parsed, saveAsMeal },
-        {
-          onSuccess: () => {
-            setFields(emptyFields)
-            setSaveAsMeal(false)
-          },
-        },
-      ),
+      log.mutateAsync({ ...parsed, saveAsMeal }).then(() => {
+        setFields(emptyFields)
+        setSaveAsMeal(false)
+      }),
     )
   }
 

@@ -748,3 +748,55 @@ describe('A new Day', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Today, Tue 10 Nov' })).toBeInTheDocument()
   })
 })
+
+describe('Review fixes', () => {
+  it('logs once when the Owner taps a quick-list Meal twice in a row', async () => {
+    const { sent } = renderCalories('/calories', caloriesServer({ day: '2026-11-09', meals: [nigiri] }))
+
+    // The second tap lands while the first log is still under way.
+    const meal = within(await quickRow('Salmon nigiri')).getByRole('button', { name: /Salmon nigiri/ })
+    fireEvent.click(meal)
+    fireEvent.click(meal)
+
+    expect(await within(screen.getByRole('list', { name: 'Entries' })).findByText(/Salmon nigiri: 45 kcal/)).toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'POST')).toHaveLength(1)
+  })
+
+  it("drops an over-limit warning when the Owner picks another Day, so it can't log there", async () => {
+    const user = userEvent.setup()
+    const today = caloriesServer({
+      day: '2026-11-09',
+      dailyLimit: 2150,
+      entries: [entry({ id: 'e1', day: '2026-11-09', name: 'Katsu curry', kcalPerServing: 2070 })],
+      meals: [onigiri],
+    })
+    const { sent } = renderCalories('/calories', { ...today, ...caloriesServer({ day: '2026-11-08', meals: [onigiri] }) })
+
+    // Yesterday, loaded once already.
+    fireEvent.change(await screen.findByLabelText('Day'), { target: { value: '2026-11-08' } })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sun 8 Nov' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '2026-11-09' } })
+    await screen.findByText('2,070 / 2,150 kcal')
+
+    await user.click(within(await quickRow('Tuna mayo onigiri')).getByRole('button', { name: /Tuna mayo onigiri/ }))
+    await screen.findByRole('alertdialog')
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '2026-11-08' } })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sun 8 Nov' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'POST')).toEqual([])
+  })
+
+  it.each(['2026-13-01', '2026-02-30'])('opens on today when ?day=%s is no real date', async (asked) => {
+    renderCalories(`/calories?day=${asked}`, caloriesServer({ day: '2026-11-09' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Mon 9 Nov' })).toBeInTheDocument()
+  })
+
+  it("says a Day that hasn't started yet can't be changed yet", async () => {
+    renderCalories('/calories?day=2026-11-12', { 'GET /api/calories/days/2026-11-12': { status: 200, body: dayView('2026-11-12', []) } })
+
+    expect(await screen.findByText('This Day hasn’t started yet.')).toBeInTheDocument()
+    expect(screen.queryByText('This Day can no longer be changed.')).not.toBeInTheDocument()
+  })
+})

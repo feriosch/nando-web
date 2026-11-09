@@ -14,3 +14,10 @@ export function addDays(day: string, days: number): string {
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
 }
+
+// Whether `text` is a real date written YYYY-MM-DD, such as 2026-11-09 but not 2026-02-30.
+export function isDay(text: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
+  const date = new Date(`${text}T00:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text
+}
