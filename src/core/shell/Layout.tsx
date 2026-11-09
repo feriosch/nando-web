@@ -26,10 +26,10 @@ export function Layout({ modules }: { modules: Module[] }) {
   )
 }
 
-// Sign-in and enrolment: Core's theme, with no tab bar.
+// Sign-in and enrolment: Core's theme, with no tab bar. A flex column, so a screen can fill it with `flex-1`.
 export function SignedOut({ children }: { children: ReactNode }) {
   return (
-    <ScreenFrame theme={coreTheme} bottom="pb-[env(safe-area-inset-bottom)]">
+    <ScreenFrame theme={coreTheme} bottom="pb-[env(safe-area-inset-bottom)]" className="flex flex-col">
       {children}
     </ScreenFrame>
   )
@@ -37,14 +37,24 @@ export function SignedOut({ children }: { children: ReactNode }) {
 
 // A screen in `theme`, clear of the safe areas, with 16px side margins. <body> takes the same theme,
 // so iOS's rubber-band overscroll shows the screen's own background, and so does the browser's chrome.
-function ScreenFrame({ theme, bottom, children }: { theme: string; bottom: string; children: ReactNode }) {
+function ScreenFrame({
+  theme,
+  bottom,
+  className = '',
+  children,
+}: {
+  theme: string
+  bottom: string
+  className?: string
+  children: ReactNode
+}) {
   const frame = useRef<HTMLDivElement>(null)
   useEffect(() => {
     document.body.className = theme
     syncThemeColor(frame.current)
   }, [theme])
   return (
-    <div ref={frame} data-screen className={`${theme} min-h-dvh bg-bg px-4 pt-[env(safe-area-inset-top)] ${bottom} font-sans text-ink`}>
+    <div ref={frame} data-screen className={`${theme} min-h-dvh bg-bg px-4 pt-[env(safe-area-inset-top)] ${bottom} font-sans text-ink ${className}`}>
       {children}
     </div>
   )
