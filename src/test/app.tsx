@@ -5,7 +5,7 @@ import { createApiClient } from '../core/api/client'
 import { core } from '../core/core'
 import { CoreProvider } from '../core/CoreProvider'
 import type { Passkeys } from '../core/identity/passkeys'
-import type { Registry } from '../core/module'
+import type { Module, Registry } from '../core/module'
 import type { Push, PushSubscriptionJSON } from '../core/notifications/push'
 import { createRoutes } from '../core/shell/routes'
 
@@ -13,16 +13,19 @@ export type Answer = { status: number; body?: unknown }
 export type Sent = { method: string; path: string; body: unknown }
 
 // The API, faked at fetch: each "METHOD /path" answers as given (or as a function of the request's
-// body, read when the request arrives), and every request is recorded.
-export function fakeApi(answers: Record<string, Answer | ((body: unknown) => Answer)>) {
+// body and query, read when the request arrives), and every request is recorded.
+export type Answers = Record<string, Answer | ((body: unknown, query: URLSearchParams) => Answer)>
+
+export function fakeApi(answers: Answers) {
   const sent: Sent[] = []
   const fetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    const path = new URL(String(input)).pathname
+    const url = new URL(String(input))
+    const path = url.pathname
     const method = init.method ?? 'GET'
     const body = init.body === undefined ? undefined : JSON.parse(String(init.body))
     sent.push({ method, path, body })
     const answer = answers[`${method} ${path}`] ?? { status: 404 }
-    const { status, body: answerBody } = typeof answer === 'function' ? answer(body) : answer
+    const { status, body: answerBody } = typeof answer === 'function' ? answer(body, url.searchParams) : answer
     if (answerBody === undefined) {
       return new Response(null, { status })
     }
@@ -89,9 +92,9 @@ export function fakePush({
 export const noPush = fakePush({ supported: false }).push
 
 // The whole app as main.tsx builds it, with Core's real Home Cards, Settings Sections and screens
-// and no Modules, opened at `path`.
-export function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], push: Push = noPush) {
-  const registry: Registry = { core, modules: [] }
+// and the given Modules (none by default), opened at `path`.
+export function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], push: Push = noPush, modules: Module[] = []) {
+  const registry: Registry = { core, modules }
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(

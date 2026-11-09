@@ -54,6 +54,18 @@ describe('API client', () => {
     await expect(api.post('/core/sign-out', {})).resolves.toBeUndefined()
   })
 
+  it('DELETEs with the session cookie and no body', async () => {
+    const { fetch, calls } = fakeFetch(() => new Response(null, { status: 204 }))
+    const api = createApiClient({ baseUrl: 'https://api.example.com', fetch })
+
+    await expect(api.delete('/api/calories/entries/e1')).resolves.toBeUndefined()
+
+    expect(calls[0].url).toBe('https://api.example.com/api/calories/entries/e1')
+    expect(calls[0].init.method).toBe('DELETE')
+    expect(calls[0].init.credentials).toBe('include')
+    expect(calls[0].init.body).toBeUndefined()
+  })
+
   it('rejects with an ApiError carrying the status when the API answers with an error', async () => {
     const { fetch } = fakeFetch(() => json(401, { error: 'not signed in' }))
     const api = createApiClient({ baseUrl: 'https://api.example.com', fetch })

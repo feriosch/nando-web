@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client'
 import { useLoadedSinceMount } from '../api/loaded'
+import { useNow } from '../now'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import type { CoreSettings } from '../settings/settings'
@@ -78,27 +79,12 @@ export function WeighIns() {
   )
 }
 
-// This week in `timeZone`, checked again every minute and whenever the Owner comes back to the
-// app: a Home Screen app can stay open for days, and this week moves on every Monday. The second
-// value checks it right away and answers this week as it is now.
+// This week in `timeZone`, moving on every Monday while the screen is open. The second value
+// checks it right away and answers this week as it is now.
 function useThisWeek(timeZone: string | undefined): [string | undefined, () => string | undefined] {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const update = () => {
-      if (document.visibilityState === 'visible') setNow(new Date())
-    }
-    const interval = setInterval(update, 60_000)
-    document.addEventListener('visibilitychange', update)
-    window.addEventListener('focus', update)
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', update)
-      window.removeEventListener('focus', update)
-    }
-  }, [])
+  const [now, refresh] = useNow()
   const recheck = () => {
-    const now = new Date()
-    setNow(now)
+    const now = refresh()
     return timeZone === undefined ? undefined : weekOf(now, timeZone)
   }
   return [timeZone === undefined ? undefined : weekOf(now, timeZone), recheck]
