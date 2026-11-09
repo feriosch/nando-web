@@ -78,7 +78,11 @@ export function fakePush({
       return subscribed
     },
   }
-  return { push, calls }
+  // The Owner changes the permission in the device's settings, outside Nando.
+  const setPermission = (changed: NotificationPermission) => {
+    permission = changed
+  }
+  return { push, calls, setPermission }
 }
 
 // A browser that can't receive Notifications, so screens that don't test them leave them alone.

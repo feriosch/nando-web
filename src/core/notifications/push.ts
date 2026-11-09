@@ -24,18 +24,25 @@ export const browserPush: Push = {
   permission: () => ('Notification' in window ? Notification.permission : 'default'),
   requestPermission: () => Notification.requestPermission(),
   async subscription() {
-    const registration = await navigator.serviceWorker.ready
-    const subscription = await registration.pushManager.getSubscription()
+    const subscription = await (await registration()).pushManager.getSubscription()
     return subscription ? toJSON(subscription) : null
   },
   async subscribe(vapidPublicKey) {
-    const registration = await navigator.serviceWorker.ready
-    const subscription = await registration.pushManager.subscribe({
+    const subscription = await (await registration()).pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: fromBase64url(vapidPublicKey),
     })
     return toJSON(subscription)
   },
+}
+
+// The service worker's registration, once it is active. `ready` alone never settles when no service
+// worker is registered (such as under `bun run dev`), which would leave the caller waiting forever.
+async function registration(): Promise<ServiceWorkerRegistration> {
+  if (!(await navigator.serviceWorker.getRegistration())) {
+    throw new Error('No service worker is registered.')
+  }
+  return navigator.serviceWorker.ready
 }
 
 function toJSON(subscription: PushSubscription): PushSubscriptionJSON {

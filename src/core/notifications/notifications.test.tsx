@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { fakeApi, fakePush, renderApp } from '../../test/app'
@@ -143,5 +143,49 @@ describe('Notifications Settings Section', () => {
 
     expect(await within(section).findByText('Notifications are on for this device.')).toBeInTheDocument()
     expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it("says Notifications are turned off, and doesn't register, when they were refused after subscribing", async () => {
+    const { api, sent } = fakeApi({ 'POST /api/push-subscriptions': { status: 204 } })
+    const subscription = { endpoint: 'https://web.push.apple.com/Zk9a', expirationTime: null, keys: { p256dh: 'BPq2', auth: 'Mn4x' } }
+    const { push } = fakePush({ permission: 'denied', subscription })
+    renderApp('/settings', api, push)
+
+    const section = await notificationsSection()
+    expect(await within(section).findByRole('alert')).toHaveTextContent(blocked)
+    expect(within(section).queryByText('Notifications are on for this device.')).not.toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'POST')).toEqual([])
+  })
+
+  it('offers to enable Notifications once the Owner allows them in the device settings and comes back', async () => {
+    const { api } = fakeApi({})
+    const { push, setPermission } = fakePush({ permission: 'denied', subscription: null })
+    renderApp('/settings', api, push)
+
+    const section = await notificationsSection()
+    await within(section).findByRole('alert')
+
+    // Allowed in the device's settings; then the Owner comes back to the app.
+    setPermission('default')
+    fireEvent(window, new Event('visibilitychange'))
+
+    expect(await within(section).findByRole('button', { name: 'Enable Notifications' })).toBeInTheDocument()
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('subscribes once when Enable Notifications is tapped twice', async () => {
+    const { api, sent } = fakeApi({ ...vapidKey, 'POST /api/push-subscriptions': { status: 204 } })
+    const { push, calls } = fakePush({ permission: 'default', subscription: null })
+    renderApp('/settings', api, push)
+
+    const section = await notificationsSection()
+    const enable = await within(section).findByRole('button', { name: 'Enable Notifications' })
+    // A quick double tap: the second lands before the first has finished.
+    fireEvent.click(enable)
+    fireEvent.click(enable)
+
+    expect(await within(section).findByText('Notifications are on for this device.')).toBeInTheDocument()
+    expect(calls.subscribedWith).toHaveLength(1)
+    expect(sent.filter((request) => request.method === 'POST')).toHaveLength(1)
   })
 })
