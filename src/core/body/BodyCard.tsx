@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { useApi } from '../services'
+import { LoadProblem } from '../shell/LoadProblem'
 import type { Body } from './body'
 import { formatWeek } from './weeks'
 
@@ -12,6 +13,7 @@ export function BodyCard() {
   return (
     <>
       <h2>Body</h2>
+      {body.isError && <LoadProblem message="Couldn't load your Weigh-ins." retry={() => body.refetch()} />}
       {body.data?.latest && (
         <>
           <p>{body.data.latest.kg.toFixed(1)} kg</p>

@@ -2,8 +2,10 @@
 
 // The Monday of the week `now` falls in, in `timeZone`.
 export function weekOf(now: Date, timeZone: string): string {
-  // en-CA writes dates as YYYY-MM-DD.
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  // Read from the parts rather than a locale's whole date, whose format can change between browsers.
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)!.value
+  const today = `${part('year')}-${part('month')}-${part('day')}`
   const date = new Date(`${today}T00:00:00Z`)
   const daysSinceMonday = (date.getUTCDay() + 6) % 7
   return addDays(today, -daysSinceMonday)

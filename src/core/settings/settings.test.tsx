@@ -104,6 +104,68 @@ describe('Core Settings Section', () => {
     expect(within(section).queryByText('Saved.')).not.toBeInTheDocument()
   })
 
+  it('fills the form from the saved settings, not a copy cached before they changed elsewhere', async () => {
+    const user = userEvent.setup()
+    let settings = { ...defaults, heightCm: 170 }
+    const { api, sent } = fakeApi({
+      'GET /api/settings': () => ({ status: 200, body: settings }),
+      'GET /api/weigh-ins': { status: 200, body: [] },
+      'PUT /api/settings': { status: 204 },
+    })
+    // The Weigh-ins screen reads the settings too, so they are cached by the time Settings opens.
+    const router = renderApp('/weigh-ins', api)
+    await screen.findByRole('form', { name: 'This week' })
+
+    // Changed from another device in the meantime.
+    settings = { ...settings, heightCm: 180 }
+    await router.navigate('/settings')
+
+    const section = await coreSection()
+    expect(await within(section).findByLabelText('Height (cm)')).toHaveValue('180')
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+
+    expect(await within(section).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([
+      { method: 'PUT', path: '/api/settings', body: { ...defaults, heightCm: 180 } },
+    ])
+  })
+
+  it("says when it couldn't load the settings, and loads them again when asked", async () => {
+    const user = userEvent.setup()
+    let fails = true
+    const { api } = fakeApi({
+      'GET /api/settings': () => (fails ? { status: 500 } : { status: 200, body: { ...defaults, heightCm: 175 } }),
+    })
+    renderApp('/settings', api)
+
+    const section = await coreSection()
+    expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't load the settings.")
+    expect(within(section).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+
+    fails = false
+    await user.click(within(section).getByRole('button', { name: 'Try again' }))
+
+    expect(await within(section).findByLabelText('Height (cm)')).toHaveValue('175')
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it("doesn't offer a cached copy of the settings to save when they couldn't be loaded again", async () => {
+    let fails = false
+    const { api } = fakeApi({
+      'GET /api/settings': () => (fails ? { status: 500 } : { status: 200, body: defaults }),
+      'GET /api/weigh-ins': { status: 200, body: [] },
+    })
+    const router = renderApp('/weigh-ins', api)
+    await screen.findByRole('form', { name: 'This week' })
+
+    fails = true
+    await router.navigate('/settings')
+
+    const section = await coreSection()
+    expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't load the settings.")
+    expect(within(section).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+  })
+
   it('offers reminder times only on the hour or half hour, from 00:00 to 23:30', async () => {
     const { api } = fakeApi({ 'GET /api/settings': { status: 200, body: defaults } })
     renderApp('/settings', api)

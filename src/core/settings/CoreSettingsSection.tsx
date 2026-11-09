@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client'
+import { useLoadedSinceMount } from '../api/loaded'
 import { useApi } from '../services'
+import { LoadProblem } from '../shell/LoadProblem'
 import type { CoreSettings, Weekday } from './settings'
 
 const weekdays: { value: Weekday; label: string }[] = [
@@ -21,7 +23,12 @@ const times = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).
 export function CoreSettingsSection() {
   const api = useApi()
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
-  return settings.data ? <SettingsForm saved={settings.data} /> : null
+  // The form starts from the saved settings and Save sends all of them back, so it waits for ones
+  // loaded since the section opened: a cached copy could undo a change made on another device.
+  const loaded = useLoadedSinceMount(settings)
+  if (loaded && settings.data) return <SettingsForm saved={settings.data} />
+  if (settings.isError) return <LoadProblem message="Couldn't load the settings." retry={() => settings.refetch()} />
+  return null
 }
 
 function SettingsForm({ saved }: { saved: CoreSettings }) {
