@@ -8,6 +8,7 @@ import { LoadProblem } from '../shell/LoadProblem'
 import type { CoreSettings } from '../settings/settings'
 import { Button } from '../ui/Button'
 import { GroupedList, ListRow, SectionHeader } from '../ui/List'
+import { EmptyNote, Notice } from '../ui/Notice'
 import { ScreenHeader } from '../ui/ScreenHeader'
 import type { WeighIn } from './body'
 import { formatWeek, weekBefore, weekOf } from './weeks'
@@ -43,9 +44,9 @@ export function WeighIns() {
         />
       )}
       {weekMovedOn && (
-        <p role="alert" className="my-2 rounded-[14px] bg-fill px-4 py-3 text-[15px]">
+        <Notice role="alert">
           A new week has started, so nothing was saved. Enter the weight again for the week it belongs to.
-        </p>
+        </Notice>
       )}
       {/* The forms start from the saved Weigh-ins, so they wait for ones loaded since the screen
           opened rather than a cached copy. Keyed by form and week, so each form starts over when the
@@ -72,7 +73,7 @@ export function WeighIns() {
         <>
           <SectionHeader id="weigh-ins-history">History</SectionHeader>
           {weighIns.data.length === 0 ? (
-            <p className="mx-4 my-2 text-[15px] text-sub">No Weigh-ins yet.</p>
+            <EmptyNote>No Weigh-ins yet.</EmptyNote>
           ) : (
             <GroupedList as="ul" labelledBy="weigh-ins-history">
               {weighIns.data.map((weighIn) => (

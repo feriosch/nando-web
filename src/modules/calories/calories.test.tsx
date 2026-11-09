@@ -543,7 +543,8 @@ describe('Meals', () => {
     expect(items[1]).toHaveTextContent('Tuna mayo onigiri · Pinned')
     expect(items[1]).toHaveTextContent('230 kcal')
     expect(items[1]).toHaveTextContent('7-Eleven · snack, conbini')
-    // The photo is the row's tile, in place of the emoji.
+    // The photo is the row's tile, in place of the emoji. It is decoration (the row's text names the
+    // Meal), so it has no role to find it by.
     expect(items[1].querySelector('img')).toHaveAttribute('src', onigiri.imageUrl)
     expect(items[1]).not.toHaveTextContent('🍙')
     expect(items[0].querySelector('img')).not.toBeInTheDocument()
@@ -645,7 +646,7 @@ describe('Changing a Meal', () => {
     await user.click(within(form).getByLabelText('Pinned'))
     await user.click(within(form).getByRole('button', { name: 'Save' }))
 
-    expect(await mealItem('Tuna mayo onigiri')).toHaveTextContent('240 kcal')
+    expect(await mealItem('Tuna mayo onigiri')).toHaveTextContent('Tuna mayo onigiri, 7-Eleven · snack, conbini, 240 kcal')
     expect(await mealItem('Tuna mayo onigiri')).not.toHaveTextContent('Pinned')
     expect(sent.filter((request) => request.method === 'PUT')).toEqual([
       {

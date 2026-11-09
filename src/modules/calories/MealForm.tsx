@@ -8,11 +8,12 @@ import { LoadProblem } from '../../core/shell/LoadProblem'
 import { Button } from '../../core/ui/Button'
 import { FieldRow } from '../../core/ui/FieldRow'
 import { GroupedList, ListRow } from '../../core/ui/List'
+import { EmptyNote, Notice } from '../../core/ui/Notice'
 import { saveFooter } from '../../core/ui/saveFooter'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { Switch } from '../../core/ui/Switch'
 import { parseWhole, type Meal } from './calories'
-import { useRestore } from './useRestore'
+import { restoreProblem, useRestore } from './useRestore'
 
 // A Meal as POST and PUT /api/calories/meals take it.
 type MealValues = Omit<Meal, 'id' | 'archived'>
@@ -63,7 +64,7 @@ export function EditMeal() {
       ) : meal ? (
         <MealForm title="Edit Meal" meal={meal} save={(values) => api.put(`/api/calories/meals/${meal.id}`, values)} />
       ) : (
-        inUseLoaded && archivedLoaded && <p className="mx-4 my-4 text-[15px] text-sub">There is no such Meal.</p>
+        inUseLoaded && archivedLoaded && <EmptyNote>There is no such Meal.</EmptyNote>
       )}
     </MealScreen>
   )
@@ -89,7 +90,7 @@ function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (va
   const api = useApi()
   const backToMeals = () => {
     queryClient.invalidateQueries({ queryKey: ['calories'] })
-    navigate('/calories/meals')
+    navigate('/calories/meals', { viewTransition: true })
   }
   const mutation = useMutation({ mutationFn: save, onSuccess: backToMeals })
   // Archiving leaves the Meal's Entries as they are; restoring puts it back in use.
@@ -124,15 +125,22 @@ function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (va
     onChange: (value: string) => setFields({ ...fields, [field]: value }),
   })
 
+  // A save, archive or restore that failed, said under the fields.
+  const failure = mutation.isError
+    ? describe(mutation.error)
+    : archive.isError
+      ? "Couldn't archive the Meal."
+      : restore.isError
+        ? restoreProblem
+        : null
+
   return (
     <form aria-label={title} onSubmit={submit} className="my-0">
-      {meal?.archived && (
-        <p className="my-2 rounded-[14px] bg-fill px-4 py-3 text-[15px]">Archived: it is not in the quick list and can’t be logged.</p>
-      )}
+      {meal?.archived && <Notice>Archived: it is not in the quick list and can’t be logged.</Notice>}
       {meal?.imageUrl && (
-        <img src={meal.imageUrl} alt={meal.name} className="my-2 block h-44 w-full rounded-2xl bg-fill object-cover" />
+        <img src={meal.imageUrl} alt={meal.name} className="my-2 block max-h-56 w-full rounded-2xl bg-fill object-cover" />
       )}
-      <GroupedList footer={saveFooter(false, problem ?? (mutation.isError ? describe(mutation.error) : null))}>
+      <GroupedList footer={saveFooter(false, problem ?? failure)}>
         <FieldRow label="Name" {...text('name')} maxLength={100} placeholder="Required" lang="ja" />
         <FieldRow label="kcal per serving" {...text('kcal')} inputMode="numeric" placeholder="Required" />
         <FieldRow label="Store" {...text('store')} maxLength={100} placeholder="Optional" lang="ja" />
@@ -161,11 +169,6 @@ function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (va
           </Button>
         )}
       </div>
-      {(archive.isError || restore.isError) && (
-        <div className="mx-4 mt-1.5 text-[13px] text-sub">
-          {saveFooter(false, archive.isError ? "Couldn't archive the Meal." : "Couldn't restore the Meal.")}
-        </div>
-      )}
     </form>
   )
 }
