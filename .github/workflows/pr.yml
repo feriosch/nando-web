@@ -8,16 +8,29 @@ on:
 permissions:
   contents: read
 
+# A new push to the PR cancels checks still running for the old commit.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: typecheck, lint and test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      # The Dockerfile's Bun, so the lockfile installs as it does in the image.
+      # Keep the two in step.
       - uses: oven-sh/setup-bun@v2
         with:
-          # The Dockerfile's Bun, so CI checks what the image builds with.
           bun-version: 1.2.13
+      # tsc, oxlint's wrapper, Vite and Vitest start with `#!/usr/bin/env node`,
+      # so `bun run` runs them on Node. Pinned so the runner's default Node
+      # can't change under us (Vitest 5 needs ^22.12 or ^24).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run lint
@@ -27,6 +40,7 @@ jobs:
   image:
     name: build image
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       # Runs `bun run build` (tsc -b && vite build) as main's image does, and

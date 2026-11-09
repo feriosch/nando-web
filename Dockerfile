@@ -1,3 +1,4 @@
+# Keep this Bun in step with .github/workflows/pr.yml.
 FROM oven/bun:1.2.13 AS build
 WORKDIR /app
 COPY package.json bun.lock ./

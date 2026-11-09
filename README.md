@@ -37,7 +37,7 @@ bun run typecheck
 bun run lint
 ```
 
-Every pull request runs these with the Dockerfile's Bun, and builds the container image (`.github/workflows/pr.yml`).
+Every pull request runs these (with the Dockerfile's Bun and Node 22), and builds the container image (`.github/workflows/pr.yml`).
 
 ## PWA
 
