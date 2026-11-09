@@ -18,8 +18,7 @@ export function TabBar({ modules }: { modules: Module[] }) {
   const { tabbed, more } = splitTabs(modules)
   const onMore = isWithin(pathname, '/more') || more.some((module) => isWithin(pathname, module.path))
 
-  const tabs: Tab[] = [
-    { to: '/', label: 'Home', icon: HomeIcon, current: isWithin(pathname, '/') },
+  const others: Tab[] = [
     ...tabbed.map((module) => ({
       to: module.path,
       label: module.name,
@@ -29,6 +28,9 @@ export function TabBar({ modules }: { modules: Module[] }) {
     ...(more.length > 0 ? [{ to: '/more', label: 'More', icon: MoreIcon, current: onMore }] : []),
     { to: '/settings', label: 'Settings', icon: SettingsIcon, current: isWithin(pathname, '/settings') },
   ]
+  // Home is current on Home and on Core's screens opened from it (such as Weigh-ins): every screen
+  // no other tab claims.
+  const tabs: Tab[] = [{ to: '/', label: 'Home', icon: HomeIcon, current: !others.some((tab) => tab.current) }, ...others]
 
   return (
     <nav

@@ -1,6 +1,8 @@
-/* The over-limit warning stays in view at the bottom of the screen, wherever the Owner tapped. */
+/* The over-limit warning stays in view at the bottom of the screen, wherever the Owner tapped,
+   above the tab bar (z-40). */
 .calories-sheet {
   position: fixed;
+  z-index: 50;
   inset: auto 0 0;
   padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
   background: Canvas;

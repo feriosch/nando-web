@@ -6,7 +6,7 @@ import { createApiClient } from '../api/client'
 import { CoreProvider } from '../CoreProvider'
 import type { Passkeys } from '../identity/passkeys'
 import type { Module, Registry } from '../module'
-import { noPush } from '../../test/app'
+import { fakeApi, noPush, renderApp } from '../../test/app'
 import { createRoutes } from './routes'
 
 function renderShell(registry: Registry, path = '/') {
@@ -141,5 +141,14 @@ describe('Core shell', () => {
     expect(screen.getByRole('heading', { name: 'Reading screen' })).toBeInTheDocument()
     // A Module under More keeps More as the current tab.
     expect(within(tabs).getByRole('link', { name: 'More' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('keeps Home as the current tab on a Core screen opened from Home, such as Weigh-ins', () => {
+    const { api } = fakeApi({})
+    renderApp('/weigh-ins', api)
+
+    const tabs = screen.getByRole('navigation', { name: 'Tabs' })
+    expect(within(tabs).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
+    expect(within(tabs).getByRole('link', { name: 'Settings' })).not.toHaveAttribute('aria-current')
   })
 })

@@ -8,4 +8,5 @@ afterEach(() => {
   localStorage.clear()
   document.documentElement.className = ''
   document.documentElement.removeAttribute('style')
+  document.body.className = ''
 })
