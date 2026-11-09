@@ -1,11 +1,10 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { addDays, dayOf } from '../../core/days'
-import { useNow } from '../../core/now'
+import { addDays } from '../../core/days'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
-import type { CoreSettings } from '../../core/settings/settings'
-import { formatDay, kcal, type DaySummary } from './calories'
+import { useToday } from '../../core/today'
+import { consumedAgainstLimit, formatDay, type DaySummary } from './calories'
 
 // How many Days the list shows at first, and how many more each "Show older" adds.
 const pageDays = 30
@@ -13,9 +12,7 @@ const pageDays = 30
 // History: past Days, newest first, each against the Daily Limit it had.
 export function History() {
   const api = useApi()
-  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
-  const [now] = useNow()
-  const today = settings.data ? dayOf(now, settings.data.timeZone) : undefined
+  const { today, settings } = useToday()
   // Page n is the 30 Days ending n × 30 Days before today.
   const history = useInfiniteQuery({
     queryKey: ['calories', 'history', today],
@@ -37,7 +34,9 @@ export function History() {
           message="Couldn't load the history."
           retry={() => {
             if (settings.isError) settings.refetch()
-            if (history.isError) history.refetch()
+            // A failed "Show older" is asked for again; refetching would only reload the Days shown.
+            if (history.isFetchNextPageError) history.fetchNextPage()
+            else if (history.isError) history.refetch()
           }}
         />
       )}
@@ -52,7 +51,7 @@ export function History() {
               </li>
             ))}
           </ul>
-          <button type="button" onClick={() => history.fetchNextPage()}>
+          <button type="button" onClick={() => history.fetchNextPage()} disabled={history.isFetchingNextPage}>
             Show older
           </button>
         </>
@@ -63,7 +62,5 @@ export function History() {
 
 // Such as "1,800 / 2,000 kcal", or "not logged" for an Unlogged Day.
 function describe(day: DaySummary): string {
-  if (day.consumedCalories === null) return 'not logged'
-  if (day.dailyLimit === null) return `${kcal(day.consumedCalories)} kcal`
-  return `${kcal(day.consumedCalories)} / ${kcal(day.dailyLimit)} kcal`
+  return day.consumedCalories === null ? 'not logged' : consumedAgainstLimit(day.consumedCalories, day.dailyLimit)
 }

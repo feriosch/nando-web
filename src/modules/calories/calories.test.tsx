@@ -856,6 +856,23 @@ describe('Calories Home Card', () => {
     expect(within(card).getByText('100 kcal over')).toBeInTheDocument()
     expect(within(card).queryByRole('alert')).not.toBeInTheDocument()
   })
+
+  it('moves on to the new Day at midnight while Home stays open', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    vi.setSystemTime(new Date('2026-11-09T14:58:00Z'))
+    let answer: Answer = { status: 200, body: { day: '2026-11-09', consumedCalories: 1700, dailyLimit: 1800, remaining: 100, overLimit: false } }
+    renderCalories('/', { 'GET /api/calories/home-card': () => answer })
+
+    const card = await caloriesCard()
+    expect(await within(card).findByText('1,700 / 1,800 kcal')).toBeInTheDocument()
+
+    // Tuesday 10 November, 00:00 in Tokyo: nothing logged yet.
+    answer = { status: 200, body: { day: '2026-11-10', consumedCalories: null, dailyLimit: 1800, remaining: null, overLimit: null } }
+    vi.setSystemTime(new Date('2026-11-09T15:00:00Z'))
+    vi.advanceTimersByTime(60_000)
+
+    expect(await within(card).findByText('Nothing logged.')).toBeInTheDocument()
+  })
 })
 
 // GET /api/calories/history, faked: every Day from `from` to `to`, newest first, as `logged` has
@@ -963,6 +980,26 @@ describe('History', () => {
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(await screen.findByText('Mon 9 Nov: 460 / 1,800 kcal')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('loads the older Days again when "Show older" failed and the Owner tries again', async () => {
+    const user = userEvent.setup()
+    const history = historyServer({ '2026-10-01': { consumedCalories: 1900, dailyLimit: 2200 } })
+    const answer = history.answers['GET /api/calories/history'] as (b: unknown, q: URLSearchParams) => Answer
+    let failOlder = true
+    renderCalories('/calories/history', {
+      'GET /api/calories/history': (body, query) => (failOlder && query.get('to') !== '2026-11-09' ? { status: 500 } : answer(body, query)),
+    })
+
+    await screen.findByRole('list', { name: 'Days' })
+    await user.click(screen.getByRole('button', { name: 'Show older' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the history.")
+    failOlder = false
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('Thu 1 Oct: 1,900 / 2,200 kcal')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Days' })).getAllByRole('listitem')).toHaveLength(60)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
