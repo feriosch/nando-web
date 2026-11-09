@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ApiError } from '../api/client'
 import { useApi, usePasskeys } from '../services'
+import { pillClasses } from '../ui/pill'
 import type { Begin } from './passkeys'
 
 export function SignIn() {
@@ -28,13 +29,26 @@ export function SignIn() {
   }
 
   return (
-    <main>
-      <h1>Nando</h1>
-      <button type="button" onClick={signIn} disabled={busy}>
-        Sign in with Face ID
-      </button>
-      {problem && <p role="alert">{problem}</p>}
-      <Link to="/enroll">Use an Enrollment Code</Link>
+    // The whole screen between the safe areas: the icon and name centred, the actions within thumb reach.
+    <main className="flex min-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <img src="/icon.svg" alt="" width={96} height={96} className="size-24 rounded-[22px]" />
+        <h1 className="my-0 font-display text-[34px] leading-[1.15] font-bold tracking-tight">Nando</h1>
+      </div>
+      <div className="flex flex-col items-center gap-2 pb-4">
+        {problem && (
+          <p role="alert" className="mx-4 mt-0 mb-2 text-center text-[15px] text-sub">
+            {problem}
+          </p>
+        )}
+        {/* A native button: Safari only lets WebAuthn start from within a tap's click. */}
+        <button type="button" onClick={signIn} disabled={busy} className={`${pillClasses('accent')} h-[50px] w-full text-[17px]`}>
+          Sign in with Face ID
+        </button>
+        <Link to="/enroll" viewTransition className="flex min-h-11 items-center px-4 text-[17px] text-accent no-underline">
+          Use an Enrollment Code
+        </Link>
+      </div>
     </main>
   )
 }
