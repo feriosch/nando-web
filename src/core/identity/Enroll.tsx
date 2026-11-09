@@ -67,7 +67,7 @@ export function Enroll() {
           </ListRow>
         </GroupedList>
         {/* A native submit button: submitting is the tap WebAuthn must start from. */}
-        <button type="submit" disabled={busy} className={`${pillClasses('accent')} mt-6 h-[50px] w-full text-[17px]`}>
+        <button type="submit" disabled={busy} className={`${pillClasses('accent', 'large')} mt-6`}>
           Create Passkey
         </button>
       </form>

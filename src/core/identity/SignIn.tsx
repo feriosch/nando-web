@@ -29,8 +29,8 @@ export function SignIn() {
   }
 
   return (
-    // The whole screen between the safe areas: the icon and name centred, the actions within thumb reach.
-    <main className="flex min-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col">
+    // Fills the screen (SignedOut's frame is a flex column): the icon and name centred, the actions within thumb reach.
+    <main className="flex flex-1 flex-col">
       <div className="flex flex-1 flex-col items-center justify-center gap-4">
         <img src="/icon.svg" alt="" width={96} height={96} className="size-24 rounded-[22px]" />
         <h1 className="my-0 font-display text-[34px] leading-[1.15] font-bold tracking-tight">Nando</h1>
@@ -42,7 +42,7 @@ export function SignIn() {
           </p>
         )}
         {/* A native button: Safari only lets WebAuthn start from within a tap's click. */}
-        <button type="button" onClick={signIn} disabled={busy} className={`${pillClasses('accent')} h-[50px] w-full text-[17px]`}>
+        <button type="button" onClick={signIn} disabled={busy} className={pillClasses('accent', 'large')}>
           Sign in with Face ID
         </button>
         <Link to="/enroll" viewTransition className="flex min-h-11 items-center px-4 text-[17px] text-accent no-underline">
