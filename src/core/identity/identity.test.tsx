@@ -7,6 +7,7 @@ import { createApiClient } from '../api/client'
 import { CoreProvider } from '../CoreProvider'
 import { useApi } from '../services'
 import type { Registry } from '../module'
+import { noPush } from '../../test/app'
 import { createRoutes } from '../shell/routes'
 import type { Passkeys } from './passkeys'
 
@@ -89,7 +90,7 @@ function TodaysEntries() {
 function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], passkeys: Passkeys) {
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
   render(
-    <CoreProvider api={api} passkeys={passkeys}>
+    <CoreProvider api={api} passkeys={passkeys} push={noPush}>
       <RouterProvider router={router} />
     </CoreProvider>,
   )

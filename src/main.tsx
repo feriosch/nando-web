@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 import { api } from './core/api'
 import { CoreProvider } from './core/CoreProvider'
 import { browserPasskeys } from './core/identity/passkeys'
+import { browserPush } from './core/notifications/push'
 import { createRoutes } from './core/shell/routes'
 import './index.css'
 import { registry } from './registry'
@@ -14,7 +15,7 @@ const router = createBrowserRouter(createRoutes(registry))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <CoreProvider api={api} passkeys={browserPasskeys}>
+    <CoreProvider api={api} passkeys={browserPasskeys} push={browserPush}>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>

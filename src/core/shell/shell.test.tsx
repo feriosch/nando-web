@@ -6,6 +6,7 @@ import { createApiClient } from '../api/client'
 import { CoreProvider } from '../CoreProvider'
 import type { Passkeys } from '../identity/passkeys'
 import type { Registry } from '../module'
+import { noPush } from '../../test/app'
 import { createRoutes } from './routes'
 
 function renderShell(registry: Registry, path = '/') {
@@ -16,7 +17,7 @@ function renderShell(registry: Registry, path = '/') {
     create: () => Promise.reject(new Error('no Passkeys in the shell tests')),
   }
   render(
-    <CoreProvider api={api} passkeys={passkeys}>
+    <CoreProvider api={api} passkeys={passkeys} push={noPush}>
       <RouterProvider router={router} />
     </CoreProvider>,
   )
