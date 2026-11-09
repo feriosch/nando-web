@@ -17,8 +17,9 @@ export function CaloriesCard() {
     enabled: today !== undefined,
   })
 
+  // A plain card until the Calories Home Card gets its own look.
   return (
-    <>
+    <div className="rounded-[14px] bg-surface px-4 py-1 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
       <h2>Calories</h2>
       {(settings.isError || card.isError) && (
         <LoadProblem
@@ -33,6 +34,6 @@ export function CaloriesCard() {
       <p>
         <Link to="/calories">Today</Link>
       </p>
-    </>
+    </div>
   )
 }

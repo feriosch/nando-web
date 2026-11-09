@@ -21,3 +21,15 @@ export function formatWeek(week: string): string {
     new Date(`${week}T00:00:00Z`),
   )
 }
+
+// `week` in short, such as "9 Nov", with its year only when that isn't `thisYear`: "9 Nov 2025".
+export function formatWeekShort(week: string, thisYear: number): string {
+  const date = new Date(`${week}T00:00:00Z`)
+  const sameYear = date.getUTCFullYear() === thisYear
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  }).format(date)
+}

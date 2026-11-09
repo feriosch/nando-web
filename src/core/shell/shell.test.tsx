@@ -1,7 +1,8 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createApiClient } from '../api/client'
 import { CoreProvider } from '../CoreProvider'
 import type { Passkeys } from '../identity/passkeys'
@@ -18,7 +19,9 @@ function renderShell(registry: Registry, path = '/') {
   }
   render(
     <CoreProvider api={api} passkeys={passkeys} push={noPush}>
-      <RouterProvider router={router} />
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </CoreProvider>,
   )
   return router
@@ -82,6 +85,26 @@ describe('Core shell', () => {
       'Latest Weigh-in: 72 kg',
       '1200 / 1800 kcal',
     ])
+  })
+
+  it('dates Home with today in the Owner Time Zone', async () => {
+    // Sunday 8 November, 20:00 UTC: already Monday 9 November in Tokyo.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-08T20:00:00Z'))
+    try {
+      const { api } = fakeApi({
+        'GET /api/settings': {
+          status: 200,
+          body: { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } },
+        },
+      })
+      renderApp('/', api)
+
+      expect(await screen.findByText('Monday, 9 November')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows every Settings Section on the Settings screen under its own heading, Core first', () => {

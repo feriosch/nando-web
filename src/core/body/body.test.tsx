@@ -10,6 +10,14 @@ async function bodyCard() {
 }
 
 describe('Body Home Card', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-09T03:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('shows the latest Weigh-in with its week, its BMI and the change since the week before', async () => {
     const { api } = fakeApi({
       'GET /api/body': { status: 200, body: { latest: { week: '2026-10-19', kg: 72.4 }, bmi: 23.6, change: -0.4 } },
@@ -19,9 +27,19 @@ describe('Body Home Card', () => {
     const card = await bodyCard()
     expect(await within(card).findByText('72.4 kg')).toBeInTheDocument()
     // It can be weeks old, so the card says which week it is from.
-    expect(within(card).getByText('Week of 19 Oct 2026')).toBeInTheDocument()
+    expect(within(card).getByText('Week of 19 Oct')).toBeInTheDocument()
     expect(within(card).getByText('BMI 23.6')).toBeInTheDocument()
     expect(within(card).getByText('−0.4 kg vs the week before')).toBeInTheDocument()
+  })
+
+  it('names the year of a latest Weigh-in from an earlier year', async () => {
+    const { api } = fakeApi({
+      'GET /api/body': { status: 200, body: { latest: { week: '2025-12-29', kg: 74.0 }, bmi: 24.2, change: null } },
+    })
+    renderApp('/', api)
+
+    const card = await bodyCard()
+    expect(await within(card).findByText('Week of 29 Dec 2025')).toBeInTheDocument()
   })
 
   it('says there are no Weigh-ins yet, and its link opens the Weigh-ins screen', async () => {
@@ -146,10 +164,15 @@ describe('Weigh-ins', () => {
     ])
     const history = screen.getByRole('list', { name: 'History' })
     await waitFor(() =>
-      expect(within(history).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-        'Week of 2 Nov 2026: 72.6 kg',
-        'Week of 26 Oct 2026: 73.1 kg',
-        'Week of 19 Oct 2026: 73.5 kg',
+      // Each row: the week on the left, its weight on the right.
+      expect(
+        within(history)
+          .getAllByRole('listitem')
+          .map((item) => Array.from(item.children, (part) => part.textContent)),
+      ).toEqual([
+        ['Week of 2 Nov 2026', '72.6 kg'],
+        ['Week of 26 Oct 2026', '73.1 kg'],
+        ['Week of 19 Oct 2026', '73.5 kg'],
       ]),
     )
     expect(within(history).queryByRole('textbox')).not.toBeInTheDocument()

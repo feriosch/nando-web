@@ -21,3 +21,15 @@ export function isDay(text: string): boolean {
   const date = new Date(`${text}T00:00:00Z`)
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text
 }
+
+// `day` written out for the Owner, such as "Monday, 9 November".
+export function formatLongDay(day: string): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).formatToParts(new Date(`${day}T00:00:00Z`))
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)!.value
+  return `${part('weekday')}, ${part('day')} ${part('month')}`
+}

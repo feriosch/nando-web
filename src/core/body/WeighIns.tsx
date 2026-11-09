@@ -6,6 +6,9 @@ import { useNow } from '../now'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import type { CoreSettings } from '../settings/settings'
+import { Button } from '../ui/Button'
+import { GroupedList, ListRow, SectionHeader } from '../ui/List'
+import { ScreenHeader } from '../ui/ScreenHeader'
 import type { WeighIn } from './body'
 import { formatWeek, weekBefore, weekOf } from './weeks'
 
@@ -29,7 +32,7 @@ export function WeighIns() {
 
   return (
     <>
-      <h1>Weigh-ins</h1>
+      <ScreenHeader title="Weigh-ins" back={{ to: '/', label: 'Home' }} />
       {(settings.isError || weighIns.isError) && (
         <LoadProblem
           message="Couldn't load your Weigh-ins."
@@ -40,7 +43,9 @@ export function WeighIns() {
         />
       )}
       {weekMovedOn && (
-        <p role="alert">A new week has started, so nothing was saved. Enter the weight again for the week it belongs to.</p>
+        <p role="alert" className="my-2 rounded-[14px] bg-fill px-4 py-3 text-[15px]">
+          A new week has started, so nothing was saved. Enter the weight again for the week it belongs to.
+        </p>
       )}
       {/* The forms start from the saved Weigh-ins, so they wait for ones loaded since the screen
           opened rather than a cached copy. Keyed by form and week, so each form starts over when the
@@ -65,14 +70,19 @@ export function WeighIns() {
       )}
       {weighIns.data && (
         <>
-          <h2 id="weigh-ins-history">History</h2>
-          <ul aria-labelledby="weigh-ins-history">
-            {weighIns.data.map((weighIn) => (
-              <li key={weighIn.week}>
-                Week of {formatWeek(weighIn.week)}: {weighIn.kg.toFixed(1)} kg
-              </li>
-            ))}
-          </ul>
+          <SectionHeader id="weigh-ins-history">History</SectionHeader>
+          {weighIns.data.length === 0 ? (
+            <p className="mx-4 my-2 text-[15px] text-sub">No Weigh-ins yet.</p>
+          ) : (
+            <GroupedList as="ul" labelledBy="weigh-ins-history">
+              {weighIns.data.map((weighIn) => (
+                <ListRow as="li" key={weighIn.week}>
+                  <span>Week of {formatWeek(weighIn.week)}</span>
+                  <span className="tabular-nums">{weighIn.kg.toFixed(1)} kg</span>
+                </ListRow>
+              ))}
+            </GroupedList>
+          )}
         </>
       )}
     </>
@@ -105,6 +115,7 @@ function WeekForm({
   const api = useApi()
   const queryClient = useQueryClient()
   const headingId = useId()
+  const fieldId = useId()
   const [kg, setKg] = useState(savedKg === undefined ? '' : savedKg.toFixed(1))
   const [problem, setProblem] = useState<string | null>(null)
   const save = useMutation({
@@ -130,15 +141,47 @@ function WeekForm({
   }
 
   return (
-    <form aria-labelledby={headingId} onSubmit={submit}>
-      <h2 id={headingId}>{name}</h2>
-      <label>
-        Weight (kg)
-        <input value={kg} onChange={(event) => setKg(event.target.value)} inputMode="decimal" />
-      </label>
-      <button type="submit">Save</button>
-      {save.isSuccess && <p role="status">Saved.</p>}
-      {(problem || save.isError) && <p role="alert">{problem ?? describe(save.error)}</p>}
+    <form aria-labelledby={headingId} onSubmit={submit} className="my-0">
+      <SectionHeader id={headingId}>{name}</SectionHeader>
+      <GroupedList
+        footer={
+          (save.isSuccess || problem || save.isError) && (
+            <>
+              {save.isSuccess && (
+                <p role="status" className="my-0">
+                  Saved.
+                </p>
+              )}
+              {(problem || save.isError) && (
+                <p role="alert" className="my-0 text-accent">
+                  {problem ?? describe(save.error)}
+                </p>
+              )}
+            </>
+          )
+        }
+      >
+        <ListRow className="pr-2">
+          <label htmlFor={fieldId} className="my-0 text-[17px]">
+            Weight
+          </label>
+          <span className="flex items-center gap-2">
+            <input
+              id={fieldId}
+              aria-label="Weight (kg)"
+              value={kg}
+              onChange={(event) => setKg(event.target.value)}
+              inputMode="decimal"
+              placeholder="0.0"
+              className="m-0 w-20 border-0 bg-transparent p-0 text-right text-[17px] tabular-nums outline-none placeholder:text-sub/60"
+            />
+            <span className="text-[17px] text-sub">kg</span>
+            <Button type="submit" variant="accent" className="ml-1">
+              Save
+            </Button>
+          </span>
+        </ListRow>
+      </GroupedList>
     </form>
   )
 }

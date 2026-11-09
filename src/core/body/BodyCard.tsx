@@ -1,45 +1,92 @@
 import { useQuery } from '@tanstack/react-query'
+import { ChevronRight, Weight } from 'lucide-react'
+import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
+import { useNow } from '../now'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
+import { lucideProps } from '../ui/icons'
 import type { Body } from './body'
-import { formatWeek } from './weeks'
+import { formatWeekShort } from './weeks'
 
-// The Body Home Card: the latest Weigh-in, its BMI and the change since the week before.
+// The Body Home Card: the latest Weigh-in, its BMI and the change since the week before. Once
+// loaded, the whole card opens Weigh-ins.
 export function BodyCard() {
   const api = useApi()
   const body = useQuery({ queryKey: ['body'], queryFn: () => api.get<Body>('/api/body') })
+  const latest = body.data?.latest
+  const [now] = useNow()
 
   return (
-    <>
-      <h2>Body</h2>
-      {body.isError && <LoadProblem message="Couldn't load your Weigh-ins." retry={() => body.refetch()} />}
-      {body.data?.latest && (
+    <div className="relative rounded-[22px] bg-surface p-[18px] shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-opacity has-[[data-card-link]:active]:opacity-70">
+      <div className="flex items-center gap-2 text-sub">
+        <Weight {...lucideProps} size={20} />
+        <h2 className="my-0 text-[15px] font-semibold text-sub">Body</h2>
+        {body.data && <ChevronRight {...lucideProps} size={20} className="ml-auto" />}
+      </div>
+      {body.isError && (
+        // Above the card's link, which stays while a reload of loaded data fails.
+        <div className="relative z-10">
+          <LoadProblem message="Couldn't load your Weigh-ins." retry={() => body.refetch()} />
+        </div>
+      )}
+      {body.data && latest && (
         <>
-          <p>{body.data.latest.kg.toFixed(1)} kg</p>
-          <p>Week of {formatWeek(body.data.latest.week)}</p>
-          {body.data.bmi !== null ? (
-            <p>BMI {body.data.bmi.toFixed(1)}</p>
-          ) : (
-            <p>
-              <Link to="/settings">Set your height for BMI</Link>
-            </p>
-          )}
-          {body.data.change !== null && <p>{signed(body.data.change)} kg vs the week before</p>}
-          <p>
-            <Link to="/weigh-ins">Weigh-ins</Link>
+          <p className="mt-2 mb-0 text-[30px] leading-tight font-bold tabular-nums">{latest.kg.toFixed(1)} kg</p>
+          <Meta>
+            <span>Week of {formatWeekShort(latest.week, now.getFullYear())}</span>
+            {body.data.bmi !== null ? (
+              <span>BMI {body.data.bmi.toFixed(1)}</span>
+            ) : (
+              <Link to="/settings" viewTransition className="relative z-10 text-accent no-underline">
+                Set your height for BMI
+              </Link>
+            )}
+            {body.data.change !== null && <span>{signed(body.data.change)} kg vs the week before</span>}
+          </Meta>
+          <CardLink>
+            <span className="sr-only">Weigh-ins</span>
+          </CardLink>
+        </>
+      )}
+      {body.data && !latest && (
+        <>
+          <p className="mt-2 mb-0 text-[17px]">No Weigh-ins yet.</p>
+          <p className="mt-1 mb-0 text-[15px]">
+            <CardLink className="text-accent no-underline">Log a Weigh-in</CardLink>
           </p>
         </>
       )}
-      {body.data && !body.data.latest && (
-        <>
-          <p>No Weigh-ins yet.</p>
-          <p>
-            <Link to="/weigh-ins">Log a Weigh-in</Link>
-          </p>
-        </>
-      )}
-    </>
+    </div>
+  )
+}
+
+// The card's one line of details, its parts separated by middle dots.
+function Meta({ children }: { children: ReactNode[] }) {
+  const parts = children.filter(Boolean)
+  return (
+    <p className="mt-1 mb-0 text-[13px] text-pretty text-sub tabular-nums">
+      {parts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 && <span aria-hidden="true"> · </span>}
+          {part}
+        </Fragment>
+      ))}
+    </p>
+  )
+}
+
+// The link to Weigh-ins, stretched over the whole card so a tap anywhere on it opens Weigh-ins.
+function CardLink({ className = '', children }: { className?: string; children: ReactNode }) {
+  return (
+    <Link
+      to="/weigh-ins"
+      viewTransition
+      data-card-link
+      className={`outline-none after:absolute after:inset-0 after:rounded-[22px] focus-visible:after:outline-2 focus-visible:after:outline-accent ${className}`}
+    >
+      {children}
+    </Link>
   )
 }
 
