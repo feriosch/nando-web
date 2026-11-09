@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router'
+import { WeighIns } from '../body/WeighIns'
 import { Enroll } from '../identity/Enroll'
 import { SignIn } from '../identity/SignIn'
 import type { Registry } from '../module'
@@ -20,6 +21,8 @@ export function createRoutes(registry: Registry): RouteObject[] {
       children: [
         { index: true, element: <Home cards={homeCards} /> },
         { path: 'settings', element: <Settings sections={settingsSections} /> },
+        // Core's own screen, opened from the Body Home Card; Core has no entry in the menu.
+        { path: 'weigh-ins', element: <WeighIns /> },
         ...registry.modules.map((module) => ({ path: module.path, children: module.routes })),
       ],
     },
