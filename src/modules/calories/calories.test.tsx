@@ -224,6 +224,21 @@ describe('Over-limit preview', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
+  it('logs nothing when the Owner dismisses the question, and takes the next tap', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCalories('/calories', nearlyFull())
+
+    await logQuick(user, 'Tuna mayo onigiri')
+    await screen.findByRole('alertdialog')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+
+    // Not left waiting on the dismissed question: the next tap asks again.
+    await logQuick(user, 'Tuna mayo onigiri')
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('This takes you to 2,300 / 2,150 kcal.')
+    expect(sent.filter((request) => request.method === 'POST')).toEqual([])
+  })
+
   it("logs nothing when the Owner cancels", async () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', nearlyFull())
@@ -428,6 +443,20 @@ describe('Changing Entries', () => {
 
     expect(await findEntry('Sushi × 30, 45 kcal each: 1,350 kcal')).toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'PUT')).toHaveLength(1)
+  })
+
+  it('deletes an Entry once, however many times Delete is tapped', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCalories('/calories', lunch())
+
+    await openEntry(user, 'Katsu curry')
+    const remove = within(await screen.findByRole('form', { name: 'Edit Entry' })).getByRole('button', { name: 'Delete' })
+    fireEvent.click(remove)
+    fireEvent.click(remove)
+
+    await expectConsumed('540 / 2,150 kcal')
+    expect(sent.filter((request) => request.method === 'DELETE')).toHaveLength(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('deletes an Entry', async () => {

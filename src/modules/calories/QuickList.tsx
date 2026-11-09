@@ -60,8 +60,10 @@ function QuickMeal({ meal, log }: { meal: Meal; log: (servings: number, done: ()
   )
 }
 
+// 36px wide to leave the name room; each reaches 8px further out (`before:`), into the gap beside
+// the stepper, so it takes a 44px tap.
 const stepButton =
-  'flex h-11 w-9 min-h-0 items-center justify-center rounded-full bg-transparent p-0 text-ink data-[disabled]:opacity-30 data-[pressed]:opacity-60'
+  'relative flex h-11 w-9 min-h-0 items-center justify-center rounded-full bg-transparent p-0 text-ink before:absolute before:inset-y-0 data-[disabled]:opacity-30 data-[pressed]:opacity-60'
 
 // Whole Servings from 1 to 100: − and + on a fill pill, the number between them.
 function ServingsStepper({ servings, onChange }: { servings: number; onChange: (servings: number) => void }) {
@@ -76,11 +78,11 @@ function ServingsStepper({ servings, onChange }: { servings: number; onChange: (
       className="shrink-0"
     >
       <Group className="flex items-center rounded-full bg-fill">
-        <AriaButton slot="decrement" aria-label="Fewer servings" className={stepButton}>
+        <AriaButton slot="decrement" aria-label="Fewer servings" className={`${stepButton} before:-left-2 before:right-0`}>
           <Minus {...lucideProps} className="size-4" />
         </AriaButton>
         <Input className="m-0 h-11 min-h-0 w-5 rounded-none border-0 bg-transparent p-0 text-center text-[16px] font-semibold tabular-nums outline-none" />
-        <AriaButton slot="increment" aria-label="More servings" className={stepButton}>
+        <AriaButton slot="increment" aria-label="More servings" className={`${stepButton} before:left-0 before:-right-2`}>
           <Plus {...lucideProps} className="size-4" />
         </AriaButton>
       </Group>

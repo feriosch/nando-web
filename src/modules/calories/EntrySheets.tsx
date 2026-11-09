@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { useApi } from '../../core/services'
 import { Button } from '../../core/ui/Button'
 import { GroupedList, ListRow } from '../../core/ui/List'
@@ -31,14 +31,24 @@ export function EntryEditor({ entry, guard, done }: { entry: Entry; guard: Guard
     onSuccess,
     onError: (error) => guard.fail(error, 'change'),
   })
+  // Set from the first tap on Delete, before a re-render could disable the button, so a second tap
+  // in the same moment deletes nothing more.
+  const deleting = useRef(false)
   const remove = useMutation({
     mutationFn: () => api.delete(`/api/calories/entries/${entry.id}`),
     onSuccess,
     onError: (error) => guard.fail(error, 'delete'),
+    onSettled: () => {
+      deleting.current = false
+    },
   })
+
+  // While a change or delete is under way, neither can be asked for again: the Entry may be gone.
+  const working = save.isPending || remove.isPending
 
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (working || deleting.current) return
     const parsed = parseEntryFields(fields)
     if (!parsed) {
       setProblem(entryProblem)
@@ -54,11 +64,19 @@ export function EntryEditor({ entry, guard, done }: { entry: Entry; guard: Guard
         <EntryFieldRows fields={fields} onChange={setFields} />
       </GroupedList>
       <div className="mt-4 flex flex-col gap-3">
-        <Button type="submit" variant="accent" size="large">
+        <Button type="submit" variant="accent" size="large" isDisabled={working}>
           Save
         </Button>
         <div className="flex gap-3">
-          <Button className="flex-1" onPress={() => remove.mutate()}>
+          <Button
+            className="flex-1"
+            isDisabled={working}
+            onPress={() => {
+              if (deleting.current) return
+              deleting.current = true
+              remove.mutate()
+            }}
+          >
             Delete
           </Button>
           <Button className="flex-1" onPress={done}>
