@@ -4,7 +4,7 @@ import { ApiError } from '../api/client'
 import { useLoadedSinceMount } from '../api/loaded'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
-import type { CoreSettings, Weekday } from './settings'
+import { reminderTimes, type CoreSettings, type Weekday } from './settings'
 
 const weekdays: { value: Weekday; label: string }[] = [
   { value: 'monday', label: 'Monday' },
@@ -15,9 +15,6 @@ const weekdays: { value: Weekday; label: string }[] = [
   { value: 'saturday', label: 'Saturday' },
   { value: 'sunday', label: 'Sunday' },
 ]
-
-// "00:00" to "23:30": the reminder goes out on the hour or half hour, when the scheduler ticks.
-const times = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
 
 // Core's Settings Section: the Owner Time Zone, height and the Weigh-in reminder.
 export function CoreSettingsSection() {
@@ -109,7 +106,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
         <label>
           Time
           <select value={reminder.time} onChange={(event) => setReminder({ ...reminder, time: event.target.value })}>
-            {times.map((time) => (
+            {reminderTimes.map((time) => (
               <option key={time}>{time}</option>
             ))}
           </select>

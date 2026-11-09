@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeApi, noPush, renderApp, type Answer, type Answers } from '../../test/app'
+import { addDays } from '../../core/days'
 import { calories } from '.'
 
 const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
@@ -798,5 +799,308 @@ describe('Review fixes', () => {
 
     expect(await screen.findByText('This Day hasn’t started yet.')).toBeInTheDocument()
     expect(screen.queryByText('This Day can no longer be changed.')).not.toBeInTheDocument()
+  })
+})
+
+// The Calories Home Card on Home, found by its heading.
+async function caloriesCard() {
+  const heading = await screen.findByRole('heading', { name: 'Calories' })
+  return heading.closest('article') as HTMLElement
+}
+
+describe('Calories Home Card', () => {
+  it("shows today's Consumed Calories against the Daily Limit, and opens the Day view", async () => {
+    const user = userEvent.setup()
+    const { router } = renderCalories('/', {
+      'GET /api/calories/home-card': {
+        status: 200,
+        body: { day: '2026-11-09', consumedCalories: 460, dailyLimit: 2000, remaining: 1540, overLimit: false },
+      },
+      ...caloriesServer({ day: '2026-11-09' }),
+    })
+
+    const card = await caloriesCard()
+    expect(await within(card).findByText('460 / 2,000 kcal')).toBeInTheDocument()
+    expect(within(card).getByText('1,540 kcal left')).toBeInTheDocument()
+    await user.click(within(card).getByRole('link', { name: 'Today' }))
+
+    expect(router.state.location.pathname).toBe('/calories')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Mon 9 Nov' })).toBeInTheDocument()
+  })
+
+  it('says nothing is logged yet on an Unlogged Day, rather than 0 kcal', async () => {
+    renderCalories('/', {
+      'GET /api/calories/home-card': {
+        status: 200,
+        body: { day: '2026-11-09', consumedCalories: null, dailyLimit: 2000, remaining: null, overLimit: null },
+      },
+    })
+
+    const card = await caloriesCard()
+    expect(await within(card).findByText('Nothing logged.')).toBeInTheDocument()
+    expect(within(card).queryByText(/0 kcal|kcal left/)).not.toBeInTheDocument()
+  })
+
+  it("says when it couldn't load, and loads again when asked", async () => {
+    const user = userEvent.setup()
+    let answer: Answer = { status: 500 }
+    renderCalories('/', { 'GET /api/calories/home-card': () => answer })
+
+    const card = await caloriesCard()
+    expect(await within(card).findByRole('alert')).toHaveTextContent("Couldn't load today's Calories.")
+
+    answer = { status: 200, body: { day: '2026-11-09', consumedCalories: 2100, dailyLimit: 2000, remaining: -100, overLimit: true } }
+    await user.click(within(card).getByRole('button', { name: 'Try again' }))
+
+    expect(await within(card).findByText('2,100 / 2,000 kcal')).toBeInTheDocument()
+    expect(within(card).getByText('100 kcal over')).toBeInTheDocument()
+    expect(within(card).queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+// GET /api/calories/history, faked: every Day from `from` to `to`, newest first, as `logged` has
+// them (Consumed Calories and that Day's Daily Limit), and Unlogged otherwise.
+function historyServer(logged: Record<string, { consumedCalories: number; dailyLimit: number | null }>, unloggedLimit: number | null = 2000) {
+  const asked: { from: string; to: string }[] = []
+  const answer = (_: unknown, query: URLSearchParams): Answer => {
+    const from = query.get('from')!
+    const to = query.get('to')!
+    asked.push({ from, to })
+    const days = []
+    for (let day = to; day >= from; day = addDays(day, -1)) {
+      const found = logged[day]
+      const consumedCalories = found?.consumedCalories ?? null
+      const dailyLimit = found ? found.dailyLimit : unloggedLimit
+      days.push({
+        day,
+        consumedCalories,
+        dailyLimit,
+        remaining: consumedCalories === null || dailyLimit === null ? null : dailyLimit - consumedCalories,
+        overLimit: consumedCalories === null ? null : dailyLimit !== null && consumedCalories > dailyLimit,
+      })
+    }
+    return { status: 200, body: days }
+  }
+  return { answers: { 'GET /api/calories/history': answer } as Answers, asked }
+}
+
+describe('History', () => {
+  it("lists today and the 29 Days before it, newest first, each with its Consumed Calories against that Day's Daily Limit", async () => {
+    const history = historyServer({
+      '2026-11-09': { consumedCalories: 460, dailyLimit: 1800 },
+      '2026-11-07': { consumedCalories: 2100, dailyLimit: 2000 },
+    })
+    renderCalories('/calories/history', history.answers)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'History' })).toBeInTheDocument()
+    const days = within(await screen.findByRole('list', { name: 'Days' })).getAllByRole('listitem')
+    expect(days).toHaveLength(30)
+    expect(days[0]).toHaveTextContent('Mon 9 Nov: 460 / 1,800 kcal')
+    // An Unlogged Day isn't recorded, so it is never 0 kcal or under the Daily Limit.
+    expect(days[1]).toHaveTextContent('Sun 8 Nov: not logged')
+    expect(days[1]).not.toHaveTextContent(/kcal/)
+    expect(days[2]).toHaveTextContent('Sat 7 Nov: 2,100 / 2,000 kcal')
+    expect(days[29]).toHaveTextContent('Sun 11 Oct: not logged')
+    expect(history.asked).toEqual([{ from: '2026-10-11', to: '2026-11-09' }])
+  })
+
+  it('shows just the Consumed Calories of a Day with no Daily Limit', async () => {
+    renderCalories('/calories/history', historyServer({ '2026-11-09': { consumedCalories: 460, dailyLimit: null } }, null).answers)
+
+    const days = within(await screen.findByRole('list', { name: 'Days' })).getAllByRole('listitem')
+    expect(days[0]).toHaveTextContent(/^Mon 9 Nov: 460 kcal$/)
+  })
+
+  it('shows the 30 Days before those listed when asked for older ones', async () => {
+    const user = userEvent.setup()
+    const history = historyServer({ '2026-10-01': { consumedCalories: 1900, dailyLimit: 2200 } })
+    renderCalories('/calories/history', history.answers)
+
+    await screen.findByRole('list', { name: 'Days' })
+    await user.click(screen.getByRole('button', { name: 'Show older' }))
+
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Days' })).getAllByRole('listitem')).toHaveLength(60))
+    const days = within(screen.getByRole('list', { name: 'Days' })).getAllByRole('listitem')
+    expect(days[29]).toHaveTextContent('Sun 11 Oct: not logged')
+    expect(days[39]).toHaveTextContent('Thu 1 Oct: 1,900 / 2,200 kcal')
+    expect(days[59]).toHaveTextContent('Fri 11 Sept: not logged')
+    expect(history.asked).toEqual([
+      { from: '2026-10-11', to: '2026-11-09' },
+      { from: '2026-09-11', to: '2026-10-10' },
+    ])
+  })
+
+  it('is opened from the Day view, and opens each Day in it', async () => {
+    const user = userEvent.setup()
+    const { router } = renderCalories('/calories', {
+      ...caloriesServer({ day: '2026-11-09' }),
+      ...historyServer({ '2026-10-20': { consumedCalories: 800, dailyLimit: 2000 } }).answers,
+      'GET /api/calories/days/2026-10-20': {
+        status: 200,
+        body: dayView('2026-10-20', [entry({ id: 'e1', day: '2026-10-20', name: 'Ramen', kcalPerServing: 800 })]),
+      },
+    })
+
+    await user.click(await screen.findByRole('link', { name: 'History' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'History' })).toBeInTheDocument()
+    await user.click(await screen.findByRole('link', { name: /Tue 20 Oct/ }))
+
+    expect(router.state.location.pathname).toBe('/calories')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tue 20 Oct' })).toBeInTheDocument()
+    expect(await screen.findByText('Ramen: 800 kcal')).toBeInTheDocument()
+  })
+
+  it("says when it couldn't load, and loads it again when asked", async () => {
+    const user = userEvent.setup()
+    let failing = true
+    const history = historyServer({ '2026-11-09': { consumedCalories: 460, dailyLimit: 1800 } })
+    renderCalories('/calories/history', {
+      'GET /api/calories/history': (body, query) => (failing ? { status: 500 } : (history.answers['GET /api/calories/history'] as (b: unknown, q: URLSearchParams) => Answer)(body, query)),
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the history.")
+    failing = false
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('Mon 9 Nov: 460 / 1,800 kcal')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+// What GET /api/calories/settings answers until the Owner first saves them.
+const reminderDefaults = { noEntriesReminder: { enabled: false, time: '14:00' }, eveningSummary: { enabled: false, time: '21:00' } }
+
+// The Calories Settings Section on the Settings screen, found by its heading.
+async function caloriesSection() {
+  return await screen.findByRole('region', { name: 'Calories' })
+}
+
+describe('Calories Settings Section', () => {
+  it('shows the Daily Limit and changes it from today', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCalories('/settings', {
+      'GET /api/calories/daily-limit': { status: 200, body: { kcal: 2000, effectiveFrom: '2026-10-23' } },
+      'PUT /api/calories/daily-limit': { status: 204 },
+      'GET /api/calories/settings': { status: 200, body: reminderDefaults },
+    })
+
+    const form = await within(await caloriesSection()).findByRole('form', { name: 'Daily Limit' })
+    const limit = await within(form).findByLabelText('Daily Limit (kcal)')
+    expect(limit).toHaveValue('2000')
+    await user.clear(limit)
+    await user.type(limit, '1800')
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+
+    expect(await within(form).findByText('Saved. It applies from today.')).toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([
+      { method: 'PUT', path: '/api/calories/daily-limit', body: { kcal: 1800 } },
+    ])
+  })
+
+  it.each(['', '0', '10001', '1800.5', 'lots'])("doesn't save a Daily Limit of %j, and says what it must be", async (typed) => {
+    const user = userEvent.setup()
+    const { sent } = renderCalories('/settings', {
+      'GET /api/calories/daily-limit': { status: 200, body: null },
+      'PUT /api/calories/daily-limit': { status: 204 },
+      'GET /api/calories/settings': { status: 200, body: reminderDefaults },
+    })
+
+    const form = await within(await caloriesSection()).findByRole('form', { name: 'Daily Limit' })
+    // None was ever set, so the field starts empty.
+    expect(within(form).getByLabelText('Daily Limit (kcal)')).toHaveValue('')
+    if (typed) await user.type(within(form).getByLabelText('Daily Limit (kcal)'), typed)
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+
+    expect(await within(form).findByRole('alert')).toHaveTextContent('Enter the Daily Limit as a whole number of kcal from 1 to 10,000.')
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([])
+  })
+
+  it('shows the two reminders and saves whether each is sent and when', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCalories('/settings', {
+      'GET /api/calories/daily-limit': { status: 200, body: null },
+      'GET /api/calories/settings': { status: 200, body: reminderDefaults },
+      'PUT /api/calories/settings': { status: 204 },
+    })
+
+    const form = await within(await caloriesSection()).findByRole('form', { name: 'Reminders' })
+    const nothingLogged = within(form).getByRole('group', { name: 'Nothing logged yet' })
+    const evening = within(form).getByRole('group', { name: 'Evening summary' })
+    expect(within(nothingLogged).getByRole('switch', { name: 'Send it' })).not.toBeChecked()
+    expect(within(nothingLogged).getByLabelText('Time')).toHaveValue('14:00')
+    expect(within(evening).getByRole('switch', { name: 'Send it' })).not.toBeChecked()
+    expect(within(evening).getByLabelText('Time')).toHaveValue('21:00')
+
+    await user.click(within(nothingLogged).getByRole('switch', { name: 'Send it' }))
+    await user.selectOptions(within(nothingLogged).getByLabelText('Time'), '12:30')
+    await user.click(within(evening).getByRole('switch', { name: 'Send it' }))
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+
+    expect(await within(form).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([
+      {
+        method: 'PUT',
+        path: '/api/calories/settings',
+        body: { noEntriesReminder: { enabled: true, time: '12:30' }, eveningSummary: { enabled: true, time: '21:00' } },
+      },
+    ])
+  })
+
+  it('offers reminder times only on the hour or half hour, from 00:00 to 23:30', async () => {
+    renderCalories('/settings', {
+      'GET /api/calories/daily-limit': { status: 200, body: null },
+      'GET /api/calories/settings': { status: 200, body: reminderDefaults },
+    })
+
+    const form = await within(await caloriesSection()).findByRole('form', { name: 'Reminders' })
+    for (const name of ['Nothing logged yet', 'Evening summary']) {
+      const labels = within(within(within(form).getByRole('group', { name })).getByLabelText('Time'))
+        .getAllByRole('option')
+        .map((option) => option.textContent)
+      expect(labels).toHaveLength(48)
+      expect(labels.slice(0, 3)).toEqual(['00:00', '00:30', '01:00'])
+      expect(labels.at(-1)).toBe('23:30')
+    }
+  })
+
+  it.each([
+    { path: '/api/calories/daily-limit', body: { kcal: 2000, effectiveFrom: '2026-10-23' }, form: 'Daily Limit', message: "Couldn't load the Daily Limit." },
+    { path: '/api/calories/settings', body: reminderDefaults, form: 'Reminders', message: "Couldn't load the reminders." },
+  ])("says when $path couldn't load, and loads it again when asked", async ({ path, body, form, message }) => {
+    const user = userEvent.setup()
+    let failing = true
+    renderCalories('/settings', {
+      'GET /api/calories/daily-limit': { status: 200, body: { kcal: 2000, effectiveFrom: '2026-10-23' } },
+      'GET /api/calories/settings': { status: 200, body: reminderDefaults },
+      [`GET ${path}`]: () => (failing ? { status: 500 } : { status: 200, body }),
+    })
+
+    const section = await caloriesSection()
+    expect(await within(section).findByRole('alert')).toHaveTextContent(message)
+    expect(within(section).queryByRole('form', { name: form })).not.toBeInTheDocument()
+    failing = false
+    await user.click(within(section).getByRole('button', { name: 'Try again' }))
+
+    expect(await within(section).findByRole('form', { name: form })).toBeInTheDocument()
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { form: 'Daily Limit', path: '/api/calories/daily-limit', message: "Couldn't save the Daily Limit." },
+    { form: 'Reminders', path: '/api/calories/settings', message: "Couldn't save the reminders: eveningSummary.time must be on the hour or half hour" },
+  ])("says when the $form couldn't be saved", async ({ form, path, message }) => {
+    const user = userEvent.setup()
+    renderCalories('/settings', {
+      'GET /api/calories/daily-limit': { status: 200, body: { kcal: 2000, effectiveFrom: '2026-10-23' } },
+      'GET /api/calories/settings': { status: 200, body: reminderDefaults },
+      [`PUT ${path}`]:
+        form === 'Reminders' ? { status: 400, body: 'eveningSummary.time must be on the hour or half hour' } : { status: 500 },
+    })
+
+    const found = await within(await caloriesSection()).findByRole('form', { name: form })
+    await user.click(within(found).getByRole('button', { name: 'Save' }))
+
+    expect(await within(found).findByRole('alert')).toHaveTextContent(message)
+    expect(within(found).queryByText(/Saved/)).not.toBeInTheDocument()
   })
 })

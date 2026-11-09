@@ -58,6 +58,9 @@ export function Day() {
       )}
       {view.data && (editable ? <EditableDay key={view.data.day} view={view.data} /> : <ReadOnlyDay view={view.data} />)}
       <p>
+        <Link to="history">History</Link>
+      </p>
+      <p>
         <Link to="meals">Meals</Link>
       </p>
     </>
@@ -324,7 +327,8 @@ function ServingsStepper({ servings, onChange }: { servings: number; onChange: (
   )
 }
 
-function Summary({ view }: { view: DayView }) {
+// How a Day stands against its Daily Limit. An Unlogged Day says so, never 0 kcal.
+export function Summary({ view }: { view: DaySummary }) {
   if (view.consumedCalories === null) return <p>Nothing logged.</p>
   return (
     <>
