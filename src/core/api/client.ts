@@ -5,7 +5,9 @@ export type ApiClientOptions = {
 
 export type ApiClient = {
   get<T>(path: string): Promise<T>
-  post<T>(path: string, body: unknown): Promise<T>
+  post<T>(path: string, body?: unknown): Promise<T>
+  // Calls `listener` whenever an /api/ route answers 401: the Session is gone. Returns an unsubscribe.
+  onUnauthorized(listener: () => void): () => void
 }
 
 export class ApiError extends Error {
@@ -19,6 +21,8 @@ export class ApiError extends Error {
 }
 
 export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClientOptions): ApiClient {
+  const unauthorizedListeners = new Set<() => void>()
+
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const init: RequestInit = { method, credentials: 'include' }
     if (body !== undefined) {
@@ -26,6 +30,9 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
       init.body = JSON.stringify(body)
     }
     const response = await fetch(baseUrl + path, init)
+    if (response.status === 401 && path.startsWith('/api/')) {
+      unauthorizedListeners.forEach((listener) => listener())
+    }
     if (!response.ok) {
       throw new ApiError(response.status, `${method} ${path} failed with ${response.status}`)
     }
@@ -38,5 +45,9 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
   return {
     get: (path) => request('GET', path),
     post: (path, body) => request('POST', path, body),
+    onUnauthorized(listener) {
+      unauthorizedListeners.add(listener)
+      return () => unauthorizedListeners.delete(listener)
+    },
   }
 }

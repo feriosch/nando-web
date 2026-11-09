@@ -63,4 +63,28 @@ describe('API client', () => {
     await expect(failure).rejects.toBeInstanceOf(ApiError)
     await expect(failure).rejects.toMatchObject({ status: 401 })
   })
+
+  it('tells its listeners when an /api/ route answers 401, so the app can go to sign-in', async () => {
+    const { fetch } = fakeFetch(() => new Response('no session', { status: 401 }))
+    const api = createApiClient({ baseUrl: 'https://api.example.com', fetch })
+    let reported = 0
+    api.onUnauthorized(() => reported++)
+
+    await expect(api.get('/api/settings')).rejects.toMatchObject({ status: 401 })
+
+    expect(reported).toBe(1)
+  })
+
+  it("doesn't report a 401 from an /auth/ route, which the sign-in screens handle themselves", async () => {
+    const { fetch } = fakeFetch(() => new Response('unknown code', { status: 401 }))
+    const api = createApiClient({ baseUrl: 'https://api.example.com', fetch })
+    let reported = 0
+    api.onUnauthorized(() => reported++)
+
+    await expect(api.post('/auth/register/begin', { code: 'BY95P-1SQMF' })).rejects.toMatchObject({
+      status: 401,
+    })
+
+    expect(reported).toBe(0)
+  })
 })
