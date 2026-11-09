@@ -4,7 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Nando</title>
-    <meta name="theme-color" content="#1f7a4d" />
+    <meta name="theme-color" content="#F6F4EF" />
+    <!--
+      Appearance, before first paint, so the screen never flashes the wrong colours. Same key and
+      rules as src/core/appearance/appearance.ts; a blocked localStorage means System.
+    -->
+    <script>
+      ;(function () {
+        var appearance = 'system'
+        try {
+          var stored = localStorage.getItem('nando.appearance')
+          if (stored === 'light' || stored === 'dark') appearance = stored
+        } catch (e) {}
+        var dark =
+          appearance === 'dark' ||
+          (appearance === 'system' && !!window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var root = document.documentElement
+        if (dark) root.classList.add('dark')
+        root.style.colorScheme = dark ? 'dark' : 'light'
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#111110' : '#F6F4EF')
+      })()
+    </script>
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <!-- iOS Home Screen: icon, name, and opening standalone with content under the status bar. -->
@@ -14,7 +34,7 @@
     <meta name="apple-mobile-web-app-title" content="Nando" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   </head>
-  <body>
+  <body class="theme-paper">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,23 +1,258 @@
+@import 'tailwindcss';
+
+/* Dark colours follow Appearance: the `dark` class on <html> (see src/core/appearance). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Themes. A theme is a palette plus a display font, applied by a class on a container
+ * (theme-paper for Core, theme-<module> for a Module) and switched for dark by `.dark` on <html>.
+ * Tailwind sees the tokens as colours below (bg-bg, text-ink, bg-accent, ...), so a screen's
+ * classes read the theme of whatever container it sits in.
+ */
 :root {
-  font-family: system-ui, -apple-system, sans-serif;
-  color-scheme: light dark;
+  --body-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', system-ui,
+    sans-serif;
 }
 
-body {
-  margin: 0;
-  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+/* Paper: Core. */
+.theme-paper {
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --ink: #1d1c1a;
+  --sub: #6a665e;
+  --line: #e4e0d8;
+  --fill: #eeebe4;
+  --accent: #8e4a49;
+  --accent-ink: #ffffff;
+  --display-font: var(--body-font);
 }
 
-/* One field per line, so labels don't run into the next field on a phone. */
-label {
-  display: block;
-  margin-block: 12px;
+.dark .theme-paper {
+  --bg: #111110;
+  --surface: #1d1c1a;
+  --ink: #f2f0ea;
+  --sub: #a6a198;
+  --line: #33312c;
+  --fill: #2b2925;
+  --accent: #e3a09c;
+  --accent-ink: #2a1212;
 }
 
-/* iOS Safari zooms in on a field whose text is under 16px when it is focused. */
-input,
-select,
-textarea,
-button {
-  font-size: 16px;
+/* Kitchen wood: Calories. Defined here so the Calories restyles only use them. */
+.theme-calories {
+  --bg: #f4ece1;
+  --surface: #fffaf3;
+  --ink: #2e2219;
+  --sub: #77604e;
+  --line: #e9ddcd;
+  --fill: #f1e5d5;
+  --accent: #b4532a;
+  --accent-ink: #ffffff;
+  --board: #4a3426;
+  --board-ink: #faf0e4;
+  --board-sub: #dcc6af;
+  --board-track: rgb(255 240 225 / 0.18);
+  --bar-fill: #f2a775;
+  --warn-bar: #ff7b6b;
+  --display-font: 'Zen Maru Gothic', var(--body-font);
+}
+
+.dark .theme-calories {
+  --bg: #18130f;
+  --surface: #241d17;
+  --ink: #f4eadf;
+  --sub: #bba894;
+  --line: #3a3027;
+  --fill: #30271f;
+  --accent: #e8915f;
+  --accent-ink: #2a1408;
+  --board: #3b2b1f;
+  --board-ink: #faf0e4;
+  --board-sub: #d3bca5;
+  --board-track: rgb(255 240 225 / 0.16);
+  --bar-fill: #f2a775;
+  --warn-bar: #ff7b6b;
+}
+
+@theme {
+  --font-sans: var(--body-font);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-sub: var(--sub);
+  --color-line: var(--line);
+  --color-fill: var(--fill);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-board: var(--board);
+  --color-board-ink: var(--board-ink);
+  --color-board-sub: var(--board-sub);
+  --color-board-track: var(--board-track);
+  --color-bar-fill: var(--bar-fill);
+  --color-warn-bar: var(--warn-bar);
+  --font-display: var(--display-font);
+}
+
+/*
+ * Plain defaults, so screens not restyled yet stay usable: readable headings, fields and buttons
+ * that look like fields and buttons. The building blocks in src/core/ui override them.
+ */
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-block: 0.5em;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-block: 0.75em 0.5em;
+  }
+
+  h3 {
+    font-weight: 600;
+    margin-block: 0.75em 0.5em;
+  }
+
+  p,
+  form,
+  fieldset,
+  ul,
+  ol,
+  table {
+    margin-block: 0.75em;
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  /* One field per line, so labels don't run into the next field on a phone. */
+  label {
+    display: block;
+    margin-block: 12px;
+  }
+
+  /* Touch targets are at least 44px. iOS Safari zooms in on a field under 16px when it is focused. */
+  input:not([type='checkbox'], [type='radio']),
+  select,
+  textarea {
+    display: block;
+    min-height: 44px;
+    margin-top: 4px;
+    padding: 0 12px;
+    border: 0.5px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    font-size: 16px;
+  }
+
+  textarea {
+    padding-block: 10px;
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    margin-inline-end: 8px;
+    accent-color: var(--accent);
+  }
+
+  button {
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 999px;
+    background: var(--fill);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Motion. Screen changes are View Transitions with a short slide (links with `viewTransition`);
+ * the tab bar holds still. Everything is off under prefers-reduced-motion.
+ */
+@keyframes slide-out {
+  to {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+::view-transition-old(root) {
+  animation: 160ms ease-in both slide-out;
+}
+
+::view-transition-new(root) {
+  animation: 220ms ease-out both slide-in;
+}
+
+::view-transition-old(tab-bar),
+::view-transition-new(tab-bar) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
 }

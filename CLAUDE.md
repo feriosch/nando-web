@@ -15,3 +15,7 @@ Single-context, shared with the server: the canonical `GLOSSARY.md` and `docs/ad
 ## Device
 
 Nando's main phone is the **iPhone 17** (402×874 pt, @3x), running Nando as a Home Screen PWA. Design and check every screen at that size. The `pr-media` skill (`.claude/skills/pr-media/`) captures screens on it for PRs.
+
+## Design
+
+Build and restyle every screen with the `nando-design` skill (`.claude/skills/nando-design/`): themes, tokens, the shell's building blocks, motion.

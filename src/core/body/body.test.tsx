@@ -248,8 +248,7 @@ describe('Weigh-ins', () => {
     expect(within(await weekForm('This week')).getByLabelText('Weight (kg)')).toHaveValue('72.4')
 
     // Logged again from another device while this one is on Home.
-    await user.click(screen.getByRole('button', { name: 'Menu' }))
-    await user.click(screen.getByRole('link', { name: 'Home' }))
+    await user.click(within(screen.getByRole('navigation', { name: 'Tabs' })).getByRole('link', { name: 'Home' }))
     weighIns = [{ week: '2026-11-09', kg: 72.0 }]
     await user.click(within(await bodyCard()).getByRole('link', { name: 'Weigh-ins' }))
 

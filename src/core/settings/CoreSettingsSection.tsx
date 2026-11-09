@@ -4,6 +4,7 @@ import { ApiError } from '../api/client'
 import { useLoadedSinceMount } from '../api/loaded'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
+import { AppearanceControl } from '../appearance/AppearanceControl'
 import { reminderTimes, type CoreSettings, type Weekday } from './settings'
 
 const weekdays: { value: Weekday; label: string }[] = [
@@ -26,6 +27,7 @@ export function CoreSettingsSection() {
   // Once the form is up, a failed reload says so above it but leaves what the Owner typed.
   return (
     <>
+      <AppearanceControl />
       {settings.isError && <LoadProblem message="Couldn't load the settings." retry={() => settings.refetch()} />}
       {loaded && settings.data && <SettingsForm saved={settings.data} />}
     </>
