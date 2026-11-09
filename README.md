@@ -56,6 +56,12 @@ docker run -p 8080:8080 nando-web
 
 nginx listens on `PORT` (default `8080`; Cloud Run sets it). Unknown paths fall back to `index.html` so client-side routes work. `index.html`, `sw.js` and `manifest.webmanifest` are sent with `Cache-Control: no-cache`, and hashed files under `/assets/` are cached for a year.
 
+## Deploy
+
+Every push to `main` deploys to the `nando-web` Cloud Run service (`.github/workflows/deploy.yml`; also runnable by hand from the Actions tab). It signs in through Workload Identity Federation, builds the image with `VITE_API_BASE_URL=https://api.nanders.app`, pushes it to Artifact Registry tagged with the commit, deploys it, and ends by checking that `https://web.nanders.app/` serves this build's `index.html`. Project, region, registry and deploy service account come from the repo variables `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_AR_REPO`, `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SA`.
+
+If the new revision doesn't start, the deploy fails and traffic stays on the previous revision.
+
 ## APIs
 
 What the server offers each area of the app:
