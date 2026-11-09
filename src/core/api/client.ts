@@ -13,11 +13,14 @@ export type ApiClient = {
 
 export class ApiError extends Error {
   readonly status: number
+  // The server's own short plain-text message, such as which setting it refused; may be empty.
+  readonly detail: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, detail = '') {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -35,7 +38,8 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
       unauthorizedListeners.forEach((listener) => listener())
     }
     if (!response.ok) {
-      throw new ApiError(response.status, `${method} ${path} failed with ${response.status}`)
+      const detail = (await response.text().catch(() => '')).trim()
+      throw new ApiError(response.status, `${method} ${path} failed with ${response.status}`, detail)
     }
     if (response.status === 204) {
       return undefined as T

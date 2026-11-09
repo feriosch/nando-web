@@ -25,6 +25,10 @@ export function fakeApi(answers: Record<string, Answer | ((body: unknown) => Ans
     if (answerBody === undefined) {
       return new Response(null, { status })
     }
+    // The server sends its error messages as plain text.
+    if (typeof answerBody === 'string') {
+      return new Response(answerBody, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+    }
     return new Response(JSON.stringify(answerBody), {
       status,
       headers: { 'Content-Type': 'application/json' },

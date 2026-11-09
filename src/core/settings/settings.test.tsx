@@ -67,18 +67,40 @@ describe('Core Settings Section', () => {
     expect(sent.filter((request) => request.method === 'PUT')).toEqual([])
   })
 
-  it("says the settings weren't saved when the server refuses them", async () => {
+  it('stops saying "Saved." once the Owner submits a height that is refused', async () => {
     const user = userEvent.setup()
     const { api } = fakeApi({
       'GET /api/settings': { status: 200, body: defaults },
-      'PUT /api/settings': { status: 400, body: 'unknown time zone' },
+      'PUT /api/settings': { status: 204 },
+    })
+    renderApp('/settings', api)
+
+    const section = await coreSection()
+    await user.click(await within(section).findByRole('button', { name: 'Save' }))
+    await within(section).findByText('Saved.')
+
+    await user.type(within(section).getByLabelText('Height (cm)'), '175.5')
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+
+    expect(await within(section).findByRole('alert')).toBeInTheDocument()
+    expect(within(section).queryByText('Saved.')).not.toBeInTheDocument()
+  })
+
+  it("says which setting the server refused, such as a time zone it doesn't know", async () => {
+    const user = userEvent.setup()
+    const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: defaults },
+      // As nando-server's http.Error sends it: plain text and a newline.
+      'PUT /api/settings': { status: 400, body: 'timeZone must be an IANA time zone such as Asia/Tokyo\n' },
     })
     renderApp('/settings', api)
 
     const section = await coreSection()
     await user.click(await within(section).findByRole('button', { name: 'Save' }))
 
-    expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't save the settings.")
+    expect(await within(section).findByRole('alert')).toHaveTextContent(
+      "Couldn't save the settings: timeZone must be an IANA time zone such as Asia/Tokyo",
+    )
     expect(within(section).queryByText('Saved.')).not.toBeInTheDocument()
   })
 

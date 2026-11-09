@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { useApi } from '../services'
 import type { Body } from './body'
+import { formatWeek } from './weeks'
 
 // The Body Home Card: the latest Weigh-in, its BMI and the change since the week before.
 export function BodyCard() {
@@ -14,6 +15,7 @@ export function BodyCard() {
       {body.data?.latest && (
         <>
           <p>{body.data.latest.kg.toFixed(1)} kg</p>
+          <p>Week of {formatWeek(body.data.latest.week)}</p>
           {body.data.bmi !== null ? (
             <p>BMI {body.data.bmi.toFixed(1)}</p>
           ) : (

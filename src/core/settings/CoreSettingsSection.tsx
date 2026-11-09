@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import { ApiError } from '../api/client'
 import { useApi } from '../services'
 import type { CoreSettings, Weekday } from './settings'
 
@@ -48,6 +49,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
     const heightCm = parseHeight(height)
     if (heightCm === undefined) {
       setProblem('Enter your height as a whole number of cm from 1 to 300, or leave it empty.')
+      save.reset()
       return
     }
     setProblem(null)
@@ -104,7 +106,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
       </fieldset>
       <button type="submit">Save</button>
       {save.isSuccess && <p role="status">Saved.</p>}
-      {(problem || save.isError) && <p role="alert">{problem ?? "Couldn't save the settings."}</p>}
+      {(problem || save.isError) && <p role="alert">{problem ?? describe(save.error)}</p>}
     </form>
   )
 }
@@ -117,4 +119,12 @@ function parseHeight(typed: string): number | null | undefined {
   if (!/^\d+$/.test(trimmed)) return undefined
   const cm = Number(trimmed)
   return cm >= 1 && cm <= 300 ? cm : undefined
+}
+
+function describe(error: unknown): string {
+  // A 400's message says which setting the server refused.
+  if (error instanceof ApiError && error.status === 400 && error.detail) {
+    return `Couldn't save the settings: ${error.detail}`
+  }
+  return "Couldn't save the settings."
 }

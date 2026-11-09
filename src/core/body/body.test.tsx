@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeApi, renderApp, type Answer } from '../../test/app'
@@ -10,7 +10,7 @@ async function bodyCard() {
 }
 
 describe('Body Home Card', () => {
-  it('shows the latest Weigh-in, its BMI and the change since the week before', async () => {
+  it('shows the latest Weigh-in with its week, its BMI and the change since the week before', async () => {
     const { api } = fakeApi({
       'GET /api/body': { status: 200, body: { latest: { week: '2026-10-19', kg: 72.4 }, bmi: 23.6, change: -0.4 } },
     })
@@ -18,6 +18,8 @@ describe('Body Home Card', () => {
 
     const card = await bodyCard()
     expect(await within(card).findByText('72.4 kg')).toBeInTheDocument()
+    // It can be weeks old, so the card says which week it is from.
+    expect(within(card).getByText('Week of 19 Oct 2026')).toBeInTheDocument()
     expect(within(card).getByText('BMI 23.6')).toBeInTheDocument()
     expect(within(card).getByText('−0.4 kg vs the week before')).toBeInTheDocument()
   })
@@ -135,6 +137,101 @@ describe('Weigh-ins', () => {
       ]),
     )
     expect(within(history).queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('moves on to the new week when the Owner comes back to the app after Monday has started', async () => {
+    const user = userEvent.setup()
+    const { api, sent } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
+      'GET /api/weigh-ins': {
+        status: 200,
+        body: [
+          { week: '2026-11-09', kg: 72.4 },
+          { week: '2026-11-02', kg: 72.8 },
+        ],
+      },
+      'PUT /api/weigh-ins/2026-11-16': { status: 204 },
+    })
+    renderApp('/weigh-ins', api)
+    expect(within(await weekForm('This week')).getByLabelText('Weight (kg)')).toHaveValue('72.4')
+
+    // A Home Screen app stays open for days. It is Monday 16 November, 05:00, in Tokyo when the
+    // Owner comes back to it.
+    vi.setSystemTime(new Date('2026-11-15T20:00:00Z'))
+    fireEvent(document, new Event('visibilitychange'))
+
+    const thisWeek = await weekForm('This week')
+    await waitFor(() => expect(within(thisWeek).getByLabelText('Weight (kg)')).toHaveValue(''))
+    expect(within(await weekForm('Last week')).getByLabelText('Weight (kg)')).toHaveValue('72.4')
+
+    await user.type(within(await weekForm('This week')).getByLabelText('Weight (kg)'), '72.1')
+    await user.click(within(await weekForm('This week')).getByRole('button', { name: 'Save' }))
+
+    expect(await within(await weekForm('This week')).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([
+      { method: 'PUT', path: '/api/weigh-ins/2026-11-16', body: { kg: 72.1 } },
+    ])
+  })
+
+  it('fills the forms from the saved Weigh-ins, not a copy cached before they changed elsewhere', async () => {
+    const user = userEvent.setup()
+    let weighIns = [{ week: '2026-11-09', kg: 72.4 }]
+    const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
+      'GET /api/weigh-ins': () => ({ status: 200, body: weighIns }),
+      'GET /api/body': () => ({ status: 200, body: { latest: weighIns[0], bmi: 23.6, change: null } }),
+    })
+    renderApp('/weigh-ins', api)
+    expect(within(await weekForm('This week')).getByLabelText('Weight (kg)')).toHaveValue('72.4')
+
+    // Logged again from another device while this one is on Home.
+    await user.click(screen.getByRole('button', { name: 'Menu' }))
+    await user.click(screen.getByRole('link', { name: 'Home' }))
+    weighIns = [{ week: '2026-11-09', kg: 72.0 }]
+    await user.click(within(await bodyCard()).getByRole('link', { name: 'Weigh-ins' }))
+
+    expect(within(await weekForm('This week')).getByLabelText('Weight (kg)')).toHaveValue('72.0')
+  })
+
+  it('reads a decimal comma, which the iPhone keypad types in some regions, as a decimal point', async () => {
+    const user = userEvent.setup()
+    const { api, sent } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
+      'GET /api/weigh-ins': { status: 200, body: [] },
+      'PUT /api/weigh-ins/2026-11-09': { status: 204 },
+    })
+    renderApp('/weigh-ins', api)
+
+    const thisWeek = await weekForm('This week')
+    await user.type(within(thisWeek).getByLabelText('Weight (kg)'), '72,4')
+    await user.click(within(thisWeek).getByRole('button', { name: 'Save' }))
+
+    expect(await within(thisWeek).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([
+      { method: 'PUT', path: '/api/weigh-ins/2026-11-09', body: { kg: 72.4 } },
+    ])
+  })
+
+  it('stops saying "Saved." once the Owner submits a weight that is refused', async () => {
+    const user = userEvent.setup()
+    const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
+      'GET /api/weigh-ins': { status: 200, body: [] },
+      'PUT /api/weigh-ins/2026-11-09': { status: 204 },
+    })
+    renderApp('/weigh-ins', api)
+
+    const thisWeek = await weekForm('This week')
+    const weight = within(thisWeek).getByLabelText('Weight (kg)')
+    await user.type(weight, '72.4')
+    await user.click(within(thisWeek).getByRole('button', { name: 'Save' }))
+    await within(thisWeek).findByText('Saved.')
+
+    await user.type(weight, '5')
+    await user.click(within(thisWeek).getByRole('button', { name: 'Save' }))
+
+    expect(await within(thisWeek).findByRole('alert')).toBeInTheDocument()
+    expect(within(thisWeek).queryByText('Saved.')).not.toBeInTheDocument()
   })
 
   it.each(['72.45', '0', '501', 'heavy'])("doesn't send %s kg, and says what a weight must be", async (typed) => {

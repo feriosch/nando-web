@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client'
 import { useApi } from '../services'
 import type { CoreSettings } from '../settings/settings'
@@ -12,18 +12,19 @@ export function WeighIns() {
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
   const weighIns = useQuery({ queryKey: ['weigh-ins'], queryFn: () => api.get<WeighIn[]>('/api/weigh-ins') })
 
-  // Read once, when the screen opens; a save after the week ends is answered 409.
-  const [openedAt] = useState(() => new Date())
-  const thisWeek = settings.data && weekOf(openedAt, settings.data.timeZone)
+  const now = useNowOnReturn()
+  const thisWeek = settings.data && weekOf(now, settings.data.timeZone)
   const kgOf = (week: string) => weighIns.data?.find((weighIn) => weighIn.week === week)?.kg
 
   return (
     <>
       <h1>Weigh-ins</h1>
-      {thisWeek && weighIns.data && (
+      {/* The forms start from the saved Weigh-ins, so they wait for ones fetched since the screen
+          opened rather than a cached copy. Keyed by week, so a form starts over when its week moves on. */}
+      {thisWeek && weighIns.isFetchedAfterMount && (
         <>
-          <WeekForm name="This week" week={thisWeek} kg={kgOf(thisWeek)} />
-          <WeekForm name="Last week" week={weekBefore(thisWeek)} kg={kgOf(weekBefore(thisWeek))} />
+          <WeekForm key={thisWeek} name="This week" week={thisWeek} kg={kgOf(thisWeek)} />
+          <WeekForm key={weekBefore(thisWeek)} name="Last week" week={weekBefore(thisWeek)} kg={kgOf(weekBefore(thisWeek))} />
         </>
       )}
       {weighIns.data && (
@@ -40,6 +41,24 @@ export function WeighIns() {
       )}
     </>
   )
+}
+
+// The time now, read again whenever the Owner comes back to the app. A Home Screen app can stay
+// open for days, and which week is this week moves on every Monday.
+function useNowOnReturn(): Date {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const update = () => {
+      if (document.visibilityState === 'visible') setNow(new Date())
+    }
+    document.addEventListener('visibilitychange', update)
+    window.addEventListener('focus', update)
+    return () => {
+      document.removeEventListener('visibilitychange', update)
+      window.removeEventListener('focus', update)
+    }
+  }, [])
+  return now
 }
 
 // The form to log or change one week's Weigh-in, starting from the one it has, if any.
@@ -62,6 +81,7 @@ function WeekForm({ name, week, kg: savedKg }: { name: string; week: string; kg:
     const parsed = parseKg(kg)
     if (parsed === null) {
       setProblem('Enter a weight in kg above 0 and up to 500, with at most 1 decimal.')
+      save.reset()
       return
     }
     setProblem(null)
@@ -83,9 +103,11 @@ function WeekForm({ name, week, kg: savedKg }: { name: string; week: string; kg:
 }
 
 // A weight the server takes: more than 0 and at most 500 kg, to at most 1 decimal; otherwise null.
+// A decimal comma counts as a decimal point: the iPhone's decimal keypad types one in some regions.
 function parseKg(typed: string): number | null {
-  if (!/^\d+(\.\d)?$/.test(typed.trim())) return null
-  const kg = Number(typed)
+  const normalized = typed.trim().replace(',', '.')
+  if (!/^\d+(\.\d)?$/.test(normalized)) return null
+  const kg = Number(normalized)
   return kg > 0 && kg <= 500 ? kg : null
 }
 
