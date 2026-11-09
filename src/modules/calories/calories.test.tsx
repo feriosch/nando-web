@@ -920,7 +920,7 @@ describe('Calories Home Card', () => {
     })
 
     const card = await caloriesCard()
-    expect(await within(card).findByText('460 / 2,000 kcal')).toBeInTheDocument()
+    await waitFor(() => expect(card).toHaveTextContent('460 / 2,000 kcal'))
     expect(within(card).getByText('1,540 kcal left')).toBeInTheDocument()
     await user.click(within(card).getByRole('link', { name: 'Today' }))
 
@@ -937,8 +937,8 @@ describe('Calories Home Card', () => {
     })
 
     const card = await caloriesCard()
-    expect(await within(card).findByText('Nothing logged.')).toBeInTheDocument()
-    expect(within(card).queryByText(/0 kcal|kcal left/)).not.toBeInTheDocument()
+    expect(await within(card).findByText('Not logged')).toBeInTheDocument()
+    expect(card).not.toHaveTextContent(/0 kcal|kcal left/)
   })
 
   it("says when it couldn't load, and loads again when asked", async () => {
@@ -952,8 +952,8 @@ describe('Calories Home Card', () => {
     answer = { status: 200, body: { day: '2026-11-09', consumedCalories: 2100, dailyLimit: 2000, remaining: -100, overLimit: true } }
     await user.click(within(card).getByRole('button', { name: 'Try again' }))
 
-    expect(await within(card).findByText('2,100 / 2,000 kcal')).toBeInTheDocument()
-    expect(within(card).getByText('100 kcal over')).toBeInTheDocument()
+    await waitFor(() => expect(card).toHaveTextContent('2,100 / 2,000 kcal'))
+    expect(within(card).getByText('100 kcal over the Daily Limit')).toBeInTheDocument()
     expect(within(card).queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -964,14 +964,14 @@ describe('Calories Home Card', () => {
     renderCalories('/', { 'GET /api/calories/home-card': () => answer })
 
     const card = await caloriesCard()
-    expect(await within(card).findByText('1,700 / 1,800 kcal')).toBeInTheDocument()
+    await waitFor(() => expect(card).toHaveTextContent('1,700 / 1,800 kcal'))
 
     // Tuesday 10 November, 00:00 in Tokyo: nothing logged yet.
     answer = { status: 200, body: { day: '2026-11-10', consumedCalories: null, dailyLimit: 1800, remaining: null, overLimit: null } }
     vi.setSystemTime(new Date('2026-11-09T15:00:00Z'))
     vi.advanceTimersByTime(60_000)
 
-    expect(await within(card).findByText('Nothing logged.')).toBeInTheDocument()
+    expect(await within(card).findByText('Not logged')).toBeInTheDocument()
   })
 })
 
@@ -1001,6 +1001,20 @@ function historyServer(logged: Record<string, { consumedCalories: number; dailyL
   return { answers: { 'GET /api/calories/history': answer } as Answers, asked }
 }
 
+// Every Day History lists, newest first, across its weeks.
+function historyDays() {
+  return within(screen.getByRole('main')).getAllByRole('listitem')
+}
+
+// Waits for History to list `count` Days, and gives them.
+function findHistoryDays(count = 30) {
+  return waitFor(() => {
+    const days = historyDays()
+    expect(days).toHaveLength(count)
+    return days
+  })
+}
+
 describe('History', () => {
   it("lists today and the 29 Days before it, newest first, each with its Consumed Calories against that Day's Daily Limit", async () => {
     const history = historyServer({
@@ -1010,8 +1024,7 @@ describe('History', () => {
     renderCalories('/calories/history', history.answers)
 
     expect(await screen.findByRole('heading', { level: 1, name: 'History' })).toBeInTheDocument()
-    const days = within(await screen.findByRole('list', { name: 'Days' })).getAllByRole('listitem')
-    expect(days).toHaveLength(30)
+    const days = await findHistoryDays()
     expect(days[0]).toHaveTextContent('Mon 9 Nov: 460 / 1,800 kcal')
     // An Unlogged Day isn't recorded, so it is never 0 kcal or under the Daily Limit.
     expect(days[1]).toHaveTextContent('Sun 8 Nov: not logged')
@@ -1021,10 +1034,30 @@ describe('History', () => {
     expect(history.asked).toEqual([{ from: '2026-10-11', to: '2026-11-09' }])
   })
 
+  it('groups the Days by week, from Monday to Sunday', async () => {
+    renderCalories('/calories/history', historyServer({}).answers)
+    await findHistoryDays()
+
+    // Each week's list, by the section header that names it, and how many Days it has.
+    const weeks = screen.getAllByRole('list').map((list) => [
+      document.getElementById(list.getAttribute('aria-labelledby')!)?.textContent,
+      within(list).getAllByRole('listitem').length,
+    ])
+    // Today is Monday 9 November; the 30th Day back is Sunday 11 October.
+    expect(weeks).toEqual([
+      ['This week', 1],
+      ['Last week', 7],
+      ['Week of 26 Oct', 7],
+      ['Week of 19 Oct', 7],
+      ['Week of 12 Oct', 7],
+      ['Week of 5 Oct', 1],
+    ])
+  })
+
   it('shows just the Consumed Calories of a Day with no Daily Limit', async () => {
     renderCalories('/calories/history', historyServer({ '2026-11-09': { consumedCalories: 460, dailyLimit: null } }, null).answers)
 
-    const days = within(await screen.findByRole('list', { name: 'Days' })).getAllByRole('listitem')
+    const days = await findHistoryDays()
     expect(days[0]).toHaveTextContent(/^Mon 9 Nov: 460 kcal$/)
   })
 
@@ -1033,11 +1066,10 @@ describe('History', () => {
     const history = historyServer({ '2026-10-01': { consumedCalories: 1900, dailyLimit: 2200 } })
     renderCalories('/calories/history', history.answers)
 
-    await screen.findByRole('list', { name: 'Days' })
+    await findHistoryDays()
     await user.click(screen.getByRole('button', { name: 'Show older' }))
 
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Days' })).getAllByRole('listitem')).toHaveLength(60))
-    const days = within(screen.getByRole('list', { name: 'Days' })).getAllByRole('listitem')
+    const days = await findHistoryDays(60)
     expect(days[29]).toHaveTextContent('Sun 11 Oct: not logged')
     expect(days[39]).toHaveTextContent('Thu 1 Oct: 1,900 / 2,200 kcal')
     expect(days[59]).toHaveTextContent('Fri 11 Sept: not logged')
@@ -1079,7 +1111,7 @@ describe('History', () => {
     failing = false
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByText('Mon 9 Nov: 460 / 1,800 kcal')).toBeInTheDocument()
+    expect((await findHistoryDays())[0]).toHaveTextContent('Mon 9 Nov: 460 / 1,800 kcal')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -1092,14 +1124,13 @@ describe('History', () => {
       'GET /api/calories/history': (body, query) => (failOlder && query.get('to') !== '2026-11-09' ? { status: 500 } : answer(body, query)),
     })
 
-    await screen.findByRole('list', { name: 'Days' })
+    await findHistoryDays()
     await user.click(screen.getByRole('button', { name: 'Show older' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the history.")
     failOlder = false
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByText('Thu 1 Oct: 1,900 / 2,200 kcal')).toBeInTheDocument()
-    expect(within(screen.getByRole('list', { name: 'Days' })).getAllByRole('listitem')).toHaveLength(60)
+    expect((await findHistoryDays(60))[39]).toHaveTextContent('Thu 1 Oct: 1,900 / 2,200 kcal')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

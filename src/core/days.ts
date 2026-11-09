@@ -15,6 +15,12 @@ export function addDays(day: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+// The Monday of the week `day` falls in: `day` itself on a Monday. A week is named by its Monday.
+export function mondayOf(day: string): string {
+  const daysSinceMonday = (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7
+  return addDays(day, -daysSinceMonday)
+}
+
 // Whether `text` is a real date written YYYY-MM-DD, such as 2026-11-09 but not 2026-02-30.
 export function isDay(text: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
