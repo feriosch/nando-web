@@ -7,3 +7,9 @@ body {
   margin: 0;
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
 }
+
+/* One field per line, so labels don't run into the next field on a phone. */
+label {
+  display: block;
+  margin-block: 12px;
+}

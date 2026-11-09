@@ -7,9 +7,11 @@ Web app for Nando: Bun, Vite, React, TypeScript, React Router and TanStack Query
 - `src/core`: Core.
   - `module.ts`: the types Core and Modules use to add to the shell: a **Home Card**, a **Settings Section**, and a `Module` (its name and `path` for the menu, its own `routes`, plus its Home Cards and Settings Sections).
   - `shell/`: the hamburger menu listing Modules, **Home** (every Home Card, Core's first) and the single **Settings** screen (every Settings Section, Core's first). `createRoutes(registry)` builds all routes.
-  - `api/`: the API client. Every request is sent with `credentials: "include"` so the session cookie goes along; a non-2xx response throws `ApiError` with its `status`. A `401` from any `/api/` route is also reported to `onUnauthorized` listeners, and the shell answers it by going to sign-in.
+  - `api/`: the API client. Every request is sent with `credentials: "include"` so the session cookie goes along; `get`, `post` and `put` send and read JSON; a non-2xx response throws `ApiError` with its `status`. A `401` from any `/api/` route is also reported to `onUnauthorized` listeners, and the shell answers it by going to sign-in.
   - `identity/`: sign-in. `/sign-in` has the "Sign in with Face ID" button, and `/enroll` registers a new Passkey with an Enrollment Code from `nando-server enroll`. Either one starts a Session and opens Home. WebAuthn only ever starts from a tap. `passkeys.ts` wraps `navigator.credentials`.
   - `services.ts`: `useApi()` and `usePasskeys()`, which every screen, Core's and every Module's, uses to reach the API and the device's Passkeys. `<CoreProvider>` provides them, so tests can pass fakes.
+  - `body/`: the **Body Home Card** (latest Weigh-in, BMI, change since the week before) and the **Weigh-ins** screen at `/weigh-ins`, opened from that card: log or change this week's and last week's Weigh-in, in the Owner Time Zone, and see every Weigh-in. Core has no entry in the menu.
+  - `settings/`: Core's Settings Section ("General"): the Owner Time Zone, height, and the Weigh-in reminder's weekday and time (on the hour or half hour).
   - `core.ts`: Core's own Home Cards and Settings Sections.
   - `sw/`: what the service worker does with Notifications (see **PWA** below).
 - `src/modules/<module>`: one Module each (`calories`), exporting its `Module`.

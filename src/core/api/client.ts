@@ -6,6 +6,7 @@ export type ApiClientOptions = {
 export type ApiClient = {
   get<T>(path: string): Promise<T>
   post<T>(path: string, body?: unknown): Promise<T>
+  put<T>(path: string, body: unknown): Promise<T>
   // Calls `listener` whenever an /api/ route answers 401: the Session is gone. Returns an unsubscribe.
   onUnauthorized(listener: () => void): () => void
 }
@@ -45,6 +46,7 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
   return {
     get: (path) => request('GET', path),
     post: (path, body) => request('POST', path, body),
+    put: (path, body) => request('PUT', path, body),
     onUnauthorized(listener) {
       unauthorizedListeners.add(listener)
       return () => unauthorizedListeners.delete(listener)
