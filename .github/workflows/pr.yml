@@ -1,0 +1,49 @@
+# PR checks: the same commands as README's Test section, then the production
+# build inside the image main will deploy.
+name: PR checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A new push to the PR cancels checks still running for the old commit.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck, lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # The Dockerfile's Bun, so the lockfile installs as it does in the image.
+      # Keep the two in step.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.13
+      # tsc, oxlint's wrapper, Vite and Vitest start with `#!/usr/bin/env node`,
+      # so `bun run` runs them on Node. Pinned so the runner's default Node
+      # can't change under us (Vitest 5 needs ^22.12 or ^24).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      # Vitest (package.json's test script), not Bun's own runner.
+      - run: bun run test
+
+  image:
+    name: build image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # Runs `bun run build` (tsc -b && vite build) as main's image does, and
+      # catches a broken Dockerfile or nginx template before merge. The API
+      # origin is a placeholder: the build only needs one to be set.
+      - run: docker build --build-arg VITE_API_BASE_URL=https://api.example.com .

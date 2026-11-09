@@ -37,6 +37,8 @@ bun run typecheck
 bun run lint
 ```
 
+Every pull request runs these (with the Dockerfile's Bun and Node 22), and builds the container image (`.github/workflows/pr.yml`).
+
 ## PWA
 
 Nando is installed from Safari's Share → Add to Home Screen and opens standalone. `vite-plugin-pwa` builds `manifest.webmanifest` and `sw.js` from `src/sw.ts`, and the iOS tags are in `index.html`.
