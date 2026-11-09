@@ -1,12 +1,14 @@
 import { createContext, useContext } from 'react'
 import type { ApiClient } from './api/client'
 import type { Passkeys } from './identity/passkeys'
+import type { Push } from './notifications/push'
 
-// What Core hands to every screen, Core's and every Module's: the API client and the device's
-// Passkeys. <CoreProvider> provides them.
+// What Core hands to every screen, Core's and every Module's: the API client, the device's
+// Passkeys and its Notification permission and Push Subscription. <CoreProvider> provides them.
 export type Services = {
   api: ApiClient
   passkeys: Passkeys
+  push: Push
 }
 
 export const ServicesContext = createContext<Services | null>(null)
@@ -25,4 +27,8 @@ export function useApi(): ApiClient {
 
 export function usePasskeys(): Passkeys {
   return useServices().passkeys
+}
+
+export function usePush(): Push {
+  return useServices().push
 }

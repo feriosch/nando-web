@@ -6,6 +6,7 @@ import { core } from '../core/core'
 import { CoreProvider } from '../core/CoreProvider'
 import type { Passkeys } from '../core/identity/passkeys'
 import type { Registry } from '../core/module'
+import type { Push, PushSubscriptionJSON } from '../core/notifications/push'
 import { createRoutes } from '../core/shell/routes'
 
 export type Answer = { status: number; body?: unknown }
@@ -42,14 +43,59 @@ const noPasskeys: Passkeys = {
   create: () => Promise.reject(new Error('no Passkeys in these tests')),
 }
 
+// This device's Notification permission and Push Subscription, faked: `subscribe` hands back
+// `subscribed` once the permission is granted. Records each permission request and the VAPID key
+// each subscribe was given.
+export function fakePush({
+  supported = true,
+  permission = 'default',
+  subscription = null,
+  answerPermission = 'granted',
+  subscribed = { endpoint: 'https://web.push.apple.com/QGxt', expirationTime: null, keys: { p256dh: 'BOrK', auth: 'Ys5w' } },
+}: {
+  supported?: boolean
+  permission?: NotificationPermission
+  subscription?: PushSubscriptionJSON | null
+  // What the Owner answers when asked for the permission.
+  answerPermission?: NotificationPermission
+  subscribed?: PushSubscriptionJSON
+} = {}) {
+  const calls = { permissionRequests: 0, subscribedWith: [] as string[] }
+  let current = subscription
+  const push: Push = {
+    supported: () => supported,
+    permission: () => permission,
+    requestPermission: async () => {
+      calls.permissionRequests++
+      if (permission === 'default') permission = answerPermission
+      return permission
+    },
+    subscription: async () => current,
+    subscribe: async (vapidPublicKey) => {
+      calls.subscribedWith.push(vapidPublicKey)
+      if (permission !== 'granted') throw new DOMException('Permission not granted.', 'NotAllowedError')
+      current = subscribed
+      return subscribed
+    },
+  }
+  // The Owner changes the permission in the device's settings, outside Nando.
+  const setPermission = (changed: NotificationPermission) => {
+    permission = changed
+  }
+  return { push, calls, setPermission }
+}
+
+// A browser that can't receive Notifications, so screens that don't test them leave them alone.
+export const noPush = fakePush({ supported: false }).push
+
 // The whole app as main.tsx builds it, with Core's real Home Cards, Settings Sections and screens
 // and no Modules, opened at `path`.
-export function renderApp(path: string, api: ReturnType<typeof fakeApi>['api']) {
+export function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], push: Push = noPush) {
   const registry: Registry = { core, modules: [] }
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <CoreProvider api={api} passkeys={noPasskeys}>
+    <CoreProvider api={api} passkeys={noPasskeys} push={push}>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>
