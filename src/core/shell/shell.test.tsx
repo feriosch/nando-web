@@ -2,12 +2,24 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { describe, expect, it } from 'vitest'
+import { createApiClient } from '../api/client'
+import { CoreProvider } from '../CoreProvider'
+import type { Passkeys } from '../identity/passkeys'
 import type { Registry } from '../module'
 import { createRoutes } from './routes'
 
 function renderShell(registry: Registry, path = '/') {
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
-  render(<RouterProvider router={router} />)
+  const api = createApiClient({ baseUrl: 'https://api.example.com', fetch: async () => new Response(null, { status: 204 }) })
+  const passkeys: Passkeys = {
+    get: () => Promise.reject(new Error('no Passkeys in the shell tests')),
+    create: () => Promise.reject(new Error('no Passkeys in the shell tests')),
+  }
+  render(
+    <CoreProvider api={api} passkeys={passkeys}>
+      <RouterProvider router={router} />
+    </CoreProvider>,
+  )
   return router
 }
 

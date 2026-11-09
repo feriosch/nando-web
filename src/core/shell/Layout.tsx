@@ -1,10 +1,16 @@
-import { useState } from 'react'
-import { Link, Outlet } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Link, Outlet, useNavigate } from 'react-router'
+import { useApi } from '../services'
 import type { Module } from '../module'
 
 export function Layout({ modules }: { modules: Module[] }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
+  const api = useApi()
+  const navigate = useNavigate()
+
+  // Any 401 from the API means the Session is gone: back to sign-in.
+  useEffect(() => api.onUnauthorized(() => navigate('/sign-in', { replace: true })), [api, navigate])
 
   return (
     <>

@@ -1,4 +1,6 @@
 import type { RouteObject } from 'react-router'
+import { Enroll } from '../identity/Enroll'
+import { SignIn } from '../identity/SignIn'
 import type { Registry } from '../module'
 import { Home } from './Home'
 import { Layout } from './Layout'
@@ -10,6 +12,8 @@ export function createRoutes(registry: Registry): RouteObject[] {
   const settingsSections = contributors.flatMap((contributor) => contributor.settingsSections)
 
   return [
+    { path: '/sign-in', element: <SignIn /> },
+    { path: '/enroll', element: <Enroll /> },
     {
       path: '/',
       element: <Layout modules={registry.modules} />,
