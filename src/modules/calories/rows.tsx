@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import { BowlIcon } from './icon'
 
-// The 36px tile at the start of an Entry or Meal row: its emoji, or the Calories bowl without one.
-export function Tile({ children }: { children?: ReactNode }) {
+// The 36px tile at the start of an Entry or Meal row: a Meal's photo (`image`, cover-cropped), else
+// its emoji, else the Calories bowl. Decoration: the row's text names what it is.
+export function Tile({ children, image }: { children?: ReactNode; image?: string | null }) {
+  if (image) return <img src={image} alt="" aria-hidden="true" className="size-9 shrink-0 rounded-[10px] bg-fill object-cover" />
   return (
     <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-fill text-[20px] text-sub">
       {children ?? <BowlIcon className="size-5" />}
@@ -12,6 +14,9 @@ export function Tile({ children }: { children?: ReactNode }) {
 
 // A grouped-list row laid out as a tile, then its text, then what's on its right.
 export const rowClasses = 'flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-left text-[17px]'
+
+// The same row as one link, to the screen it opens.
+export const rowLinkClasses = `${rowClasses} text-ink no-underline active:bg-fill focus-visible:-outline-offset-2`
 
 // The same row as one button: tapping anywhere on it opens what it's for.
 export const rowButtonClasses = `${rowClasses} m-0 rounded-none bg-transparent font-normal text-ink active:bg-fill focus-visible:-outline-offset-2`

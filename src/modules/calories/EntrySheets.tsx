@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useApi } from '../../core/services'
 import { Button } from '../../core/ui/Button'
+import { FieldRow } from '../../core/ui/FieldRow'
 import { GroupedList, ListRow } from '../../core/ui/List'
 import { saveFooter } from '../../core/ui/saveFooter'
 import { Switch } from '../../core/ui/Switch'
@@ -149,44 +150,6 @@ function EntryFieldRows({ fields, onChange }: { fields: EntryFields; onChange: (
         inputMode="numeric"
       />
     </>
-  )
-}
-
-// A row with its label on the left and the field, right-aligned, filling the rest.
-function FieldRow({
-  label,
-  value,
-  onChange,
-  inputMode,
-  maxLength,
-  placeholder,
-  lang,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  inputMode?: 'numeric'
-  maxLength?: number
-  placeholder?: string
-  lang?: string
-}) {
-  const id = useId()
-  return (
-    <ListRow>
-      <label htmlFor={id} className="my-0 shrink-0 text-[17px]">
-        {label}
-      </label>
-      <input
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        inputMode={inputMode}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        lang={lang}
-        className="m-0 min-h-11 w-full min-w-0 flex-1 border-0 bg-transparent p-0 text-right text-[17px] text-ink outline-none placeholder:text-sub/60"
-      />
-    </ListRow>
   )
 }
 
