@@ -26,9 +26,13 @@ export function CoreSettingsSection() {
   // The form starts from the saved settings and Save sends all of them back, so it waits for ones
   // loaded since the section opened: a cached copy could undo a change made on another device.
   const loaded = useLoadedSinceMount(settings)
-  if (loaded && settings.data) return <SettingsForm saved={settings.data} />
-  if (settings.isError) return <LoadProblem message="Couldn't load the settings." retry={() => settings.refetch()} />
-  return null
+  // Once the form is up, a failed reload says so above it but leaves what the Owner typed.
+  return (
+    <>
+      {settings.isError && <LoadProblem message="Couldn't load the settings." retry={() => settings.refetch()} />}
+      {loaded && settings.data && <SettingsForm saved={settings.data} />}
+    </>
+  )
 }
 
 function SettingsForm({ saved }: { saved: CoreSettings }) {

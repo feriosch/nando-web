@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { fakeApi, renderApp } from '../../test/app'
@@ -164,6 +164,27 @@ describe('Core Settings Section', () => {
     const section = await coreSection()
     expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't load the settings.")
     expect(within(section).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+  })
+
+  it("says when the settings couldn't be loaded again, and keeps the form being filled in", async () => {
+    const user = userEvent.setup()
+    let fails = false
+    const { api } = fakeApi({
+      'GET /api/settings': () => (fails ? { status: 500 } : { status: 200, body: defaults }),
+    })
+    renderApp('/settings', api)
+
+    const section = await coreSection()
+    const height = await within(section).findByLabelText('Height (cm)')
+    await user.type(height, '175')
+
+    // The Owner comes back to the app, which loads the settings again, and that fails.
+    fails = true
+    fireEvent(window, new Event('visibilitychange'))
+
+    expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't load the settings.")
+    expect(within(section).getByLabelText('Height (cm)')).toHaveValue('175')
+    expect(within(section).getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 
   it('offers reminder times only on the hour or half hour, from 00:00 to 23:30', async () => {
