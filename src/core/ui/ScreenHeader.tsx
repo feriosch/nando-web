@@ -3,17 +3,20 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { lucideProps } from './icons'
 
-// The large-title header at the top of a screen: a 44px top bar (a back link on the left, text
-// buttons on the right), then the title in the theme's display font and an optional line under it.
+// The large-title header at the top of a screen: a 44px top bar (a back link, or a `leading` text
+// button, on the left; text buttons on the right), then the title in the theme's display font and an
+// optional line under it.
 export function ScreenHeader({
   title,
   subtitle,
   back,
+  leading,
   actions,
 }: {
   title: ReactNode
   subtitle?: ReactNode
   back?: { to: string; label: string }
+  leading?: ReactNode
   actions?: ReactNode
 }) {
   return (
@@ -29,12 +32,21 @@ export function ScreenHeader({
             {back.label}
           </Link>
         ) : (
-          <span />
+          (leading ?? <span />)
         )}
         {actions && <div className="flex items-center gap-1">{actions}</div>}
       </div>
       <h1 className="my-0 font-display text-[34px] leading-[1.15] font-bold tracking-tight">{title}</h1>
       {subtitle && <p className="mt-1 mb-0 text-[15px] text-sub">{subtitle}</p>}
     </header>
+  )
+}
+
+// A text button in the top bar that opens another screen, in the accent colour.
+export function HeaderLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link to={to} viewTransition className="-mx-2 flex min-h-11 items-center px-2 text-[17px] text-accent no-underline">
+      {children}
+    </Link>
   )
 }

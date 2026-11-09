@@ -25,7 +25,8 @@ export function SectionHeader({
 // The grouped inset list: rows on the surface colour, 14px corners, hairline separators. Its 16px
 // side margins are the screen's own padding. An optional footer explains the rows, under the list.
 // `as="ul"` makes it a list (named by `labelledBy`), its rows `ListRow as="li"`. Inside a tint (an
-// ancestor with `data-tint`, such as a Module's Settings Section) it gets a hairline border.
+// ancestor with `data-tint`, such as a Module's Settings Section) it gets a hairline border; inside a
+// Sheet, which is on the surface colour itself, its rows are on the background colour.
 export function GroupedList({
   children,
   footer,
@@ -41,7 +42,7 @@ export function GroupedList({
     <div className="my-2">
       <List
         aria-labelledby={labelledBy}
-        className="my-0 list-none divide-y-[0.5px] divide-line overflow-hidden rounded-[14px] bg-surface p-0 in-data-tint:border-[0.5px] in-data-tint:border-line"
+        className="my-0 list-none divide-y-[0.5px] divide-line overflow-hidden rounded-[14px] bg-surface p-0 in-data-tint:border-[0.5px] in-data-tint:border-line in-data-sheet:bg-bg"
       >
         {children}
       </List>
