@@ -71,6 +71,8 @@ const registry: Registry = {
       id: 'calories',
       name: 'Calories',
       path: '/calories',
+      theme: 'theme-calories',
+      icon: () => <svg />,
       routes: [{ index: true, Component: TodaysEntries }],
       homeCards: [],
       settingsSections: [],

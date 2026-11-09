@@ -1,16 +1,22 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
-// Also the theme-color in index.html and the background of public/icon.svg.
-const brandColor = '#1f7a4d'
+// Paper's accent and light background (src/index.css), as in public/icon.svg. index.html's
+// theme-color follows the screen on view instead.
+const themeColor = '#8E4A49'
+const backgroundColor = '#F6F4EF'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     // Our own service worker (src/sw.ts) shows Notifications, with the precache list injected at
-    // build. nginx serves sw.js and manifest.webmanifest uncached.
+    // build. nginx serves sw.js and manifest.webmanifest uncached. Font files are not precached:
+    // Zen Maru Gothic comes in many small unicode-range files, and the service worker keeps each one
+    // the first time a screen uses it.
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -27,8 +33,8 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: brandColor,
-        theme_color: brandColor,
+        background_color: backgroundColor,
+        theme_color: themeColor,
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },

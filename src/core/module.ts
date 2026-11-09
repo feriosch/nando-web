@@ -20,11 +20,18 @@ export type Contributions = {
   settingsSections: SettingsSection[]
 }
 
-// A Module also gets its own screens under `path` and an entry in the menu.
+// A 24px line icon, drawn like the lucide icons (stroke 1.8): see `Icon` in core/ui.
+export type ModuleIcon = ComponentType<{ className?: string }>
+
+// A Module also gets its own screens under `path` and a tab (or a row under More). It brings its own
+// theme, the class that sets its palette and display font (see src/index.css), and its own icon.
+// The shell applies both to the Module's screens, its tab and its Home Cards.
 export type Module = Contributions & {
   id: string
   name: string
   path: string
+  theme: string
+  icon: ModuleIcon
   routes: RouteObject[]
 }
 

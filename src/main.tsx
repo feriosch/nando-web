@@ -7,6 +7,9 @@ import { CoreProvider } from './core/CoreProvider'
 import { browserPasskeys } from './core/identity/passkeys'
 import { browserPush } from './core/notifications/push'
 import { createRoutes } from './core/shell/routes'
+// Zen Maru Gothic, the display font of some Module themes, self-hosted.
+import '@fontsource/zen-maru-gothic/500.css'
+import '@fontsource/zen-maru-gothic/700.css'
 import './index.css'
 import { registry } from './registry'
 
