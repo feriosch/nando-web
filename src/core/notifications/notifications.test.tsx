@@ -12,6 +12,11 @@ async function notificationsSection() {
   return await screen.findByRole('region', { name: 'Notifications' })
 }
 
+// The row saying whether this device gets Notifications: "This device", then "On" or "Off".
+async function deviceStatus(section: HTMLElement) {
+  return (await within(section).findByText('This device')).parentElement
+}
+
 describe('Notifications Settings Section', () => {
   it("says Notifications are off on a device that isn't subscribed, and offers to enable them", async () => {
     const { api } = fakeApi({})
@@ -19,7 +24,7 @@ describe('Notifications Settings Section', () => {
     renderApp('/settings', api, push)
 
     const section = await notificationsSection()
-    expect(await within(section).findByText('Notifications are off on this device.')).toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOff')
     expect(within(section).getByRole('button', { name: 'Enable Notifications' })).toBeInTheDocument()
   })
 
@@ -37,7 +42,7 @@ describe('Notifications Settings Section', () => {
     const section = await notificationsSection()
     await user.click(await within(section).findByRole('button', { name: 'Enable Notifications' }))
 
-    expect(await within(section).findByText('Notifications are on for this device.')).toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
     expect(within(section).queryByRole('button', { name: 'Enable Notifications' })).not.toBeInTheDocument()
     expect(calls.permissionRequests).toBe(1)
     expect(calls.subscribedWith).toEqual(['BNcV'])
@@ -58,7 +63,7 @@ describe('Notifications Settings Section', () => {
     renderApp('/settings', api, push)
 
     const section = await notificationsSection()
-    expect(await within(section).findByText('Notifications are on for this device.')).toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
     expect(within(section).queryByRole('button', { name: 'Enable Notifications' })).not.toBeInTheDocument()
     expect(calls.permissionRequests).toBe(0)
     expect(sent.filter((request) => request.method === 'POST')).toEqual([
@@ -118,12 +123,12 @@ describe('Notifications Settings Section', () => {
     await user.click(await within(section).findByRole('button', { name: 'Enable Notifications' }))
 
     expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't enable Notifications.")
-    expect(within(section).queryByText('Notifications are on for this device.')).not.toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOff')
 
     fails = false
     await user.click(within(section).getByRole('button', { name: 'Enable Notifications' }))
 
-    expect(await within(section).findByText('Notifications are on for this device.')).toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
     expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -141,7 +146,7 @@ describe('Notifications Settings Section', () => {
     fails = false
     await user.click(within(section).getByRole('button', { name: 'Try again' }))
 
-    expect(await within(section).findByText('Notifications are on for this device.')).toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
     expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -153,7 +158,7 @@ describe('Notifications Settings Section', () => {
 
     const section = await notificationsSection()
     expect(await within(section).findByRole('alert')).toHaveTextContent(blocked)
-    expect(within(section).queryByText('Notifications are on for this device.')).not.toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOff')
     expect(sent.filter((request) => request.method === 'POST')).toEqual([])
   })
 
@@ -184,7 +189,7 @@ describe('Notifications Settings Section', () => {
     fireEvent.click(enable)
     fireEvent.click(enable)
 
-    expect(await within(section).findByText('Notifications are on for this device.')).toBeInTheDocument()
+    expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
     expect(calls.subscribedWith).toHaveLength(1)
     expect(sent.filter((request) => request.method === 'POST')).toHaveLength(1)
   })

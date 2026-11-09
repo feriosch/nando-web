@@ -40,18 +40,21 @@ Every Module brings its own theme. Its `Module` object (`src/core/module.ts`) de
 - `theme`: its class, defined in `src/index.css` with the same token names for light and under `.dark` for dark. Fonts come from Fontsource, imported in `src/main.tsx`; the service worker keeps font files for offline.
 - `icon`: one custom 24px icon in the lucide style, drawn with `Icon` from `src/core/ui/Icon.tsx` (stroke 1.8, round caps). Calories' bowl is `src/modules/calories/icon.tsx`.
 
-Core never names a Module's theme; the shell reads it from the `Module`. Planned palettes for future Modules, as references only: **Slate** and **Washi & sumi**.
+Core never names a Module's theme; the shell reads it from the `Module`. On the Settings screen, a Module's Settings Section takes its theme as a **tint**: its header in the Module's accent after its icon, and its `GroupedList`s on the Module's surface with a hairline border (they draw it inside any `data-tint` ancestor). The screen around it stays Paper. Planned palettes for future Modules, as references only: **Slate** and **Washi & sumi**.
 
 ## Building blocks
 
 All in `src/core/ui/`:
 
 - `ScreenHeader`: 44px top bar (`back` link, `actions` text buttons), 34px bold display-font title, optional `subtitle`.
-- `SectionHeader`: 13px uppercase in `sub`; an `h2`.
+- `SectionHeader`: 13px uppercase in `sub`; an `h2`. `tone="accent"` and an `icon` for a Module's Settings Section.
 - `GroupedList` + `ListRow`: surface, 14px corners, 0.5px separators, rows at least 52px, optional `footer`. The 16px side margins are the screen's own padding (the shell's `<main>`).
 - `Sheet`: React Aria `Modal` sliding up over a scrim, 22px top corners, grab handle, `title` as its heading.
 - `Button`: pill, `variant="accent"` for the one main action, `quiet` (fill) for the rest.
 - `Switch`, `SegmentedControl` (React Aria `ToggleButtonGroup`).
+- `PickerRow` (label left, value right in `sub`, the whole row opens the native picker) and `Picker` (the same, inline, named by `label`): a transparent native `<select>` over the value, so a tap opens the iPhone's wheel. Use them for any pick-one-of-many value in a row.
+- `saveFooter(saved, problem)` (`saveFooter.tsx`): a form's footer, "Saved." as a status or the problem as an alert, passed as the `GroupedList`'s `footer`. Validation and save errors go under the group they belong to.
+- `pillClasses` (`pill.ts`): the pill's look for the rare native `<button>` that must handle its own click, such as one asking for a permission Safari grants only within a tap's click.
 - `lucideProps` (`icons.ts`): spread on every lucide icon so it is 24px, stroke 1.8, hidden from screen readers.
 
 ## React Aria and Tailwind

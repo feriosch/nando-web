@@ -7,18 +7,23 @@ import type { Registry } from '../module'
 import { Home } from './Home'
 import { Layout, SignedOut } from './Layout'
 import { More } from './More'
-import { Settings } from './Settings'
+import { Settings, type TintedSettingsSection } from './Settings'
 import { splitTabs } from './tabs'
 import { coreTheme } from './theme'
 
 export function createRoutes(registry: Registry): RouteObject[] {
-  const contributors = [registry.core, ...registry.modules]
   // Each Home Card takes the theme of whoever contributed it.
   const homeCards = [
     ...registry.core.homeCards.map((card) => ({ ...card, theme: coreTheme })),
     ...registry.modules.flatMap((module) => module.homeCards.map((card) => ({ ...card, theme: module.theme }))),
   ]
-  const settingsSections = contributors.flatMap((contributor) => contributor.settingsSections)
+  // Each Module's Settings Section is tinted with its Module's theme and icon.
+  const settingsSections: TintedSettingsSection[] = [
+    ...registry.core.settingsSections,
+    ...registry.modules.flatMap((module) =>
+      module.settingsSections.map((section) => ({ ...section, tint: { theme: module.theme, icon: module.icon } })),
+    ),
+  ]
   const { more } = splitTabs(registry.modules)
 
   const screens: RouteObject[] = [

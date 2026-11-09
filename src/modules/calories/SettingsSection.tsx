@@ -1,10 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../../core/api/client'
 import { useLoadedSinceMount } from '../../core/api/loaded'
 import { useApi } from '../../core/services'
 import { reminderTimes } from '../../core/settings/settings'
 import { LoadProblem } from '../../core/shell/LoadProblem'
+import { Button } from '../../core/ui/Button'
+import { GroupedList, ListRow } from '../../core/ui/List'
+import { Picker } from '../../core/ui/Picker'
+import { saveFooter } from '../../core/ui/saveFooter'
+import { Switch } from '../../core/ui/Switch'
 import { parseWhole } from './calories'
 
 // The Daily Limit in force now, as GET /api/calories/daily-limit answers it (null until one is set).
@@ -43,6 +48,7 @@ function DailyLimitForm({ saved }: { saved: DailyLimit }) {
   const queryClient = useQueryClient()
   const [typed, setTyped] = useState(saved === null ? '' : String(saved.kcal))
   const [problem, setProblem] = useState<string | null>(null)
+  const fieldId = useId()
   const save = useMutation({
     mutationFn: (kcal: number) => api.put('/api/calories/daily-limit', { kcal }),
     // Today, and so the Home Card and the Day view, is judged against the new limit.
@@ -62,14 +68,34 @@ function DailyLimitForm({ saved }: { saved: DailyLimit }) {
   }
 
   return (
-    <form aria-label="Daily Limit" onSubmit={submit}>
-      <label>
-        Daily Limit (kcal)
-        <input value={typed} onChange={(event) => setTyped(event.target.value)} inputMode="numeric" />
-      </label>
-      <button type="submit">Save</button>
-      {save.isSuccess && <p role="status">Saved. It applies from today.</p>}
-      {(problem || save.isError) && <p role="alert">{problem ?? describe(save.error, 'the Daily Limit')}</p>}
+    <form aria-label="Daily Limit" onSubmit={submit} className="my-0">
+      <GroupedList
+        footer={saveFooter(
+          save.isSuccess && 'Saved. It applies from today.',
+          problem ?? (save.isError ? describe(save.error, 'the Daily Limit') : null),
+        )}
+      >
+        <ListRow className="pr-2 text-[17px]">
+          {/* Named "Daily Limit (kcal)"; the unit shows after the field instead. */}
+          <label htmlFor={fieldId} className="my-0 flex min-h-11 flex-1 items-center">
+            Daily Limit<span className="sr-only"> (kcal)</span>
+          </label>
+          <span className="flex items-center gap-1 text-sub">
+            <input
+              id={fieldId}
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              inputMode="numeric"
+              placeholder="Not set"
+              className="m-0 w-20 border-0 bg-transparent p-0 text-right text-[17px] text-sub tabular-nums outline-none placeholder:text-sub/60"
+            />
+            {typed.trim() !== '' && <span aria-hidden="true">kcal</span>}
+            <Button type="submit" variant="accent" className="ml-2">
+              Save
+            </Button>
+          </span>
+        </ListRow>
+      </GroupedList>
     </form>
   )
 }
@@ -105,47 +131,47 @@ function ReminderForm({ saved }: { saved: CaloriesSettings }) {
   }
 
   return (
-    <form aria-label="Reminders" onSubmit={submit}>
-      <ReminderFields
-        legend="Nothing logged yet"
-        reminder={settings.noEntriesReminder}
-        change={(noEntriesReminder) => setSettings({ ...settings, noEntriesReminder })}
-      />
-      <ReminderFields
-        legend="Evening summary"
-        reminder={settings.eveningSummary}
-        change={(eveningSummary) => setSettings({ ...settings, eveningSummary })}
-      />
-      <button type="submit">Save</button>
-      {save.isSuccess && <p role="status">Saved.</p>}
-      {save.isError && <p role="alert">{describe(save.error, 'the reminders')}</p>}
+    <form aria-label="Reminders" onSubmit={submit} className="my-0">
+      <GroupedList footer={saveFooter(save.isSuccess && 'Saved.', save.isError ? describe(save.error, 'the reminders') : null)}>
+        <ReminderRow
+          label="Nothing logged yet"
+          reminder={settings.noEntriesReminder}
+          change={(noEntriesReminder) => setSettings({ ...settings, noEntriesReminder })}
+        />
+        <ReminderRow
+          label="Evening summary"
+          reminder={settings.eveningSummary}
+          change={(eveningSummary) => setSettings({ ...settings, eveningSummary })}
+        />
+      </GroupedList>
+      <div className="mt-3 flex justify-end">
+        <Button type="submit" variant="accent">
+          Save
+        </Button>
+      </div>
     </form>
   )
 }
 
-// One Calories Notification: whether it is sent, and when.
-function ReminderFields({ legend, reminder, change }: { legend: string; reminder: Reminder; change: (reminder: Reminder) => void }) {
+const times = reminderTimes.map((time) => ({ value: time, label: time }))
+
+// One Calories Notification as a row: a switch for whether it is sent, and when, underneath.
+function ReminderRow({ label, reminder, change }: { label: string; reminder: Reminder; change: (reminder: Reminder) => void }) {
   return (
-    <fieldset>
-      <legend>{legend}</legend>
-      <label>
-        <input
-          type="checkbox"
-          role="switch"
-          checked={reminder.enabled}
-          onChange={(event) => change({ ...reminder, enabled: event.target.checked })}
+    <div role="group" aria-label={label}>
+      <ListRow className="flex-col items-stretch gap-0 pb-1.5 text-[17px]">
+        <Switch isSelected={reminder.enabled} onChange={(enabled) => change({ ...reminder, enabled })}>
+          {label}
+        </Switch>
+        <Picker
+          label="Time"
+          value={reminder.time}
+          options={times}
+          onChange={(time) => change({ ...reminder, time })}
+          className="-mt-3 min-h-8 items-start self-start text-[15px] tabular-nums"
         />
-        Send it
-      </label>
-      <label>
-        Time
-        <select value={reminder.time} onChange={(event) => change({ ...reminder, time: event.target.value })}>
-          {reminderTimes.map((time) => (
-            <option key={time}>{time}</option>
-          ))}
-        </select>
-      </label>
-    </fieldset>
+      </ListRow>
+    </div>
   )
 }
 
