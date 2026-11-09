@@ -1,3 +1,6 @@
+// What a ceremony's `begin` answers: the options to hand to the device's Passkeys.
+export type Begin<Options> = { publicKey: Options }
+
 // The device's Passkeys (Face ID on iPhone). Each takes the options the server's `begin` sent and
 // returns what its `finish` takes. They reject with the browser's DOMException, such as
 // `NotAllowedError` when the Owner cancels Face ID.
@@ -11,12 +14,18 @@ export type Passkeys = {
 export const browserPasskeys: Passkeys = {
   async get(options) {
     const publicKey = PublicKeyCredential.parseRequestOptionsFromJSON(options)
-    const credential = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
-    return credential.toJSON()
+    return toJSON(await navigator.credentials.get({ publicKey }))
   },
   async create(options) {
     const publicKey = PublicKeyCredential.parseCreationOptionsFromJSON(options)
-    const credential = (await navigator.credentials.create({ publicKey })) as PublicKeyCredential
-    return credential.toJSON()
+    return toJSON(await navigator.credentials.create({ publicKey }))
   },
+}
+
+// A browser may answer with no credential at all; treat that like a cancelled Face ID prompt.
+function toJSON(credential: Credential | null): unknown {
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new DOMException('No Passkey was returned.', 'NotAllowedError')
+  }
+  return credential.toJSON()
 }

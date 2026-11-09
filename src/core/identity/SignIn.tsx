@@ -2,17 +2,19 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ApiError } from '../api/client'
 import { useApi, usePasskeys } from '../services'
-
-type Begin<Options> = { publicKey: Options }
+import type { Begin } from './passkeys'
 
 export function SignIn() {
   const api = useApi()
   const passkeys = usePasskeys()
   const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
 
   // WebAuthn must start from a tap, so nothing happens until the Owner presses the button.
   async function signIn() {
+    if (busy) return
+    setBusy(true)
     setProblem(null)
     try {
       const { publicKey } = await api.post<Begin<PublicKeyCredentialRequestOptionsJSON>>('/auth/signin/begin')
@@ -21,13 +23,14 @@ export function SignIn() {
       navigate('/', { replace: true })
     } catch (error) {
       setProblem(describe(error))
+      setBusy(false)
     }
   }
 
   return (
     <main>
       <h1>Nando</h1>
-      <button type="button" onClick={signIn}>
+      <button type="button" onClick={signIn} disabled={busy}>
         Sign in with Face ID
       </button>
       {problem && <p role="alert">{problem}</p>}

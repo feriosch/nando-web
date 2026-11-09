@@ -167,6 +167,26 @@ describe('Sign in', () => {
     expect(router.state.location.pathname).toBe('/sign-in')
   })
 
+
+  it("ignores a second tap while a sign-in is still running", async () => {
+    const user = userEvent.setup()
+    const { api, sent } = fakeApi({
+      'POST /auth/signin/begin': { status: 200, body: { publicKey: requestOptions } },
+      'POST /auth/signin/finish': { status: 204 },
+    })
+    let unlock = () => {}
+    const { passkeys } = fakePasskeys({
+      get: () => new Promise((resolve) => (unlock = () => resolve(assertion))),
+    })
+    renderApp('/sign-in', api, passkeys)
+
+    await user.click(screen.getByRole('button', { name: 'Sign in with Face ID' }))
+    await user.click(screen.getByRole('button', { name: 'Sign in with Face ID' }))
+    unlock()
+
+    expect(await screen.findByText('Latest Weigh-in: 72 kg')).toBeInTheDocument()
+    expect(sent.filter((request) => request.path === '/auth/signin/begin')).toHaveLength(1)
+  })
 })
 
 describe('Enrollment', () => {
@@ -224,6 +244,56 @@ describe('Enrollment', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This device already has a Passkey for Nando.')
     await user.click(screen.getByRole('link', { name: 'Sign in with Face ID' }))
     expect(router.state.location.pathname).toBe('/sign-in')
+  })
+})
+
+describe('Enrollment problems', () => {
+  it('sends the Enrollment Code as printed even when pasted with spaces or typed in lowercase', async () => {
+    const user = userEvent.setup()
+    const { api, sent } = fakeApi({ 'POST /auth/register/begin': { status: 401, body: 'unknown code' } })
+    const { passkeys } = fakePasskeys()
+    renderApp('/enroll', api, passkeys)
+
+    await user.type(screen.getByLabelText('Enrollment Code'), ' by95p-1sqmf ')
+    await user.click(screen.getByRole('button', { name: 'Create Passkey' }))
+
+    await screen.findByRole('alert')
+    expect(sent[0]).toEqual({ method: 'POST', path: '/auth/register/begin', body: { code: 'BY95P-1SQMF' } })
+  })
+
+  it('says registering was cancelled when the Owner cancels Face ID', async () => {
+    const user = userEvent.setup()
+    const { api } = fakeApi({
+      'POST /auth/register/begin': { status: 200, body: { publicKey: creationOptions } },
+    })
+    const { passkeys } = fakePasskeys({
+      create: async () => {
+        throw new DOMException('The operation was cancelled.', 'NotAllowedError')
+      },
+    })
+    renderApp('/enroll', api, passkeys)
+
+    await user.type(screen.getByLabelText('Enrollment Code'), 'BY95P-1SQMF')
+    await user.click(screen.getByRole('button', { name: 'Create Passkey' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Registering the Passkey was cancelled.')
+  })
+
+  it("doesn't blame the Enrollment Code when the server refuses the new Passkey itself", async () => {
+    const user = userEvent.setup()
+    const { api } = fakeApi({
+      'POST /auth/register/begin': { status: 200, body: { publicKey: creationOptions } },
+      'POST /auth/register/finish': { status: 401, body: 'passkey not verified' },
+    })
+    const { passkeys } = fakePasskeys()
+    renderApp('/enroll', api, passkeys)
+
+    await user.type(screen.getByLabelText('Enrollment Code'), 'BY95P-1SQMF')
+    await user.click(screen.getByRole('button', { name: 'Create Passkey' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Nando couldn't register this Passkey, or the Enrollment Code expired in the meantime.",
+    )
   })
 })
 
