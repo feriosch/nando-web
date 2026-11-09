@@ -1,12 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../core/api/client'
 import { useLoadedSinceMount } from '../../core/api/loaded'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
+import { Button } from '../../core/ui/Button'
+import { FieldRow } from '../../core/ui/FieldRow'
+import { GroupedList, ListRow } from '../../core/ui/List'
+import { EmptyNote, Notice } from '../../core/ui/Notice'
+import { saveFooter } from '../../core/ui/saveFooter'
+import { ScreenHeader } from '../../core/ui/ScreenHeader'
+import { Switch } from '../../core/ui/Switch'
 import { parseWhole, type Meal } from './calories'
-import { useRestore } from './useRestore'
+import { restoreProblem, useRestore } from './useRestore'
 
 // A Meal as POST and PUT /api/calories/meals take it.
 type MealValues = Omit<Meal, 'id' | 'archived'>
@@ -14,7 +21,21 @@ type MealValues = Omit<Meal, 'id' | 'archived'>
 // The New Meal screen.
 export function NewMeal() {
   const api = useApi()
-  return <MealForm title="New Meal" save={(values) => api.post('/api/calories/meals', values)} />
+  return (
+    <MealScreen title="New Meal">
+      <MealForm title="New Meal" save={(values) => api.post('/api/calories/meals', values)} />
+    </MealScreen>
+  )
+}
+
+// The Meal form's screen: back to the Meals screen, and `title` in large.
+function MealScreen({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <>
+      <ScreenHeader title={title} back={{ to: '/calories/meals', label: 'Meals' }} />
+      {children}
+    </>
+  )
 }
 
 // The Edit Meal screen, for a Meal in use or an archived one (which stays archived).
@@ -29,31 +50,34 @@ export function EditMeal() {
   // The form starts from the Meal as the server has it now, not a cached copy.
   const inUseLoaded = useLoadedSinceMount(inUse)
   const archivedLoaded = useLoadedSinceMount(archived)
-  if (inUse.isError || archived.isError) {
-    return (
-      <LoadProblem
-        message="Couldn't load the Meal."
-        retry={() => {
-          if (inUse.isError) inUse.refetch()
-          if (archived.isError) archived.refetch()
-        }}
-      />
-    )
-  }
-  if (!inUseLoaded || !archivedLoaded) return null
-  const meal = [...inUse.data!, ...archived.data!].find((meal) => meal.id === id)
-  if (!meal) return <p>There is no such Meal.</p>
-  return <MealForm title="Edit Meal" meal={meal} save={(values) => api.put(`/api/calories/meals/${meal.id}`, values)} />
+  const meal = inUseLoaded && archivedLoaded ? [...inUse.data!, ...archived.data!].find((meal) => meal.id === id) : undefined
+  return (
+    <MealScreen title="Edit Meal">
+      {inUse.isError || archived.isError ? (
+        <LoadProblem
+          message="Couldn't load the Meal."
+          retry={() => {
+            if (inUse.isError) inUse.refetch()
+            if (archived.isError) archived.refetch()
+          }}
+        />
+      ) : meal ? (
+        <MealForm title="Edit Meal" meal={meal} save={(values) => api.put(`/api/calories/meals/${meal.id}`, values)} />
+      ) : (
+        inUseLoaded && archivedLoaded && <EmptyNote>There is no such Meal.</EmptyNote>
+      )}
+    </MealScreen>
+  )
 }
 
 // A Meal's values, as typed.
 type MealFields = { name: string; kcal: string; store: string; emoji: string; tags: string; pinned: boolean }
 
-// The form for a new Meal or a change to one, starting from `meal`. Back to the Meals screen once saved.
+// The form for a new Meal or a change to one, starting from `meal`, named `title`. Back to the Meals
+// screen once saved, archived or restored.
 function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (values: MealValues) => Promise<unknown> }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const headingId = useId()
   const [fields, setFields] = useState<MealFields>({
     name: meal?.name ?? '',
     kcal: meal === undefined ? '' : String(meal.kcal),
@@ -66,7 +90,7 @@ function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (va
   const api = useApi()
   const backToMeals = () => {
     queryClient.invalidateQueries({ queryKey: ['calories'] })
-    navigate('/calories/meals')
+    navigate('/calories/meals', { viewTransition: true })
   }
   const mutation = useMutation({ mutationFn: save, onSuccess: backToMeals })
   // Archiving leaves the Meal's Entries as they are; restoring puts it back in use.
@@ -98,53 +122,53 @@ function MealForm({ title, meal, save }: { title: string; meal?: Meal; save: (va
 
   const text = (field: 'name' | 'kcal' | 'store' | 'emoji' | 'tags') => ({
     value: fields[field],
-    onChange: (event: { target: { value: string } }) => setFields({ ...fields, [field]: event.target.value }),
+    onChange: (value: string) => setFields({ ...fields, [field]: value }),
   })
 
+  // A save, archive or restore that failed, said under the fields.
+  const failure = mutation.isError
+    ? describe(mutation.error)
+    : archive.isError
+      ? "Couldn't archive the Meal."
+      : restore.isError
+        ? restoreProblem
+        : null
+
   return (
-    <form aria-labelledby={headingId} onSubmit={submit}>
-      <h1 id={headingId}>{title}</h1>
-      {meal?.archived && <p>Archived: it is not in the quick list and can’t be logged.</p>}
-      {meal?.imageUrl && <img src={meal.imageUrl} alt={meal.name} style={{ display: 'block', maxWidth: '100%', borderRadius: 8 }} />}
-      <label>
-        Name
-        <input {...text('name')} maxLength={100} />
-      </label>
-      <label>
-        kcal per serving
-        <input {...text('kcal')} inputMode="numeric" />
-      </label>
-      <label>
-        Store
-        <input {...text('store')} maxLength={100} />
-      </label>
-      <label>
-        Emoji
-        <input {...text('emoji')} />
-      </label>
-      <label>
-        Tags
-        <input {...text('tags')} placeholder="snack, conbini" />
-      </label>
-      <label>
-        <input type="checkbox" checked={fields.pinned} onChange={(event) => setFields({ ...fields, pinned: event.target.checked })} />
-        Pinned
-      </label>
-      <button type="submit" disabled={mutation.isPending}>
-        Save
-      </button>
-      {meal && !meal.archived && (
-        <button type="button" onClick={() => archive.mutate()}>
-          Archive
-        </button>
+    <form aria-label={title} onSubmit={submit} className="my-0">
+      {meal?.archived && <Notice>Archived: it is not in the quick list and can’t be logged.</Notice>}
+      {meal?.imageUrl && (
+        <img src={meal.imageUrl} alt={meal.name} className="my-2 block max-h-56 w-full rounded-2xl bg-fill object-cover" />
       )}
-      {meal?.archived && (
-        <button type="button" onClick={() => restore.mutate(meal.id)}>
-          Restore
-        </button>
-      )}
-      {(problem || mutation.isError) && <p role="alert">{problem ?? describe(mutation.error)}</p>}
-      {(archive.isError || restore.isError) && <p role="alert">{archive.isError ? "Couldn't archive the Meal." : "Couldn't restore the Meal."}</p>}
+      <GroupedList footer={saveFooter(false, problem ?? failure)}>
+        <FieldRow label="Name" {...text('name')} maxLength={100} placeholder="Required" lang="ja" />
+        <FieldRow label="kcal per serving" {...text('kcal')} inputMode="numeric" placeholder="Required" />
+        <FieldRow label="Store" {...text('store')} maxLength={100} placeholder="Optional" lang="ja" />
+        <FieldRow label="Emoji" {...text('emoji')} placeholder="Optional" />
+        <FieldRow label="Tags" {...text('tags')} placeholder="snack, conbini" lang="ja" />
+      </GroupedList>
+      <GroupedList footer="Pinned Meals come first in the quick list.">
+        <ListRow className="text-[17px]">
+          <Switch isSelected={fields.pinned} onChange={(pinned) => setFields({ ...fields, pinned })}>
+            Pinned
+          </Switch>
+        </ListRow>
+      </GroupedList>
+      <div className="mt-4 flex flex-col gap-3">
+        <Button type="submit" variant="accent" size="large" isDisabled={mutation.isPending}>
+          Save
+        </Button>
+        {meal && !meal.archived && (
+          <Button size="large" onPress={() => archive.mutate()}>
+            Archive
+          </Button>
+        )}
+        {meal?.archived && (
+          <Button size="large" onPress={() => restore.mutate(meal.id)}>
+            Restore
+          </Button>
+        )}
+      </div>
     </form>
   )
 }

@@ -49,6 +49,8 @@ All in `src/core/ui/`:
 - `ScreenHeader`: 44px top bar (`back` link or a `leading` text button on the left, `actions` text buttons on the right), 34px bold display-font title, optional `subtitle`. `HeaderLink` is a top-bar text button that opens another screen.
 - `SectionHeader`: 13px uppercase in `sub`; an `h2`. `tone="accent"` and an `icon` for a Module's Settings Section.
 - `GroupedList` + `ListRow`: surface, 14px corners, 0.5px separators, rows at least 52px, optional `footer`. The 16px side margins are the screen's own padding (the shell's `<main>`). Inside a `Sheet`, which is on the surface itself, its rows are on `bg`.
+- `FieldRow` (`FieldRow.tsx`): a text field as a `ListRow`, its label on the left and the field right-aligned, filling the rest. A form's fields are a `GroupedList` of these; `lang="ja"` on one that takes Japanese.
+- `Notice` and `EmptyNote` (`Notice.tsx`): a note about the whole screen in a box on `fill` (`role="alert"` for a problem), and the line in `sub` that stands in for an empty list or something that isn't there.
 - `Sheet`: React Aria `Modal` sliding up over a scrim, 22px top corners, grab handle, `title` as its heading. `role="alertdialog"` for one that asks before going on or says what went wrong. A sheet opened over another stacks on top of it. `useLastShown` (`useLastShown.ts`) keeps a sheet's content while it slides away after its value is gone.
 - `Button`: pill, `variant="accent"` for the one main action, `quiet` (fill) for the rest; `size="large"` is full width and 50px tall, for the action that ends a screen or sheet.
 - `Switch`, `SegmentedControl` (React Aria `ToggleButtonGroup`).

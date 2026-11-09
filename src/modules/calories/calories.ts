@@ -65,8 +65,3 @@ export function parseWhole(typed: string, min: number, max: number): number | nu
   const n = Number(typed.trim())
   return n >= min && n <= max ? n : null
 }
-
-// Its name, after its emoji if it has one.
-export function mealName(meal: Meal): string {
-  return meal.emoji ? `${meal.emoji} ${meal.name}` : meal.name
-}

@@ -522,7 +522,7 @@ const onigiri = meal({
 const nigiri = meal({ id: 'm2', name: 'Salmon nigiri', kcal: 45 })
 
 // The Meal called `name` in the list of Meals in use.
-async function mealItem(name: string, list = 'Meals') {
+async function mealItem(name: string, list = 'In use') {
   const meals = await screen.findByRole('list', { name: list })
   return (await within(meals).findByText(new RegExp(name))).closest('li') as HTMLElement
 }
@@ -536,16 +536,18 @@ describe('Meals', () => {
 
     expect(router.state.location.pathname).toBe('/calories/meals')
     expect(await screen.findByRole('heading', { level: 1, name: 'Meals' })).toBeInTheDocument()
-    const items = within(await screen.findByRole('list', { name: 'Meals' })).getAllByRole('listitem')
+    expect(screen.getByText('2 Meals')).toBeInTheDocument()
+    const items = within(await screen.findByRole('list', { name: 'In use' })).getAllByRole('listitem')
     expect(items).toHaveLength(2)
     expect(items[0]).toHaveTextContent('Salmon nigiri')
-    expect(items[1]).toHaveTextContent('🍙 Tuna mayo onigiri')
+    expect(items[1]).toHaveTextContent('Tuna mayo onigiri · Pinned')
     expect(items[1]).toHaveTextContent('230 kcal')
-    expect(items[1]).toHaveTextContent('7-Eleven')
-    expect(items[1]).toHaveTextContent('snack, conbini')
-    expect(items[1]).toHaveTextContent('Pinned')
-    expect(within(items[1]).getByRole('img', { name: 'Tuna mayo onigiri' })).toHaveAttribute('src', onigiri.imageUrl)
-    expect(within(items[0]).queryByRole('img')).not.toBeInTheDocument()
+    expect(items[1]).toHaveTextContent('7-Eleven · snack, conbini')
+    // The photo is the row's tile, in place of the emoji. It is decoration (the row's text names the
+    // Meal), so it has no role to find it by.
+    expect(items[1].querySelector('img')).toHaveAttribute('src', onigiri.imageUrl)
+    expect(items[1]).not.toHaveTextContent('🍙')
+    expect(items[0].querySelector('img')).not.toBeInTheDocument()
   })
 })
 
@@ -564,7 +566,7 @@ describe('Creating a Meal', () => {
     await user.click(within(form).getByLabelText('Pinned'))
     await user.click(within(form).getByRole('button', { name: 'Save' }))
 
-    expect(await mealItem('Tuna mayo onigiri')).toHaveTextContent('🍙 Tuna mayo onigiri 230 kcal · Pinned')
+    expect(await mealItem('Tuna mayo onigiri')).toHaveTextContent('🍙Tuna mayo onigiri · Pinned, 7-Eleven · snack, conbini, 230 kcal')
     expect(router.state.location.pathname).toBe('/calories/meals')
     expect(sent.filter((request) => request.method === 'POST')).toEqual([
       {
@@ -628,7 +630,7 @@ describe('Changing a Meal', () => {
     const user = userEvent.setup()
     const { sent, router } = renderCalories('/calories/meals', mealsServer([onigiri, nigiri]))
 
-    await user.click(within(await mealItem('Tuna mayo onigiri')).getByRole('link', { name: '🍙 Tuna mayo onigiri' }))
+    await user.click(within(await mealItem('Tuna mayo onigiri')).getByRole('link', { name: /Tuna mayo onigiri/ }))
     expect(router.state.location.pathname).toBe('/calories/meals/m1')
     const form = await screen.findByRole('form', { name: 'Edit Meal' })
     expect(within(form).getByRole('img', { name: 'Tuna mayo onigiri' })).toHaveAttribute('src', onigiri.imageUrl)
@@ -644,7 +646,7 @@ describe('Changing a Meal', () => {
     await user.click(within(form).getByLabelText('Pinned'))
     await user.click(within(form).getByRole('button', { name: 'Save' }))
 
-    expect(await mealItem('Tuna mayo onigiri')).toHaveTextContent('🍙 Tuna mayo onigiri 240 kcal')
+    expect(await mealItem('Tuna mayo onigiri')).toHaveTextContent('Tuna mayo onigiri, 7-Eleven · snack, conbini, 240 kcal')
     expect(await mealItem('Tuna mayo onigiri')).not.toHaveTextContent('Pinned')
     expect(sent.filter((request) => request.method === 'PUT')).toEqual([
       {
@@ -679,9 +681,10 @@ describe('Archiving a Meal', () => {
     await user.click(within(await screen.findByRole('form', { name: 'Edit Meal' })).getByRole('button', { name: 'Archive' }))
 
     const archivedItem = await mealItem('Salmon nigiri', 'Archived')
-    expect(within(screen.getByRole('list', { name: 'Meals' })).queryByText(/Salmon nigiri/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'In use' })).queryByText(/Salmon nigiri/)).not.toBeInTheDocument()
+    expect(screen.getByText('1 Meal · 1 archived')).toBeInTheDocument()
 
-    await user.click(within(archivedItem).getByRole('button', { name: 'Restore' }))
+    await user.click(within(archivedItem).getByRole('button', { name: 'Restore Salmon nigiri' }))
 
     expect(await mealItem('Salmon nigiri')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('list', { name: 'Archived' })).not.toBeInTheDocument())
