@@ -9,6 +9,8 @@ async function bodyCard() {
   return heading.closest('article') as HTMLElement
 }
 
+const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
+
 describe('Body Home Card', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] })
@@ -32,8 +34,9 @@ describe('Body Home Card', () => {
     expect(within(card).getByText('−0.4 kg vs the week before')).toBeInTheDocument()
   })
 
-  it('names the year of a latest Weigh-in from an earlier year', async () => {
+  it('names the year of a latest Weigh-in from an earlier year in the Owner Time Zone', async () => {
     const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
       'GET /api/body': { status: 200, body: { latest: { week: '2025-12-29', kg: 74.0 }, bmi: 24.2, change: null } },
     })
     renderApp('/', api)
@@ -91,8 +94,6 @@ describe('Body Home Card', () => {
     expect(router.state.location.pathname).toBe('/settings')
   })
 })
-
-const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
 
 // The Weigh-in form for one week on the Weigh-ins screen, found by its name ("This week", "Last week").
 async function weekForm(name: string) {
@@ -336,6 +337,19 @@ describe('Weigh-ins', () => {
 
     expect(await within(thisWeek).findByRole('alert')).toBeInTheDocument()
     expect(within(thisWeek).queryByText('Saved.')).not.toBeInTheDocument()
+  })
+
+  it('says there are no Weigh-ins yet under History when there are none', async () => {
+    const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: tokyo },
+      'GET /api/weigh-ins': { status: 200, body: [] },
+    })
+    renderApp('/weigh-ins', api)
+
+    await weekForm('This week')
+    expect(screen.getByRole('heading', { name: 'History' })).toBeInTheDocument()
+    expect(screen.getByText('No Weigh-ins yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'History' })).not.toBeInTheDocument()
   })
 
   it.each(['72.45', '0', '501', 'heavy'])("doesn't send %s kg, and says what a weight must be", async (typed) => {

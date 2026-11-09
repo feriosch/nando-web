@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, Weight } from 'lucide-react'
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { useNow } from '../now'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
+import { useToday } from '../today'
 import { lucideProps } from '../ui/icons'
 import type { Body } from './body'
 import { formatWeekShort } from './weeks'
@@ -15,14 +15,15 @@ export function BodyCard() {
   const api = useApi()
   const body = useQuery({ queryKey: ['body'], queryFn: () => api.get<Body>('/api/body') })
   const latest = body.data?.latest
-  const [now] = useNow()
+  // Today in the Owner Time Zone, for whether the latest Weigh-in's week needs its year.
+  const { today } = useToday()
 
   return (
     <div className="relative rounded-[22px] bg-surface p-[18px] shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-opacity has-[[data-card-link]:active]:opacity-70">
       <div className="flex items-center gap-2 text-sub">
-        <Weight {...lucideProps} size={20} />
+        <Weight {...lucideProps} />
         <h2 className="my-0 text-[15px] font-semibold text-sub">Body</h2>
-        {body.data && <ChevronRight {...lucideProps} size={20} className="ml-auto" />}
+        {body.data && <ChevronRight {...lucideProps} className="ml-auto" />}
       </div>
       {body.isError && (
         // Above the card's link, which stays while a reload of loaded data fails.
@@ -33,17 +34,22 @@ export function BodyCard() {
       {body.data && latest && (
         <>
           <p className="mt-2 mb-0 text-[30px] leading-tight font-bold tabular-nums">{latest.kg.toFixed(1)} kg</p>
-          <Meta>
-            <span>Week of {formatWeekShort(latest.week, now.getFullYear())}</span>
+          <Details>
+            <span>Week of {formatWeekShort(latest.week, today)}</span>
             {body.data.bmi !== null ? (
               <span>BMI {body.data.bmi.toFixed(1)}</span>
             ) : (
-              <Link to="/settings" viewTransition className="relative z-10 text-accent no-underline">
+              // A tap target 44px tall around the 13px line, above the card's own link.
+              <Link
+                to="/settings"
+                viewTransition
+                className="relative z-10 text-accent no-underline before:absolute before:-inset-x-1 before:-inset-y-[14px] before:content-['']"
+              >
                 Set your height for BMI
               </Link>
             )}
             {body.data.change !== null && <span>{signed(body.data.change)} kg vs the week before</span>}
-          </Meta>
+          </Details>
           <CardLink>
             <span className="sr-only">Weigh-ins</span>
           </CardLink>
@@ -61,8 +67,8 @@ export function BodyCard() {
   )
 }
 
-// The card's one line of details, its parts separated by middle dots.
-function Meta({ children }: { children: ReactNode[] }) {
+// The card's one line of details under the weight, its parts separated by middle dots.
+function Details({ children }: { children: ReactNode[] }) {
   const parts = children.filter(Boolean)
   return (
     <p className="mt-1 mb-0 text-[13px] text-pretty text-sub tabular-nums">

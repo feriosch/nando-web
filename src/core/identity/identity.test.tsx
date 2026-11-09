@@ -1,14 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { useEffect } from 'react'
 import { describe, expect, it } from 'vitest'
 import { createApiClient } from '../api/client'
-import { CoreProvider } from '../CoreProvider'
 import { useApi } from '../services'
 import type { Registry } from '../module'
-import { noPush } from '../../test/app'
+import { withProviders } from '../../test/app'
 import { createRoutes } from '../shell/routes'
 import type { Passkeys } from './passkeys'
 
@@ -92,13 +90,7 @@ function TodaysEntries() {
 
 function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], passkeys: Passkeys) {
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
-  render(
-    <CoreProvider api={api} passkeys={passkeys} push={noPush}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CoreProvider>,
-  )
+  render(withProviders(<RouterProvider router={router} />, { api, passkeys }))
   return router
 }
 

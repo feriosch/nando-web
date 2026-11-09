@@ -153,7 +153,7 @@ function WeekForm({
                 </p>
               )}
               {(problem || save.isError) && (
-                <p role="alert" className="my-0 text-accent">
+                <p role="alert" className="my-0 text-ink">
                   {problem ?? describe(save.error)}
                 </p>
               )}
@@ -162,20 +162,22 @@ function WeekForm({
         }
       >
         <ListRow className="pr-2">
+          {/* Named "Weight (kg)"; the unit shows after the field instead. */}
           <label htmlFor={fieldId} className="my-0 text-[17px]">
-            Weight
+            Weight<span className="sr-only"> (kg)</span>
           </label>
           <span className="flex items-center gap-2">
             <input
               id={fieldId}
-              aria-label="Weight (kg)"
               value={kg}
               onChange={(event) => setKg(event.target.value)}
               inputMode="decimal"
               placeholder="0.0"
               className="m-0 w-20 border-0 bg-transparent p-0 text-right text-[17px] tabular-nums outline-none placeholder:text-sub/60"
             />
-            <span className="text-[17px] text-sub">kg</span>
+            <span aria-hidden="true" className="text-[17px] text-sub">
+              kg
+            </span>
             <Button type="submit" variant="accent" className="ml-1">
               Save
             </Button>

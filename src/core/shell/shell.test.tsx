@@ -1,13 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApiClient } from '../api/client'
-import { CoreProvider } from '../CoreProvider'
 import type { Passkeys } from '../identity/passkeys'
 import type { Module, Registry } from '../module'
-import { fakeApi, noPush, renderApp } from '../../test/app'
+import { fakeApi, renderApp, withProviders } from '../../test/app'
 import { createRoutes } from './routes'
 
 function renderShell(registry: Registry, path = '/') {
@@ -17,13 +15,7 @@ function renderShell(registry: Registry, path = '/') {
     get: () => Promise.reject(new Error('no Passkeys in the shell tests')),
     create: () => Promise.reject(new Error('no Passkeys in the shell tests')),
   }
-  render(
-    <CoreProvider api={api} passkeys={passkeys} push={noPush}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CoreProvider>,
-  )
+  render(withProviders(<RouterProvider router={router} />, { api, passkeys }))
   return router
 }
 
@@ -76,6 +68,10 @@ function tabNames() {
 }
 
 describe('Core shell', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('shows Home Cards from Core and every Module on Home, Core first', () => {
     renderShell(registry, '/')
 
@@ -91,20 +87,16 @@ describe('Core shell', () => {
     // Sunday 8 November, 20:00 UTC: already Monday 9 November in Tokyo.
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-08T20:00:00Z'))
-    try {
-      const { api } = fakeApi({
-        'GET /api/settings': {
-          status: 200,
-          body: { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } },
-        },
-      })
-      renderApp('/', api)
+    const { api } = fakeApi({
+      'GET /api/settings': {
+        status: 200,
+        body: { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } },
+      },
+    })
+    renderApp('/', api)
 
-      expect(await screen.findByText('Monday, 9 November')).toBeInTheDocument()
-      expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(await screen.findByText('Monday, 9 November')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
   })
 
   it('shows every Settings Section on the Settings screen under its own heading, Core first', () => {
