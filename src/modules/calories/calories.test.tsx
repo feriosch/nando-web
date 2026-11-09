@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeApi, noPush, renderApp, type Answer, type Answers } from '../../test/app'
@@ -85,7 +85,34 @@ function caloriesServer({ day, entries: initialEntries = [], meals = [], dailyLi
 // The quick list on the Day view, and the row in it for the Meal called `name`.
 async function quickRow(name: string) {
   const list = await screen.findByRole('list', { name: 'Quick list' })
-  return (await within(list).findByRole('button', { name: new RegExp(name) })).closest('li') as HTMLElement
+  return (await within(list).findByRole('button', { name: `Log ${name}` })).closest('li') as HTMLElement
+}
+
+// Taps "Log" on the quick-list Meal called `name`.
+async function logQuick(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(await quickRow(name)).getByRole('button', { name: `Log ${name}` }))
+}
+
+// Waits for the Day view's summary card to show `text` as the Day's Consumed Calories against its
+// Daily Limit, such as "770 / 2,150 kcal".
+async function expectConsumed(text: string) {
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Summary' }).querySelector('p')?.textContent).toBe(text))
+}
+
+// Waits for the Entry on the Day view that reads `text`, such as "Sushi × 12, 45 kcal each: 540 kcal",
+// and gives its row.
+function findEntry(text: string) {
+  return waitFor(() => {
+    const items = within(screen.getByRole('list', { name: 'Entries' })).getAllByRole('listitem')
+    const item = items.find((li) => li.textContent?.includes(text))
+    if (!item) throw new Error(`No Entry reads "${text}"`)
+    return item
+  })
+}
+
+// Opens the Day picker's chip for the Day named `name`, such as "Thursday, 5 November".
+async function pickDay(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(await screen.findByRole('group', { name: 'Day' })).getByRole('button', { name }))
 }
 
 function renderCalories(path: string, answers: Answers) {
@@ -116,14 +143,25 @@ describe('Day view', () => {
       'GET /api/calories/meals/quick': { status: 200, body: [] },
     })
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Mon 9 Nov' })).toBeInTheDocument()
-    expect(await screen.findByText('770 / 2,150 kcal')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument()
+    expect(screen.getByText('Monday, 9 November')).toBeInTheDocument()
+    await expectConsumed('770 / 2,150 kcal')
     expect(screen.getByText('1,380 kcal left')).toBeInTheDocument()
     const entries = screen.getByRole('list', { name: 'Entries' })
     const items = within(entries).getAllByRole('listitem')
     expect(items).toHaveLength(2)
     expect(items[0]).toHaveTextContent('Tuna mayo onigiri: 230 kcal')
-    expect(items[1]).toHaveTextContent('Sushi × 12: 540 kcal')
+    expect(items[1]).toHaveTextContent('Sushi × 12, 45 kcal each: 540 kcal')
+  })
+
+  it('says how far over the Daily Limit a Day is', async () => {
+    renderCalories(
+      '/calories',
+      caloriesServer({ day: '2026-11-09', dailyLimit: 2150, entries: [entry({ id: 'e1', day: '2026-11-09', name: 'Katsu curry', kcalPerServing: 2440 })] }),
+    )
+
+    await expectConsumed('2,440 / 2,150 kcal')
+    expect(screen.getByText('290 kcal over the Daily Limit')).toBeInTheDocument()
   })
 })
 
@@ -146,16 +184,15 @@ describe('Quick list', () => {
     await user.click(within(sushi).getByRole('button', { name: 'More servings' }))
     await user.click(within(sushi).getByRole('button', { name: 'More servings' }))
     await user.click(within(sushi).getByRole('button', { name: 'Fewer servings' }))
-    expect(within(sushi).getByLabelText('Servings')).toHaveTextContent('2')
-    await user.click(within(sushi).getByRole('button', { name: /Salmon nigiri/ }))
+    expect(within(sushi).getByLabelText('Servings')).toHaveValue('2')
+    await user.click(within(sushi).getByRole('button', { name: 'Log Salmon nigiri' }))
 
-    const entries = screen.getByRole('list', { name: 'Entries' })
-    expect(await within(entries).findByText(/Salmon nigiri × 2: 90 kcal/)).toBeInTheDocument()
+    expect(await findEntry('Salmon nigiri × 2, 45 kcal each: 90 kcal')).toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'POST')).toEqual([
       { method: 'POST', path: '/api/calories/days/2026-11-09/entries', body: { mealId: 'm2', servings: 2 } },
     ])
     // Back to 1 for the next one.
-    expect(within(await quickRow('Salmon nigiri')).getByLabelText('Servings')).toHaveTextContent('1')
+    expect(within(await quickRow('Salmon nigiri')).getByLabelText('Servings')).toHaveValue('1')
   })
 })
 
@@ -172,7 +209,7 @@ describe('Over-limit preview', () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', nearlyFull())
 
-    await user.click(within(await quickRow('Tuna mayo onigiri')).getByRole('button', { name: /Tuna mayo onigiri/ }))
+    await logQuick(user, 'Tuna mayo onigiri')
 
     const warning = await screen.findByRole('alertdialog')
     expect(warning).toHaveTextContent('This takes you to 2,300 / 2,150 kcal.')
@@ -180,7 +217,7 @@ describe('Over-limit preview', () => {
 
     await user.click(within(warning).getByRole('button', { name: 'Log anyway' }))
 
-    expect(await within(screen.getByRole('list', { name: 'Entries' })).findByText(/Tuna mayo onigiri: 230 kcal/)).toBeInTheDocument()
+    expect(await findEntry('Tuna mayo onigiri: 230 kcal')).toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'POST')).toEqual([
       { method: 'POST', path: '/api/calories/days/2026-11-09/entries', body: { mealId: 'm1', servings: 1 } },
     ])
@@ -191,12 +228,12 @@ describe('Over-limit preview', () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', nearlyFull())
 
-    await user.click(within(await quickRow('Tuna mayo onigiri')).getByRole('button', { name: /Tuna mayo onigiri/ }))
+    await logQuick(user, 'Tuna mayo onigiri')
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cancel' }))
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'POST')).toEqual([])
-    expect(screen.getByText('2,070 / 2,150 kcal')).toBeInTheDocument()
+    await expectConsumed('2,070 / 2,150 kcal')
   })
 })
 
@@ -205,6 +242,7 @@ describe('One-off Entry', () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', caloriesServer({ day: '2026-11-09' }))
 
+    await user.click(await screen.findByRole('button', { name: 'Something else' }))
     const form = await screen.findByRole('form', { name: 'Something else' })
     await user.type(within(form).getByLabelText('Name'), 'Sushi')
     await user.type(within(form).getByLabelText('kcal per serving'), '45')
@@ -213,7 +251,7 @@ describe('One-off Entry', () => {
     await user.click(within(form).getByLabelText('Save as Meal'))
     await user.click(within(form).getByRole('button', { name: 'Log' }))
 
-    expect(await within(screen.getByRole('list', { name: 'Entries' })).findByText(/Sushi × 12: 540 kcal/)).toBeInTheDocument()
+    expect(await findEntry('Sushi × 12, 45 kcal each: 540 kcal')).toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'POST')).toEqual([
       {
         method: 'POST',
@@ -221,10 +259,13 @@ describe('One-off Entry', () => {
         body: { name: 'Sushi', kcalPerServing: 45, servings: 12, saveAsMeal: true },
       },
     ])
-    // Empty again for the next one.
-    expect(within(form).getByLabelText('Name')).toHaveValue('')
-    expect(within(form).getByLabelText('Servings')).toHaveValue('1')
-    expect(within(form).getByLabelText('Save as Meal')).not.toBeChecked()
+    // The sheet closes, and opens empty again for the next one.
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'Something else' })).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Something else' }))
+    const next = await screen.findByRole('form', { name: 'Something else' })
+    expect(within(next).getByLabelText('Name')).toHaveValue('')
+    expect(within(next).getByLabelText('Servings')).toHaveValue('1')
+    expect(within(next).getByLabelText('Save as Meal')).not.toBeChecked()
   })
 
   it.each([
@@ -239,6 +280,7 @@ describe('One-off Entry', () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', caloriesServer({ day: '2026-11-09' }))
 
+    await user.click(await screen.findByRole('button', { name: 'Something else' }))
     const form = await screen.findByRole('form', { name: 'Something else' })
     if (name) await user.type(within(form).getByLabelText('Name'), name)
     await user.type(within(form).getByLabelText('kcal per serving'), kcalPerServing)
@@ -263,21 +305,42 @@ describe('Choosing a Day', () => {
     })
     const { sent, router } = renderCalories('/calories', { ...caloriesServer({ day: '2026-11-09' }), ...thursday })
 
-    const picker = await screen.findByLabelText('Day')
-    expect(picker).toHaveAttribute('min', '2026-11-02')
-    expect(picker).toHaveAttribute('max', '2026-11-09')
-    // The iPhone's date picker sets the whole date at once.
-    fireEvent.change(picker, { target: { value: '2026-11-05' } })
+    // A chip per Day, oldest first, today's chosen.
+    const chips = within(await screen.findByRole('group', { name: 'Day' })).getAllByRole('button')
+    expect(chips.map((chip) => chip.getAttribute('aria-label'))).toEqual([
+      'Monday, 2 November',
+      'Tuesday, 3 November',
+      'Wednesday, 4 November',
+      'Thursday, 5 November',
+      'Friday, 6 November',
+      'Saturday, 7 November',
+      'Sunday, 8 November',
+      'Monday, 9 November',
+    ])
+    expect(chips.map((chip) => chip.getAttribute('aria-pressed'))).toEqual([...Array(7).fill('false'), 'true'])
+    await pickDay(user, 'Thursday, 5 November')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Thu 5 Nov' })).toBeInTheDocument()
+    expect(screen.getByText('Thursday, 5 November')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Thursday, 5 November' })).toHaveAttribute('aria-pressed', 'true')
     expect(router.state.location.search).toBe('?day=2026-11-05')
-    expect(await screen.findByText('800 / 2,000 kcal')).toBeInTheDocument()
-    await user.click(within(await quickRow('Tuna mayo onigiri')).getByRole('button', { name: /Tuna mayo onigiri/ }))
+    await expectConsumed('800 / 2,000 kcal')
+    await logQuick(user, 'Tuna mayo onigiri')
 
-    expect(await screen.findByText('1,030 / 2,000 kcal')).toBeInTheDocument()
+    await expectConsumed('1,030 / 2,000 kcal')
     expect(sent.filter((request) => request.method === 'POST')).toEqual([
       { method: 'POST', path: '/api/calories/days/2026-11-05/entries', body: { mealId: 'm1', servings: 1 } },
     ])
+  })
+
+  it('titles yesterday with its date, over "Yesterday"', async () => {
+    const user = userEvent.setup()
+    renderCalories('/calories', { ...caloriesServer({ day: '2026-11-09' }), ...caloriesServer({ day: '2026-11-08' }) })
+
+    await pickDay(user, 'Sunday, 8 November')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sun 8 Nov' })).toBeInTheDocument()
+    expect(screen.getByText('Yesterday')).toBeInTheDocument()
   })
 
   it('shows a Day before the Editable Window read-only', async () => {
@@ -290,8 +353,10 @@ describe('Choosing a Day', () => {
     })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sun 1 Nov' })).toBeInTheDocument()
-    expect(await screen.findByText('800 / 2,000 kcal')).toBeInTheDocument()
+    await expectConsumed('800 / 2,000 kcal')
     expect(screen.getByText('This Day can no longer be changed.')).toBeInTheDocument()
+    // It has no chip: older Days are opened from History.
+    expect(within(screen.getByRole('group', { name: 'Day' })).queryByRole('button', { pressed: true })).not.toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Quick list' })).not.toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Something else' })).not.toBeInTheDocument()
     expect(within(screen.getByRole('list', { name: 'Entries' })).queryByRole('button')).not.toBeInTheDocument()
@@ -300,7 +365,8 @@ describe('Choosing a Day', () => {
   it('says an Unlogged Day has nothing logged, rather than 0 kcal', async () => {
     renderCalories('/calories', caloriesServer({ day: '2026-11-09' }))
 
-    expect(await screen.findByText('Nothing logged.')).toBeInTheDocument()
+    expect(await screen.findByText('Not logged')).toBeInTheDocument()
+    expect(screen.getByText('Nothing logged for this Day yet.')).toBeInTheDocument()
     expect(screen.queryByText(/0 kcal|kcal left/)).not.toBeInTheDocument()
   })
 })
@@ -316,17 +382,16 @@ describe('Changing Entries', () => {
       ],
     })
 
-  // The Entry in the Day view whose text includes `text`.
-  async function entryItem(text: string) {
-    const entries = await screen.findByRole('list', { name: 'Entries' })
-    return (await within(entries).findByText(new RegExp(text))).closest('li') as HTMLElement
+  // Taps the Entry that reads `text`, which opens it to change or delete.
+  async function openEntry(user: ReturnType<typeof userEvent.setup>, text: string) {
+    await user.click(within(await findEntry(text)).getByRole('button'))
   }
 
   it("changes an Entry's name, kcal per serving and Servings", async () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', lunch())
 
-    await user.click(within(await entryItem('Sushi × 12')).getByRole('button', { name: 'Edit' }))
+    await openEntry(user, 'Sushi × 12')
     const form = await screen.findByRole('form', { name: 'Edit Entry' })
     expect(within(form).getByLabelText('Name')).toHaveValue('Sushi')
     expect(within(form).getByLabelText('kcal per serving')).toHaveValue('45')
@@ -338,19 +403,19 @@ describe('Changing Entries', () => {
     await user.type(within(form).getByLabelText('Servings'), '10')
     await user.click(within(form).getByRole('button', { name: 'Save' }))
 
-    expect(await entryItem('Sushi \\(salmon\\) × 10: 500 kcal')).toBeInTheDocument()
-    expect(screen.queryByRole('form', { name: 'Edit Entry' })).not.toBeInTheDocument()
+    expect(await findEntry('Sushi (salmon) × 10, 50 kcal each: 500 kcal')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'Edit Entry' })).not.toBeInTheDocument())
     expect(sent.filter((request) => request.method === 'PUT')).toEqual([
       { method: 'PUT', path: '/api/calories/entries/e2', body: { name: 'Sushi (salmon)', kcalPerServing: 50, servings: 10 } },
     ])
-    expect(screen.getByText('1,500 / 2,150 kcal')).toBeInTheDocument()
+    await expectConsumed('1,500 / 2,150 kcal')
   })
 
   it('warns before a change takes the Day over the Daily Limit, counting the Entry once', async () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', lunch())
 
-    await user.click(within(await entryItem('Sushi × 12')).getByRole('button', { name: 'Edit' }))
+    await openEntry(user, 'Sushi × 12')
     const form = await screen.findByRole('form', { name: 'Edit Entry' })
     await user.clear(within(form).getByLabelText('Servings'))
     await user.type(within(form).getByLabelText('Servings'), '30')
@@ -361,7 +426,7 @@ describe('Changing Entries', () => {
     expect(sent.filter((request) => request.method === 'PUT')).toEqual([])
     await user.click(within(warning).getByRole('button', { name: 'Save anyway' }))
 
-    expect(await entryItem('Sushi × 30: 1,350 kcal')).toBeInTheDocument()
+    expect(await findEntry('Sushi × 30, 45 kcal each: 1,350 kcal')).toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'PUT')).toHaveLength(1)
   })
 
@@ -369,10 +434,10 @@ describe('Changing Entries', () => {
     const user = userEvent.setup()
     const { sent } = renderCalories('/calories', lunch())
 
-    await user.click(within(await entryItem('Katsu curry')).getByRole('button', { name: 'Edit' }))
+    await openEntry(user, 'Katsu curry')
     await user.click(within(await screen.findByRole('form', { name: 'Edit Entry' })).getByRole('button', { name: 'Delete' }))
 
-    expect(await screen.findByText('540 / 2,150 kcal')).toBeInTheDocument()
+    await expectConsumed('540 / 2,150 kcal')
     expect(within(screen.getByRole('list', { name: 'Entries' })).queryByText(/Katsu curry/)).not.toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'DELETE')).toEqual([
       { method: 'DELETE', path: '/api/calories/entries/e1', body: undefined },
@@ -625,7 +690,7 @@ describe('When something fails', () => {
     fails = false
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByText('800 / 2,000 kcal')).toBeInTheDocument()
+    await expectConsumed('800 / 2,000 kcal')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -636,7 +701,7 @@ describe('When something fails', () => {
       'GET /api/calories/days/2026-11-09/preview': { status: 409, body: 'day is not editable' },
     })
 
-    await user.click(within(await quickRow('Salmon nigiri')).getByRole('button', { name: /Salmon nigiri/ }))
+    await logQuick(user, 'Salmon nigiri')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'That Day can no longer be changed. Only today and the 7 Days before it can.',
@@ -651,7 +716,7 @@ describe('When something fails', () => {
       'POST /api/calories/days/2026-11-09/entries': { status: 500 },
     })
 
-    await user.click(within(await quickRow('Salmon nigiri')).getByRole('button', { name: /Salmon nigiri/ }))
+    await logQuick(user, 'Salmon nigiri')
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't log the Entry.")
   })
@@ -664,7 +729,7 @@ describe('When something fails', () => {
     })
 
     const entries = await screen.findByRole('list', { name: 'Entries' })
-    await user.click(await within(entries).findByRole('button', { name: 'Edit' }))
+    await user.click(await within(entries).findByRole('button', { name: /Ramen/ }))
     await user.click(within(await screen.findByRole('form', { name: 'Edit Entry' })).getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -724,29 +789,30 @@ describe('When something fails', () => {
 describe('A new Day', () => {
   it('moves on to the new Day when the Owner comes back to the app after midnight', async () => {
     renderCalories('/calories', { ...caloriesServer({ day: '2026-11-09', meals: [nigiri] }), ...caloriesServer({ day: '2026-11-10', meals: [nigiri] }) })
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Mon 9 Nov' })).toBeInTheDocument()
+    expect(await screen.findByText('Monday, 9 November')).toBeInTheDocument()
     await quickRow('Salmon nigiri')
 
     // Tuesday 10 November, 05:00 in Tokyo, when the Owner comes back to the open app.
     vi.setSystemTime(new Date('2026-11-09T20:00:00Z'))
     fireEvent(document, new Event('visibilitychange'))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Tue 10 Nov' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Day')).toHaveAttribute('min', '2026-11-03')
+    expect(await screen.findByText('Tuesday, 10 November')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Day' })).getAllByRole('button')[0]).toHaveAccessibleName('Tuesday, 3 November')
   })
 
   it('moves on to the new Day at midnight while the screen stays open', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
     vi.setSystemTime(new Date('2026-11-08T20:00:00Z'))
     renderCalories('/calories', { ...caloriesServer({ day: '2026-11-09', meals: [nigiri] }), ...caloriesServer({ day: '2026-11-10', meals: [nigiri] }) })
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Mon 9 Nov' })).toBeInTheDocument()
+    expect(await screen.findByText('Monday, 9 November')).toBeInTheDocument()
     await quickRow('Salmon nigiri')
 
     // Tuesday 10 November, 00:00 in Tokyo.
     vi.setSystemTime(new Date('2026-11-09T15:00:00Z'))
     vi.advanceTimersByTime(60_000)
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Tue 10 Nov' })).toBeInTheDocument()
+    expect(await screen.findByText('Tuesday, 10 November')).toBeInTheDocument()
   })
 })
 
@@ -755,15 +821,15 @@ describe('Review fixes', () => {
     const { sent } = renderCalories('/calories', caloriesServer({ day: '2026-11-09', meals: [nigiri] }))
 
     // The second tap lands while the first log is still under way.
-    const meal = within(await quickRow('Salmon nigiri')).getByRole('button', { name: /Salmon nigiri/ })
-    fireEvent.click(meal)
-    fireEvent.click(meal)
+    const log = within(await quickRow('Salmon nigiri')).getByRole('button', { name: 'Log Salmon nigiri' })
+    fireEvent.click(log)
+    fireEvent.click(log)
 
-    expect(await within(screen.getByRole('list', { name: 'Entries' })).findByText(/Salmon nigiri: 45 kcal/)).toBeInTheDocument()
+    expect(await findEntry('Salmon nigiri: 45 kcal')).toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'POST')).toHaveLength(1)
   })
 
-  it("drops an over-limit warning when the Owner picks another Day, so it can't log there", async () => {
+  it("drops an over-limit warning when another Day opens, so it can't log there", async () => {
     const user = userEvent.setup()
     const today = caloriesServer({
       day: '2026-11-09',
@@ -771,17 +837,18 @@ describe('Review fixes', () => {
       entries: [entry({ id: 'e1', day: '2026-11-09', name: 'Katsu curry', kcalPerServing: 2070 })],
       meals: [onigiri],
     })
-    const { sent } = renderCalories('/calories', { ...today, ...caloriesServer({ day: '2026-11-08', meals: [onigiri] }) })
+    const { sent, router } = renderCalories('/calories', { ...today, ...caloriesServer({ day: '2026-11-08', meals: [onigiri] }) })
 
     // Yesterday, loaded once already.
-    fireEvent.change(await screen.findByLabelText('Day'), { target: { value: '2026-11-08' } })
+    await pickDay(user, 'Sunday, 8 November')
     expect(await screen.findByRole('heading', { level: 1, name: 'Sun 8 Nov' })).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '2026-11-09' } })
-    await screen.findByText('2,070 / 2,150 kcal')
+    await pickDay(user, 'Monday, 9 November')
+    await expectConsumed('2,070 / 2,150 kcal')
 
-    await user.click(within(await quickRow('Tuna mayo onigiri')).getByRole('button', { name: /Tuna mayo onigiri/ }))
+    await logQuick(user, 'Tuna mayo onigiri')
     await screen.findByRole('alertdialog')
-    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '2026-11-08' } })
+    // The sheet covers the Day picker, but the address can still change under it.
+    await act(() => router.navigate('/calories?day=2026-11-08'))
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sun 8 Nov' })).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
@@ -791,7 +858,8 @@ describe('Review fixes', () => {
   it.each(['2026-13-01', '2026-02-30'])('opens on today when ?day=%s is no real date', async (asked) => {
     renderCalories(`/calories?day=${asked}`, caloriesServer({ day: '2026-11-09' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Mon 9 Nov' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument()
+    expect(screen.getByText('Monday, 9 November')).toBeInTheDocument()
   })
 
   it("says a Day that hasn't started yet can't be changed yet", async () => {
@@ -825,7 +893,7 @@ describe('Calories Home Card', () => {
     await user.click(within(card).getByRole('link', { name: 'Today' }))
 
     expect(router.state.location.pathname).toBe('/calories')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Today, Mon 9 Nov' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument()
   })
 
   it('says nothing is logged yet on an Unlogged Day, rather than 0 kcal', async () => {
@@ -964,7 +1032,7 @@ describe('History', () => {
 
     expect(router.state.location.pathname).toBe('/calories')
     expect(await screen.findByRole('heading', { level: 1, name: 'Tue 20 Oct' })).toBeInTheDocument()
-    expect(await screen.findByText('Ramen: 800 kcal')).toBeInTheDocument()
+    expect(await findEntry('Ramen: 800 kcal')).toBeInTheDocument()
   })
 
   it("says when it couldn't load, and loads it again when asked", async () => {
