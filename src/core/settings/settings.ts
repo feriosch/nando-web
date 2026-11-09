@@ -12,3 +12,6 @@ export type CoreSettings = {
 // "00:00" to "23:30": a Notification goes out on the hour or half hour, when the scheduler ticks,
 // so these are the only times a reminder can be set for (Core's or a Module's).
 export const reminderTimes = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
+
+// The same times as options for a Picker.
+export const reminderTimeOptions = reminderTimes.map((time) => ({ value: time, label: time }))

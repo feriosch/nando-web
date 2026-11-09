@@ -3,7 +3,7 @@ import { useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../../core/api/client'
 import { useLoadedSinceMount } from '../../core/api/loaded'
 import { useApi } from '../../core/services'
-import { reminderTimes } from '../../core/settings/settings'
+import { reminderTimeOptions } from '../../core/settings/settings'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { Button } from '../../core/ui/Button'
 import { GroupedList, ListRow } from '../../core/ui/List'
@@ -89,7 +89,7 @@ function DailyLimitForm({ saved }: { saved: DailyLimit }) {
               placeholder="Not set"
               className="m-0 w-20 border-0 bg-transparent p-0 text-right text-[17px] text-sub tabular-nums outline-none placeholder:text-sub/60"
             />
-            {typed.trim() !== '' && <span aria-hidden="true">kcal</span>}
+            {/^\d+$/.test(typed.trim()) && <span aria-hidden="true">kcal</span>}
             <Button type="submit" variant="accent" className="ml-2">
               Save
             </Button>
@@ -153,8 +153,6 @@ function ReminderForm({ saved }: { saved: CaloriesSettings }) {
   )
 }
 
-const times = reminderTimes.map((time) => ({ value: time, label: time }))
-
 // One Calories Notification as a row: a switch for whether it is sent, and when, underneath.
 function ReminderRow({ label, reminder, change }: { label: string; reminder: Reminder; change: (reminder: Reminder) => void }) {
   return (
@@ -166,7 +164,7 @@ function ReminderRow({ label, reminder, change }: { label: string; reminder: Rem
         <Picker
           label="Time"
           value={reminder.time}
-          options={times}
+          options={reminderTimeOptions}
           onChange={(time) => change({ ...reminder, time })}
           className="-mt-3 min-h-8 items-start self-start text-[15px] tabular-nums"
         />

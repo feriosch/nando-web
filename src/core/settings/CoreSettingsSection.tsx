@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useMemo, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client'
 import { useLoadedSinceMount } from '../api/loaded'
 import { useApi } from '../services'
@@ -10,7 +10,7 @@ import { GroupedList, ListRow } from '../ui/List'
 import { Picker, PickerRow } from '../ui/Picker'
 import { saveFooter } from '../ui/saveFooter'
 import { Switch } from '../ui/Switch'
-import { reminderTimes, type CoreSettings, type Weekday } from './settings'
+import { reminderTimeOptions, type CoreSettings, type Weekday } from './settings'
 
 const weekdays: { value: Weekday; label: string }[] = [
   { value: 'monday', label: 'Monday' },
@@ -21,6 +21,9 @@ const weekdays: { value: Weekday; label: string }[] = [
   { value: 'saturday', label: 'Saturday' },
   { value: 'sunday', label: 'Sunday' },
 ]
+
+// Every IANA time zone this browser knows, read once.
+const allTimeZones = Intl.supportedValuesOf('timeZone')
 
 // Core's Settings Section, "General": Appearance, then the Owner Time Zone, height and the Weigh-in
 // reminder, which save together.
@@ -58,8 +61,10 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
   })
 
   // Every IANA time zone, plus the saved one in case this browser doesn't list it (such as "UTC").
-  const timeZones = Intl.supportedValuesOf('timeZone')
-  if (!timeZones.includes(timeZone)) timeZones.unshift(timeZone)
+  const timeZones = useMemo(
+    () => (allTimeZones.includes(timeZone) ? allTimeZones : [timeZone, ...allTimeZones]).map((zone) => ({ value: zone, label: zone })),
+    [timeZone],
+  )
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -79,7 +84,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
         <PickerRow
           label="Time zone"
           value={timeZone}
-          options={timeZones.map((zone) => ({ value: zone, label: zone }))}
+          options={timeZones}
           onChange={setTimeZone}
         />
         <ListRow className="text-[17px]">
@@ -96,7 +101,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
               placeholder="Not set"
               className="m-0 w-24 border-0 bg-transparent p-0 text-right text-[17px] text-sub tabular-nums outline-none placeholder:text-sub/60"
             />
-            {height.trim() !== '' && <span aria-hidden="true">cm</span>}
+            {/^\d+$/.test(height.trim()) && <span aria-hidden="true">cm</span>}
           </span>
         </ListRow>
         <ListRow className="text-[17px]">
@@ -113,12 +118,12 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
                 value={reminder.weekday}
                 options={weekdays}
                 onChange={(weekday) => setReminder({ ...reminder, weekday: weekday as Weekday })}
-                display={`${weekdays.find(({ value }) => value === reminder.weekday)?.label}s,`}
+                display={`${weekdays.find(({ value }) => value === reminder.weekday)?.label ?? reminder.weekday}s,`}
               />
               <Picker
                 label="Time"
                 value={reminder.time}
-                options={reminderTimes.map((time) => ({ value: time, label: time }))}
+                options={reminderTimeOptions}
                 onChange={(time) => setReminder({ ...reminder, time })}
                 className="tabular-nums"
               />

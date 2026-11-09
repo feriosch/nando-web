@@ -109,8 +109,10 @@ function DeviceStatus({ on, footer }: { on: boolean; footer?: ReactNode }) {
   )
 }
 
-// This device, by its kind where Nando can tell.
+// This device, by its kind where Nando can tell. iPadOS says it is a Mac, but a Mac has no touch screen.
 function thisDevice(): string {
-  const kind = /iPhone|iPad/.exec(navigator.userAgent)?.[0]
-  return kind ? `This ${kind}` : 'This device'
+  const { userAgent, maxTouchPoints } = navigator
+  if (/iPhone/.test(userAgent)) return 'This iPhone'
+  if (/iPad/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1)) return 'This iPad'
+  return 'This device'
 }
