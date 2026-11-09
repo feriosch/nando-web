@@ -24,13 +24,15 @@ describe('Core Settings Section', () => {
     const timeZone = await within(section).findByLabelText('Time zone')
     expect(timeZone).toHaveValue('UTC')
     expect(within(section).getByLabelText('Height (cm)')).toHaveValue('')
-    expect(within(section).getByLabelText('Remind me to weigh in')).not.toBeChecked()
-    expect(within(section).getByLabelText('Weekday')).toHaveValue('monday')
-    expect(within(section).getByLabelText('Time')).toHaveValue('08:00')
+    expect(within(section).getByRole('switch', { name: 'Weigh-in reminder' })).not.toBeChecked()
+    // When it is sent shows only while the reminder is on.
+    expect(within(section).queryByLabelText('Weekday')).not.toBeInTheDocument()
 
     await user.selectOptions(timeZone, 'Asia/Tokyo')
     await user.type(within(section).getByLabelText('Height (cm)'), '175')
-    await user.click(within(section).getByLabelText('Remind me to weigh in'))
+    await user.click(within(section).getByRole('switch', { name: 'Weigh-in reminder' }))
+    expect(within(section).getByLabelText('Weekday')).toHaveValue('monday')
+    expect(within(section).getByLabelText('Time')).toHaveValue('08:00')
     await user.selectOptions(within(section).getByLabelText('Weekday'), 'Sunday')
     await user.selectOptions(within(section).getByLabelText('Time'), '07:30')
     await user.click(within(section).getByRole('button', { name: 'Save' }))
@@ -188,7 +190,9 @@ describe('Core Settings Section', () => {
   })
 
   it('offers reminder times only on the hour or half hour, from 00:00 to 23:30', async () => {
-    const { api } = fakeApi({ 'GET /api/settings': { status: 200, body: defaults } })
+    const { api } = fakeApi({
+      'GET /api/settings': { status: 200, body: { ...defaults, weighInReminder: { ...defaults.weighInReminder, enabled: true } } },
+    })
     renderApp('/settings', api)
 
     const section = await coreSection()

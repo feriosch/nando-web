@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useId, useMemo, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client'
 import { useLoadedSinceMount } from '../api/loaded'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import { AppearanceControl } from '../appearance/AppearanceControl'
-import { reminderTimes, type CoreSettings, type Weekday } from './settings'
+import { Button } from '../ui/Button'
+import { GroupedList, ListRow } from '../ui/List'
+import { Picker, PickerRow } from '../ui/Picker'
+import { saveFooter } from '../ui/saveFooter'
+import { Switch } from '../ui/Switch'
+import { reminderTimeOptions, type CoreSettings, type Weekday } from './settings'
 
 const weekdays: { value: Weekday; label: string }[] = [
   { value: 'monday', label: 'Monday' },
@@ -17,7 +22,11 @@ const weekdays: { value: Weekday; label: string }[] = [
   { value: 'sunday', label: 'Sunday' },
 ]
 
-// Core's Settings Section: the Owner Time Zone, height and the Weigh-in reminder.
+// Every IANA time zone this browser knows, read once.
+const allTimeZones = Intl.supportedValuesOf('timeZone')
+
+// Core's Settings Section, "General": Appearance, then the Owner Time Zone, height and the Weigh-in
+// reminder, which save together.
 export function CoreSettingsSection() {
   const api = useApi()
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
@@ -41,6 +50,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
   const [height, setHeight] = useState(saved.heightCm === null ? '' : String(saved.heightCm))
   const [reminder, setReminder] = useState(saved.weighInReminder)
   const [problem, setProblem] = useState<string | null>(null)
+  const heightId = useId()
   const save = useMutation({
     mutationFn: (settings: CoreSettings) => api.put('/api/settings', settings),
     onSuccess: () => {
@@ -51,8 +61,10 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
   })
 
   // Every IANA time zone, plus the saved one in case this browser doesn't list it (such as "UTC").
-  const timeZones = Intl.supportedValuesOf('timeZone')
-  if (!timeZones.includes(timeZone)) timeZones.unshift(timeZone)
+  const timeZones = useMemo(
+    () => (allTimeZones.includes(timeZone) ? allTimeZones : [timeZone, ...allTimeZones]).map((zone) => ({ value: zone, label: zone })),
+    [timeZone],
+  )
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -67,56 +79,63 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
   }
 
   return (
-    <form onSubmit={submit}>
-      <label>
-        Time zone
-        <select value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
-          {timeZones.map((zone) => (
-            <option key={zone} value={zone}>
-              {zone}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Height (cm)
-        <input value={height} onChange={(event) => setHeight(event.target.value)} inputMode="numeric" />
-      </label>
-      <fieldset>
-        <legend>Weigh-in reminder</legend>
-        <label>
-          <input
-            type="checkbox"
-            checked={reminder.enabled}
-            onChange={(event) => setReminder({ ...reminder, enabled: event.target.checked })}
-          />
-          Remind me to weigh in
-        </label>
-        <label>
-          Weekday
-          <select
-            value={reminder.weekday}
-            onChange={(event) => setReminder({ ...reminder, weekday: event.target.value as Weekday })}
-          >
-            {weekdays.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Time
-          <select value={reminder.time} onChange={(event) => setReminder({ ...reminder, time: event.target.value })}>
-            {reminderTimes.map((time) => (
-              <option key={time}>{time}</option>
-            ))}
-          </select>
-        </label>
-      </fieldset>
-      <button type="submit">Save</button>
-      {save.isSuccess && <p role="status">Saved.</p>}
-      {(problem || save.isError) && <p role="alert">{problem ?? describe(save.error)}</p>}
+    <form onSubmit={submit} className="my-0">
+      <GroupedList footer={saveFooter(save.isSuccess && 'Saved.', problem ?? (save.isError ? describe(save.error) : null))}>
+        <PickerRow
+          label="Time zone"
+          value={timeZone}
+          options={timeZones}
+          onChange={setTimeZone}
+        />
+        <ListRow className="text-[17px]">
+          {/* Named "Height (cm)"; the unit shows after the field instead. */}
+          <label htmlFor={heightId} className="my-0 flex min-h-11 flex-1 items-center">
+            Height<span className="sr-only"> (cm)</span>
+          </label>
+          <span className="flex items-center gap-1 text-sub">
+            <input
+              id={heightId}
+              value={height}
+              onChange={(event) => setHeight(event.target.value)}
+              inputMode="numeric"
+              placeholder="Not set"
+              className="m-0 w-24 border-0 bg-transparent p-0 text-right text-[17px] text-sub tabular-nums outline-none placeholder:text-sub/60"
+            />
+            {/^\d+$/.test(height.trim()) && <span aria-hidden="true">cm</span>}
+          </span>
+        </ListRow>
+        <ListRow className="text-[17px]">
+          <Switch isSelected={reminder.enabled} onChange={(enabled) => setReminder({ ...reminder, enabled })}>
+            Weigh-in reminder
+          </Switch>
+        </ListRow>
+        {reminder.enabled && (
+          <ListRow className="text-[17px]">
+            <span>When</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Picker
+                label="Weekday"
+                value={reminder.weekday}
+                options={weekdays}
+                onChange={(weekday) => setReminder({ ...reminder, weekday: weekday as Weekday })}
+                display={`${weekdays.find(({ value }) => value === reminder.weekday)?.label ?? reminder.weekday}s,`}
+              />
+              <Picker
+                label="Time"
+                value={reminder.time}
+                options={reminderTimeOptions}
+                onChange={(time) => setReminder({ ...reminder, time })}
+                className="tabular-nums"
+              />
+            </span>
+          </ListRow>
+        )}
+      </GroupedList>
+      <div className="mt-3 flex justify-end">
+        <Button type="submit" variant="accent">
+          Save
+        </Button>
+      </div>
     </form>
   )
 }

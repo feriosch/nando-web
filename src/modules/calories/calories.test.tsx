@@ -1063,14 +1063,14 @@ describe('Calories Settings Section', () => {
     const form = await within(await caloriesSection()).findByRole('form', { name: 'Reminders' })
     const nothingLogged = within(form).getByRole('group', { name: 'Nothing logged yet' })
     const evening = within(form).getByRole('group', { name: 'Evening summary' })
-    expect(within(nothingLogged).getByRole('switch', { name: 'Send it' })).not.toBeChecked()
+    expect(within(nothingLogged).getByRole('switch', { name: 'Nothing logged yet' })).not.toBeChecked()
     expect(within(nothingLogged).getByLabelText('Time')).toHaveValue('14:00')
-    expect(within(evening).getByRole('switch', { name: 'Send it' })).not.toBeChecked()
+    expect(within(evening).getByRole('switch', { name: 'Evening summary' })).not.toBeChecked()
     expect(within(evening).getByLabelText('Time')).toHaveValue('21:00')
 
-    await user.click(within(nothingLogged).getByRole('switch', { name: 'Send it' }))
+    await user.click(within(nothingLogged).getByRole('switch', { name: 'Nothing logged yet' }))
     await user.selectOptions(within(nothingLogged).getByLabelText('Time'), '12:30')
-    await user.click(within(evening).getByRole('switch', { name: 'Send it' }))
+    await user.click(within(evening).getByRole('switch', { name: 'Evening summary' }))
     await user.click(within(form).getByRole('button', { name: 'Save' }))
 
     expect(await within(form).findByText('Saved.')).toBeInTheDocument()

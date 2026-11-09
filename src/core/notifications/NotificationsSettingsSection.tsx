@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { useApi, usePush } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
+import { pillClasses } from '../ui/pill'
+import { GroupedList, ListRow } from '../ui/List'
 import type { PushSubscriptionJSON } from './push'
 
 // This device's Notification permission and, while it is granted, its Push Subscription.
@@ -54,7 +56,7 @@ export function NotificationsSettingsSection() {
 
   // On iPhone, Safari can't get Notifications; Nando added to the Home Screen can.
   if (!supported) {
-    return <p>To get Notifications, add Nando to the Home Screen and open it from there.</p>
+    return <DeviceStatus on={false} footer={<p className="my-0">To get Notifications, add Nando to the Home Screen and open it from there.</p>} />
   }
   if (device.isError) {
     return <LoadProblem message="Couldn't check Notifications on this device." retry={() => device.refetch()} />
@@ -62,19 +64,55 @@ export function NotificationsSettingsSection() {
   if (!device.isSuccess) return null
   // Once refused, the browser won't ask again; only the device's settings can allow them.
   if (device.data.permission === 'denied') {
-    return <p role="alert">Notifications are turned off for Nando in this device's settings. Turn them on there first.</p>
+    return (
+      <DeviceStatus
+        on={false}
+        footer={
+          <p role="alert" className="my-0">
+            Notifications are turned off for Nando in this device's settings. Turn them on there first.
+          </p>
+        }
+      />
+    )
   }
-  if (device.data.subscription) {
-    return <p>Notifications are on for this device.</p>
-  }
+  if (device.data.subscription) return <DeviceStatus on />
   return (
     <>
-      <p>Notifications are off on this device.</p>
-      {/* Safari asks for the permission only straight from a tap, so it is asked before anything is awaited. */}
-      <button type="button" disabled={enable.isPending} onClick={tapEnable}>
+      <DeviceStatus
+        on={false}
+        footer={
+          enable.isError && (
+            <p role="alert" className="my-0 text-ink">
+              Couldn't enable Notifications.
+            </p>
+          )
+        }
+      />
+      {/* Safari asks for the permission only straight from a tap's click, so it is asked before
+          anything is awaited, from a native button's onClick. */}
+      <button type="button" disabled={enable.isPending} onClick={tapEnable} className={`${pillClasses('accent')} mt-3 w-full`}>
         Enable Notifications
       </button>
-      {enable.isError && <p role="alert">Couldn't enable Notifications.</p>}
     </>
   )
+}
+
+// Whether this device gets Notifications, as one row ("This iPhone · On"), and why under it.
+function DeviceStatus({ on, footer }: { on: boolean; footer?: ReactNode }) {
+  return (
+    <GroupedList footer={footer}>
+      <ListRow className="text-[17px]">
+        <span>{thisDevice()}</span>
+        <span className="text-sub">{on ? 'On' : 'Off'}</span>
+      </ListRow>
+    </GroupedList>
+  )
+}
+
+// This device, by its kind where Nando can tell. iPadOS says it is a Mac, but a Mac has no touch screen.
+function thisDevice(): string {
+  const { userAgent, maxTouchPoints } = navigator
+  if (/iPhone/.test(userAgent)) return 'This iPhone'
+  if (/iPad/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1)) return 'This iPad'
+  return 'This device'
 }
