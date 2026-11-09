@@ -1,0 +1,73 @@
+# Deploys main to Cloud Run (nando-server's ADR 0001). Project, region,
+# registry and deploy identity are repo variables from nando-server#5; auth is
+# Workload Identity Federation, so there are no JSON keys.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, in merge order.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: build, push and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: ${{ vars.GCP_AR_REPO }}/web:${{ github.sha }}
+      API_ORIGIN: https://api.nanders.app
+      WEB_ORIGIN: https://web.nanders.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      # The registry host is the first part of GCP_AR_REPO.
+      - run: gcloud auth configure-docker "${IMAGE%%/*}" --quiet
+      # The API origin is baked into the build (src/core/config.ts).
+      - run: docker build --build-arg VITE_API_BASE_URL="$API_ORIGIN" -t "$IMAGE" .
+      - run: docker push "$IMAGE"
+      # The service keeps its own runtime service account (nando-web@). nginx
+      # needs no env vars: Cloud Run sets PORT.
+      - run: >-
+          gcloud run deploy nando-web
+          --project "${{ vars.GCP_PROJECT_ID }}"
+          --region "${{ vars.GCP_REGION }}"
+          --image "$IMAGE"
+      # Compares the index.html web.<domain> serves with this image's. Its
+      # hashed asset names change with every build, so this fails on Cloud
+      # Run's placeholder (which answers 200 on any path) and on an older
+      # revision. Retries for about a minute while the domain mapping picks up
+      # the new revision.
+      - name: smoke check
+        run: |
+          docker run --rm --entrypoint cat "$IMAGE" /usr/share/nginx/html/index.html > built.html
+          for attempt in $(seq 12); do
+            if curl -fsS --max-time 10 -o served.html "$WEB_ORIGIN/" && cmp -s built.html served.html; then
+              echo "$WEB_ORIGIN serves this build"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "$WEB_ORIGIN did not serve this build's index.html" >&2
+          # Asset names tell an older build from this one; no assets at all
+          # means the placeholder or an error page, so show its first bytes.
+          echo "Expected: $(grep -o 'assets/[^"]*' built.html | tr '\n' ' ')" >&2
+          if served="$(grep -o 'assets/[^"]*' served.html 2>/dev/null)"; then
+            echo "Served:   $(echo "$served" | tr '\n' ' ')" >&2
+          else
+            echo "Served (first 300 bytes):" >&2
+            head -c 300 served.html >&2 2>/dev/null || echo "(no response)" >&2
+          fi
+          exit 1
