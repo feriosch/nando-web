@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
+import type { CoreSettings } from '../src/core/settings/settings'
+import type { DayView, Meal } from '../src/modules/calories/calories'
 
 // The iPhone's keyboard: it covers the bottom of the screen without resizing the page, and only
 // the visual viewport shrinks. Chromium has no such keyboard, so this stands in for it at the OS
@@ -20,8 +22,12 @@ async function iPhoneKeyboard(page: Page) {
     }
     for (const [name, get] of Object.entries(sizes)) Object.defineProperty(viewport, name, { get })
     Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true })
+    // What raises the keyboard: a text-like input, a textarea, or editable content.
     const typesText = (target: EventTarget | null) =>
-      target instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit'].includes(target.type)
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLElement && target.isContentEditable) ||
+      (target instanceof HTMLInputElement &&
+        !['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden'].includes(target.type))
     const show = (next: boolean) => {
       if (open === next) return
       open = next
@@ -32,7 +38,44 @@ async function iPhoneKeyboard(page: Page) {
   }, keyboardHeight)
 }
 
-// Today with one Entry and a Quick List of one Meal.
+// Today with one Entry and a Quick List of one Meal. Typed as the app reads them, so they keep up
+// with the API.
+const settings: CoreSettings = {
+  timeZone: 'Asia/Tokyo',
+  heightCm: null,
+  weighInReminder: { enabled: false, weekday: 'sunday', time: '08:00' },
+}
+const chicken: Meal = {
+  id: 'm1',
+  name: 'Spicy Nosh Chicken',
+  kcal: 465,
+  store: null,
+  emoji: null,
+  imageUrl: null,
+  tags: [],
+  pinned: true,
+  archived: false,
+}
+const dayView = (day: string): DayView => ({
+  day,
+  consumedCalories: 465,
+  dailyLimit: 2000,
+  remaining: 1535,
+  overLimit: false,
+  entries: [
+    {
+      id: 'e1',
+      day,
+      mealId: chicken.id,
+      name: chicken.name,
+      kcalPerServing: chicken.kcal,
+      servings: 1,
+      kcal: 465,
+      loggedAt: `${day}T12:30:00+09:00`,
+    },
+  ],
+})
+
 async function fakeApi(page: Page) {
   await page.route(
     (url) => url.pathname.startsWith('/api/'),
@@ -41,21 +84,10 @@ async function fakeApi(page: Page) {
       const day = pathname.match(/^\/api\/calories\/days\/(\d{4}-\d{2}-\d{2})$/)?.[1]
       const body =
         pathname === '/api/settings'
-          ? { timeZone: 'Asia/Tokyo', heightCm: null, weighInReminder: { enabled: false, weekday: 'sunday', time: '08:00' } }
+          ? settings
           : pathname === '/api/calories/meals/quick'
-            ? [{ id: 'm1', name: 'Spicy Nosh Chicken', kcalPerServing: 465, archived: false, tags: [] }]
-            : day
-              ? {
-                  day,
-                  consumedCalories: 465,
-                  dailyLimit: 2000,
-                  remaining: 1535,
-                  overLimit: false,
-                  entries: [
-                    { id: 'e1', day, mealId: 'm1', name: 'Spicy Nosh Chicken', kcalPerServing: 465, servings: 1, kcal: 465 },
-                  ],
-                }
-              : undefined
+            ? [chicken]
+            : day && dayView(day)
       return body === undefined ? route.fulfill({ status: 501 }) : route.fulfill({ json: body })
     },
   )
