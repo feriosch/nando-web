@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
-// Paper's accent and light background (src/index.css), as in public/icon.svg. index.html's
+// Paper's accent and light background (src/index.css). index.html's
 // theme-color follows the screen on view instead.
 const themeColor = '#8E4A49'
 const backgroundColor = '#F6F4EF'
