@@ -1,7 +1,7 @@
 import type { ModuleIcon, SettingsSection } from '../module'
 import { SectionHeader } from '../ui/List'
 import { ScreenHeader } from '../ui/ScreenHeader'
-import { versionLabel } from '../version'
+import { appVersionLabel } from '../version'
 
 // A Settings Section with the tint of the Module that contributed it, if any: the Module's theme
 // and icon. Core's sections have none and sit in the screen's own theme.
@@ -31,7 +31,7 @@ export function Settings({ sections }: { sections: TintedSettingsSection[] }) {
           <Component />
         </section>
       ))}
-      <p className="mt-8 mb-2 text-center text-[13px] text-sub">{versionLabel()}</p>
+      <p className="mt-8 mb-2 text-center text-[13px] text-sub">{appVersionLabel}</p>
     </>
   )
 }

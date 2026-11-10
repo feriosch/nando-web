@@ -17,6 +17,7 @@ Web app for Nando: Bun, Vite, React, TypeScript, React Router and TanStack Query
   - `notifications/`: Core's **Notifications** Settings Section: says whether this device gets Notifications and has the "Enable Notifications" button, which asks for the permission (only ever from a tap), subscribes with Core's VAPID public key and registers the Push Subscription with Core. A device that is already subscribed registers its Push Subscription again whenever the section opens, since Core deletes one a push service stopped knowing. `push.ts` wraps `Notification` and `pushManager`.
   - `days.ts` and `now.ts`: Days (YYYY-MM-DD in the Owner Time Zone) and `useNow()`, the time re-read every minute and on coming back to the app (the Day view and the Weigh-ins screen use it). `today.ts`: `useToday()`, today in the Owner Time Zone from the settings and `useNow()` (Home, the Body Home Card, the Day view, History and the Calories Home Card use it).
   - `core.ts`: Core's own Home Cards and Settings Sections.
+  - `version.ts`: the version at the foot of Settings (see **Version** under Deploy).
   - `sw/`: what the service worker does with Notifications (see **PWA** below).
 - `src/index.css`: Tailwind, the themes (Paper for Core, Kitchen wood for Calories) as CSS variables for light and dark, plain defaults for screens not restyled yet, and the View Transitions slide. Motion is off under `prefers-reduced-motion`.
 - `src/modules/<module>`: one Module each (`calories`), exporting its `Module`.
