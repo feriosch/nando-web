@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
+import pkg from './package.json' with { type: 'json' }
 
 // Paper's accent and light background (src/index.css). index.html's
 // theme-color follows the screen on view instead.
@@ -10,6 +11,11 @@ const backgroundColor = '#F6F4EF'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // The app's version, shown at the foot of Settings (src/core/version.ts). Bump it in package.json
+  // for a release worth naming; the build number beside it counts main's commits on every deploy.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     tailwindcss(),

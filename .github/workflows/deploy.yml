@@ -27,7 +27,10 @@ jobs:
       API_ORIGIN: https://api.nanders.app
       WEB_ORIGIN: https://web.nanders.app
     steps:
+      # Full history, so the build number (main's commit count) is right.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
@@ -35,8 +38,13 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       # The registry host is the first part of GCP_AR_REPO.
       - run: gcloud auth configure-docker "${IMAGE%%/*}" --quiet
-      # The API origin is baked into the build (src/core/config.ts).
-      - run: docker build --build-arg VITE_API_BASE_URL="$API_ORIGIN" -t "$IMAGE" .
+      # The API origin is baked into the build (src/core/config.ts), and so is the
+      # build number Settings shows beside the version (src/core/version.ts).
+      - run: >-
+          docker build
+          --build-arg VITE_API_BASE_URL="$API_ORIGIN"
+          --build-arg VITE_APP_BUILD="$(git rev-list --count HEAD)"
+          -t "$IMAGE" .
       - run: docker push "$IMAGE"
       # The service keeps its own runtime service account (nando-web@). nginx
       # needs no env vars: Cloud Run sets PORT.

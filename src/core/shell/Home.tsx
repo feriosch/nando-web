@@ -17,13 +17,14 @@ export function Home({ cards }: { cards: ThemedHomeCard[] }) {
         <div className="min-w-0 flex-1">
           <ScreenHeader title="Home" subtitle={today && formatLongDay(today)} />
         </div>
-        {/* Its arms and legs are black, so in dark they get a soft edge in the ink colour to stay visible. */}
+        {/* Its bottom lines up with the date's (mb-2 matches ScreenHeader's pb-2). Its arms and legs
+            are black, so in dark they get a soft edge in the ink colour to stay visible. */}
         <img
           src={nando}
           alt=""
           width={291}
           height={300}
-          className="pointer-events-none mb-1 h-[92px] w-auto shrink-0 select-none dark:[filter:drop-shadow(0_0_1.5px_color-mix(in_srgb,var(--ink)_70%,transparent))]"
+          className="pointer-events-none mr-2 mb-2 h-[60px] w-auto shrink-0 select-none dark:[filter:drop-shadow(0_0_1.5px_color-mix(in_srgb,var(--ink)_70%,transparent))]"
         />
       </div>
       <div className="flex flex-col gap-3 pt-2">

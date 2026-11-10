@@ -6,6 +6,7 @@ import { createApiClient } from '../api/client'
 import type { Passkeys } from '../identity/passkeys'
 import type { Module, Registry } from '../module'
 import { fakeApi, renderApp, withProviders } from '../../test/app'
+import { appVersionLabel } from '../version'
 import { createRoutes } from './routes'
 
 function renderShell(registry: Registry, path = '/') {
@@ -108,6 +109,13 @@ describe('Core shell', () => {
     expect(sections.map((heading) => heading.textContent)).toEqual(['Body', 'Calories'])
     expect(within(settings).getByLabelText('Height (cm)')).toBeInTheDocument()
     expect(within(settings).getByLabelText('Daily Limit (kcal)')).toBeInTheDocument()
+  })
+
+  it("ends the Settings screen with the app's version", () => {
+    renderShell(registry, '/settings')
+
+    // versionLabel itself, with and without a build number, is covered in version.test.ts.
+    expect(within(screen.getByRole('main')).getByText(appVersionLabel)).toBeInTheDocument()
   })
 
   it('has a tab bar with Home, every Module and Settings, and a tab opens its screen and shows as current', async () => {
