@@ -110,6 +110,12 @@ describe('Core shell', () => {
     expect(within(settings).getByLabelText('Daily Limit (kcal)')).toBeInTheDocument()
   })
 
+  it("ends the Settings screen with the app's version", () => {
+    renderShell(registry, '/settings')
+
+    expect(within(screen.getByRole('main')).getByText(`Version ${__APP_VERSION__}`)).toBeInTheDocument()
+  })
+
   it('has a tab bar with Home, every Module and Settings, and a tab opens its screen and shows as current', async () => {
     const user = userEvent.setup()
     const router = renderShell(registry, '/')

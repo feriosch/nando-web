@@ -1,6 +1,7 @@
 import type { ModuleIcon, SettingsSection } from '../module'
 import { SectionHeader } from '../ui/List'
 import { ScreenHeader } from '../ui/ScreenHeader'
+import { versionLabel } from '../version'
 
 // A Settings Section with the tint of the Module that contributed it, if any: the Module's theme
 // and icon. Core's sections have none and sit in the screen's own theme.
@@ -8,7 +9,7 @@ export type TintedSettingsSection = SettingsSection & { tint?: { theme: string; 
 
 // The single Settings screen: each Settings Section under its header. A Module's section takes its
 // Module's theme as a tint: its grouped lists on the Module's surface with a hairline border, its
-// header in the Module's accent after the Module's icon.
+// header in the Module's accent after the Module's icon. The app's version closes the screen.
 export function Settings({ sections }: { sections: TintedSettingsSection[] }) {
   return (
     <>
@@ -30,6 +31,7 @@ export function Settings({ sections }: { sections: TintedSettingsSection[] }) {
           <Component />
         </section>
       ))}
+      <p className="mt-8 mb-2 text-center text-[13px] text-sub">{versionLabel()}</p>
     </>
   )
 }

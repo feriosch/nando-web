@@ -23,7 +23,7 @@ export function Home({ cards }: { cards: ThemedHomeCard[] }) {
           alt=""
           width={291}
           height={300}
-          className="pointer-events-none mb-1 h-[92px] w-auto shrink-0 select-none dark:[filter:drop-shadow(0_0_1.5px_color-mix(in_srgb,var(--ink)_70%,transparent))]"
+          className="pointer-events-none mb-1 h-[68px] w-auto shrink-0 select-none dark:[filter:drop-shadow(0_0_1.5px_color-mix(in_srgb,var(--ink)_70%,transparent))]"
         />
       </div>
       <div className="flex flex-col gap-3 pt-2">

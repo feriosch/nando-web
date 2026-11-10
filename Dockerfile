@@ -7,6 +7,9 @@ COPY . .
 ARG VITE_API_BASE_URL
 RUN test -n "$VITE_API_BASE_URL" || { echo "VITE_API_BASE_URL build arg is required" >&2; exit 1; }
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# The build number shown beside the version in Settings; the deploy passes main's commit count.
+ARG VITE_APP_BUILD
+ENV VITE_APP_BUILD=$VITE_APP_BUILD
 RUN bun run build
 
 FROM nginx:1.27-alpine
