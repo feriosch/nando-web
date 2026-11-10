@@ -36,6 +36,10 @@ jobs:
       - run: bun run lint
       # Vitest (package.json's test script), not Bun's own runner.
       - run: bun run test
+      # Playwright in Chromium (e2e/): its browser matches the @playwright/test
+      # version in the lockfile.
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run e2e
 
   image:
     name: build image

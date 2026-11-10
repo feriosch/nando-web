@@ -10,7 +10,8 @@
     "test": "vitest run",
     "lint": "oxlint",
     "preview": "vite preview",
-    "icons": "pwa-assets-generator"
+    "icons": "pwa-assets-generator",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@fontsource/zen-maru-gothic": "^5.3.1",
@@ -24,6 +25,7 @@
     "tailwindcss": "^4.3.5"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",

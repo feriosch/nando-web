@@ -43,9 +43,12 @@ bun run dev        # http://localhost:5173
 
 ```sh
 bun run test       # Vitest + Testing Library
+bun run e2e        # Playwright: the app in Chromium on an iPhone 17, against a fake API
 bun run typecheck
 bun run lint
 ```
+
+`e2e/` is for what only a real browser shows, such as where a sheet lands when the keyboard is up; it starts its own Vite. The first time, run `bunx playwright install chromium`.
 
 Every pull request runs these (with the Dockerfile's Bun and Node 22), and builds the container image (`.github/workflows/pr.yml`).
 
