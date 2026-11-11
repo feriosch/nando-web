@@ -6,6 +6,7 @@ import { createApiClient } from '../core/api/client'
 import { core } from '../core/core'
 import { CoreProvider } from '../core/CoreProvider'
 import type { Passkeys } from '../core/identity/passkeys'
+import type { Leave } from '../core/leave'
 import type { Module, Registry } from '../core/module'
 import type { Push, PushSubscriptionJSON } from '../core/notifications/push'
 import type { Share } from '../core/share/share'
@@ -130,6 +131,9 @@ export function fakeShare({
 // A device whose share sheet screens that don't test it leave alone.
 export const noShare = fakeShare().share
 
+// Screens that don't leave Nando: leaving goes nowhere.
+const stay: Leave = () => {}
+
 // `app` wrapped as main.tsx wraps it: Core's services, and a new query cache that doesn't retry.
 export function withProviders(
   app: ReactNode,
@@ -138,11 +142,12 @@ export function withProviders(
     passkeys = noPasskeys,
     push = noPush,
     share = noShare,
-  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share },
+    leave = stay,
+  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share; leave?: Leave },
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return (
-    <CoreProvider api={api} passkeys={passkeys} push={push} share={share}>
+    <CoreProvider api={api} passkeys={passkeys} push={push} share={share} leave={leave}>
       <QueryClientProvider client={queryClient}>{app}</QueryClientProvider>
     </CoreProvider>
   )
@@ -157,8 +162,19 @@ export function renderApp(
   modules: Module[] = [],
   share: Share = noShare,
 ) {
+  return renderAppWith(path, { api, push, modules, share })
+}
+
+// The same, with each of Core's services given by name; those left out are fakes that do nothing.
+export function renderAppWith(
+  path: string,
+  {
+    modules = [],
+    ...services
+  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share; leave?: Leave; modules?: Module[] },
+) {
   const registry: Registry = { core, modules }
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
-  render(withProviders(<RouterProvider router={router} />, { api, push, share }))
+  render(withProviders(<RouterProvider router={router} />, services))
   return router
 }

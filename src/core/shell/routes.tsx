@@ -1,5 +1,6 @@
 import { Outlet, type RouteObject } from 'react-router'
 import { AppearanceProvider } from '../appearance/AppearanceProvider'
+import { Consent } from '../connectors/Consent'
 import { WeighIns } from '../body/WeighIns'
 import { Enroll } from '../identity/Enroll'
 import { SignIn } from '../identity/SignIn'
@@ -29,6 +30,8 @@ export function createRoutes(registry: Registry): RouteObject[] {
   const screens: RouteObject[] = [
     { path: '/sign-in', element: <SignedOut><SignIn /></SignedOut> },
     { path: '/enroll', element: <SignedOut><Enroll /></SignedOut> },
+    // Approving a Connector, often in a browser with no Session: no tab bar, like sign-in.
+    { path: '/connect', element: <SignedOut><Consent /></SignedOut> },
     {
       path: '/',
       element: <Layout modules={registry.modules} />,
