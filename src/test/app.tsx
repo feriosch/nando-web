@@ -8,14 +8,18 @@ import { CoreProvider } from '../core/CoreProvider'
 import type { Passkeys } from '../core/identity/passkeys'
 import type { Module, Registry } from '../core/module'
 import type { Push, PushSubscriptionJSON } from '../core/notifications/push'
+import type { Share } from '../core/share/share'
 import { createRoutes } from '../core/shell/routes'
 
-export type Answer = { status: number; body?: unknown }
+// A body given with its own headers, such as a CSV with its Content-Type and Content-Disposition, is
+// sent as it is.
+export type Answer = { status: number; body?: unknown; headers?: Record<string, string> }
 export type Sent = { method: string; path: string; body: unknown }
 
 // The API, faked at fetch: each "METHOD /path" answers as given (or as a function of the request's
-// body and query, read when the request arrives), and every request is recorded.
-export type Answers = Record<string, Answer | ((body: unknown, query: URLSearchParams) => Answer)>
+// body and query, read when the request arrives, which may answer later with a promise), and every
+// request is recorded.
+export type Answers = Record<string, Answer | ((body: unknown, query: URLSearchParams) => Answer | Promise<Answer>)>
 
 export function fakeApi(answers: Answers) {
   const sent: Sent[] = []
@@ -26,9 +30,12 @@ export function fakeApi(answers: Answers) {
     const body = init.body === undefined ? undefined : JSON.parse(String(init.body))
     sent.push({ method, path, body })
     const answer = answers[`${method} ${path}`] ?? { status: 404 }
-    const { status, body: answerBody } = typeof answer === 'function' ? answer(body, url.searchParams) : answer
+    const { status, body: answerBody, headers } = typeof answer === 'function' ? await answer(body, url.searchParams) : answer
     if (answerBody === undefined) {
-      return new Response(null, { status })
+      return new Response(null, { status, headers })
+    }
+    if (headers) {
+      return new Response(typeof answerBody === 'string' ? answerBody : JSON.stringify(answerBody), { status, headers })
     }
     // The server sends its error messages as plain text.
     if (typeof answerBody === 'string') {
@@ -92,14 +99,48 @@ export function fakePush({
 // A browser that can't receive Notifications, so screens that don't test them leave them alone.
 export const noPush = fakePush({ supported: false }).push
 
+// This device's share sheet, faked: every file shared or downloaded is recorded. `canShareFiles` is
+// false on a desktop, which gets a download instead. `answers` says how each share sheet ends, in
+// turn: shared (`'shared'`, and once they run out), closed by the Owner (`'cancelled'`), or refused
+// by Safari because the tap was too long ago (`'not-allowed'`).
+export function fakeShare({
+  canShareFiles = true,
+  answers = [],
+}: { canShareFiles?: boolean; answers?: ('shared' | 'cancelled' | 'not-allowed')[] } = {}) {
+  const shared: File[] = []
+  const downloaded: File[] = []
+  const pending = [...answers]
+  const share: Share = {
+    canShareFiles: () => canShareFiles,
+    shareFiles: async (files) => {
+      const answer = pending.shift() ?? 'shared'
+      if (answer === 'cancelled') throw new DOMException('Share canceled', 'AbortError')
+      if (answer === 'not-allowed') throw new DOMException('The request is not allowed by the user agent.', 'NotAllowedError')
+      shared.push(...files)
+    },
+    download: (file) => {
+      downloaded.push(file)
+    },
+  }
+  return { share, shared, downloaded }
+}
+
+// A device whose share sheet screens that don't test it leave alone.
+export const noShare = fakeShare().share
+
 // `app` wrapped as main.tsx wraps it: Core's services, and a new query cache that doesn't retry.
 export function withProviders(
   app: ReactNode,
-  { api, passkeys = noPasskeys, push = noPush }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push },
+  {
+    api,
+    passkeys = noPasskeys,
+    push = noPush,
+    share = noShare,
+  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share },
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return (
-    <CoreProvider api={api} passkeys={passkeys} push={push}>
+    <CoreProvider api={api} passkeys={passkeys} push={push} share={share}>
       <QueryClientProvider client={queryClient}>{app}</QueryClientProvider>
     </CoreProvider>
   )
@@ -107,9 +148,15 @@ export function withProviders(
 
 // The whole app as main.tsx builds it, with Core's real Home Cards, Settings Sections and screens
 // and the given Modules (none by default), opened at `path`.
-export function renderApp(path: string, api: ReturnType<typeof fakeApi>['api'], push: Push = noPush, modules: Module[] = []) {
+export function renderApp(
+  path: string,
+  api: ReturnType<typeof fakeApi>['api'],
+  push: Push = noPush,
+  modules: Module[] = [],
+  share: Share = noShare,
+) {
   const registry: Registry = { core, modules }
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
-  render(withProviders(<RouterProvider router={router} />, { api, push }))
+  render(withProviders(<RouterProvider router={router} />, { api, push, share }))
   return router
 }

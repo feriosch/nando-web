@@ -1,24 +1,29 @@
 import type { ReactNode } from 'react'
 
 // A section header above a grouped list: 13px, uppercase, in the secondary colour. A Module's
-// Settings Section has it in the Module's accent, after the Module's `icon`.
+// Settings Section has it in the Module's accent, after the Module's `icon`. `as="h3"` for a group
+// within a Settings Section, whose own header is the h2.
 export function SectionHeader({
   id,
   icon,
   tone = 'sub',
+  as: Heading = 'h2',
   children,
 }: {
   id?: string
   icon?: ReactNode
   tone?: 'sub' | 'accent'
+  as?: 'h2' | 'h3'
   children: ReactNode
 }) {
   const colour = tone === 'accent' ? 'font-semibold text-accent' : 'font-normal text-sub'
+  // A group sits right under its Settings Section's header.
+  const top = Heading === 'h3' ? 'mt-3' : 'mt-7'
   return (
-    <h2 id={id} className={`mx-4 mt-7 mb-1.5 flex items-center gap-1.5 text-[13px] tracking-wide uppercase ${colour}`}>
+    <Heading id={id} className={`mx-4 ${top} mb-1.5 flex items-center gap-1.5 text-[13px] tracking-wide uppercase ${colour}`}>
       {icon}
       {children}
-    </h2>
+    </Heading>
   )
 }
 

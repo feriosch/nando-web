@@ -2,6 +2,7 @@ import type { Module } from '../../core/module'
 import { BrushIcon } from './icon'
 import { KanjiPage } from './KanjiPage'
 import { Search } from './Search'
+import { JapaneseSettingsSection } from './SettingsSection'
 import { WordPage } from './WordPage'
 
 export const japanese: Module = {
@@ -17,5 +18,5 @@ export const japanese: Module = {
     { path: 'kanji/:id', element: <KanjiPage /> },
   ],
   homeCards: [],
-  settingsSections: [],
+  settingsSections: [{ id: 'japanese', title: 'Japanese', Component: JapaneseSettingsSection }],
 }
