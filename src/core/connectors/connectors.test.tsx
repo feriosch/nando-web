@@ -136,6 +136,27 @@ describe('Connector consent page', () => {
     expect(screen.getByRole('button', { name: 'Allow with Face ID' })).toBeEnabled()
   })
 
+  it('says the request has expired, with nothing to tap, when it expires before the Owner answers', async () => {
+    const user = userEvent.setup()
+    renderConsent({ 'POST /auth/connect/r1/deny': { status: 404, body: 'no such request' } })
+
+    await user.click(await screen.findByRole('button', { name: "Don't allow" }))
+
+    expect(await screen.findByText('This request has expired. Try connecting again from Claude.')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Claude wants to use Nando' })).not.toBeInTheDocument()
+  })
+
+  it('says the request has expired when the link has no request at all, without asking the server', async () => {
+    const { leave } = fakeLeave()
+    const { api, sent } = fakeApi({})
+    renderAppWith('/connect', { api, leave })
+
+    expect(await screen.findByText('This request has expired. Try connecting again from Claude.')).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(sent).toEqual([])
+  })
+
   it("says when it couldn't load the request, and loads it again", async () => {
     const user = userEvent.setup()
     let answered = 0

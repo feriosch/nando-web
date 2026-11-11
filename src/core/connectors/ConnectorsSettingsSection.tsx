@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { apiBaseUrl } from '../config'
-import { addDays, dayOf, formatDayAs } from '../days'
+import { addDays, dayOf, formatDayShort } from '../days'
 import { useApi } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import { useToday } from '../today'
@@ -47,8 +47,10 @@ export function ConnectorsSettingsSection() {
     return (
       <EmptyNote>
         No Connectors yet. To add one, add a custom connector in the Claude app with{' '}
-        <br />
-        <span className="font-medium text-ink select-all">{apiBaseUrl}/mcp</span>.
+        {/* On a line of its own, and copied whole with a tap, without the full stop. */}
+        <span className="block">
+          <span className="font-medium text-ink select-all">{apiBaseUrl}/mcp</span>.
+        </span>
       </EmptyNote>
     )
   }
@@ -67,7 +69,7 @@ export function ConnectorsSettingsSection() {
             <span className="min-w-0 flex-1">
               <span className="block text-[17px]">{connector.name}</span>
               <span className="block text-[15px] text-sub">
-                Approved {when(dayOf(new Date(connector.approvedAt), timeZone), today)} ·{' '}
+                Approved {formatDayShort(dayOf(new Date(connector.approvedAt), timeZone), today)} ·{' '}
                 {connector.lastUsedAt === null ? 'Never used' : `Last used ${lastUsed(dayOf(new Date(connector.lastUsedAt), timeZone), today)}`}
               </span>
             </span>
@@ -109,15 +111,9 @@ export function ConnectorsSettingsSection() {
   )
 }
 
-// `day` as the Owner reads it, such as "9 Nov", with its year when it isn't this year's.
-function when(day: string, today: string): string {
-  const sameYear = day.slice(0, 4) === today.slice(0, 4)
-  return formatDayAs(day, sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
 // When a Connector was last used: "today", "yesterday", or its day.
 function lastUsed(day: string, today: string): string {
   if (day === today) return 'today'
   if (day === addDays(today, -1)) return 'yesterday'
-  return when(day, today)
+  return formatDayShort(day, today)
 }

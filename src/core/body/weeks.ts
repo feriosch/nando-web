@@ -1,4 +1,4 @@
-import { addDays, dayOf, formatDayAs, mondayOf } from '../days'
+import { addDays, dayOf, formatDayAs, formatDayShort, mondayOf } from '../days'
 
 // A week is named by the Monday it starts on, as YYYY-MM-DD.
 
@@ -20,6 +20,5 @@ export function formatWeek(week: string): string {
 // `week` in short, such as "9 Nov", with its year only when it isn't the year `today` is in:
 // "29 Dec 2025". Without `today`, it leaves the year out.
 export function formatWeekShort(week: string, today: string | undefined): string {
-  const otherYear = today !== undefined && week.slice(0, 4) !== today.slice(0, 4)
-  return formatDayAs(week, { day: 'numeric', month: 'short', ...(otherYear && { year: 'numeric' }) })
+  return formatDayShort(week, today)
 }

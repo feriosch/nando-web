@@ -38,3 +38,10 @@ export function formatDayAs(day: string, options: Intl.DateTimeFormatOptions): s
 export function formatLongDay(day: string): string {
   return `${formatDayAs(day, { weekday: 'long' })}, ${formatDayAs(day, { day: 'numeric', month: 'long' })}`
 }
+
+// `day` in short, such as "9 Nov", with its year only when it isn't the year `today` is in:
+// "29 Dec 2025". Without `today`, it leaves the year out.
+export function formatDayShort(day: string, today: string | undefined): string {
+  const otherYear = today !== undefined && day.slice(0, 4) !== today.slice(0, 4)
+  return formatDayAs(day, { day: 'numeric', month: 'short', ...(otherYear && { year: 'numeric' }) })
+}

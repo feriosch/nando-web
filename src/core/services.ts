@@ -42,6 +42,7 @@ export function useShare(): Share {
   return useServices().share
 }
 
+// Leaving Nando for another site, such as back to a Connector after the consent page.
 export function useLeave(): Leave {
   return useServices().leave
 }
