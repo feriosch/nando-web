@@ -1,4 +1,5 @@
 import { BodyCard } from './body/BodyCard'
+import { ConnectorsSettingsSection } from './connectors/ConnectorsSettingsSection'
 import { NotificationsSettingsSection } from './notifications/NotificationsSettingsSection'
 import { CoreSettingsSection } from './settings/CoreSettingsSection'
 import type { Contributions } from './module'
@@ -9,5 +10,6 @@ export const core: Contributions = {
   settingsSections: [
     { id: 'core', title: 'General', Component: CoreSettingsSection },
     { id: 'notifications', title: 'Notifications', Component: NotificationsSettingsSection },
+    { id: 'connectors', title: 'Connectors', Component: ConnectorsSettingsSection },
   ],
 }
