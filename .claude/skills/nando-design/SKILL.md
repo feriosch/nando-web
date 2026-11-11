@@ -28,10 +28,11 @@ A **theme** is a palette plus a display font, applied by a class on a container 
 | accent | `bg-accent`, `text-accent` | the main action, links, the current tab |
 | accent-ink | `text-accent-ink` | text on accent |
 | display font | `font-display` | large titles and other display text |
+| display font for Japanese | `--display-font-ja` (optional) | Japanese text (`lang="ja"`) in or on `font-display`; the display font when a theme has none |
 
 Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the walnut board: the Day view's summary and the Home Card), `bar-fill` and `warn-bar` (over the Daily Limit). On the board, `on-board` has `ink`, `sub` and `fill` read the board's own, so blocks such as `LoadProblem` and `CardHeader` stay legible there. Japanese adds `level-basic`, `level-n3`, `level-n2` and `level-n1` (green, blue, purple, red: easiest to hardest), the colours of the Basic and JLPT Groups' chips. Body text is always `font-sans`, the system font.
 
-Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font) and **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Old Mincho display font).
+Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font) and **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Maru Gothic display font, Zen Kaku Gothic New for Japanese display text).
 
 ## A Module's theme and icon
 

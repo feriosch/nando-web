@@ -74,7 +74,10 @@
   --warn-bar: #ff7b6b;
 }
 
-/* Ai-zome: Japanese. Washi paper written on in indigo ink, with Zen Old Mincho for display text. */
+/*
+ * Ai-zome: Japanese. Washi paper written on in indigo ink. Display text is in Zen Maru Gothic, as in
+ * Calories, and Japanese display text (a Word's spelling, a Kanji's character) in Zen Kaku Gothic New.
+ */
 .theme-japanese {
   --bg: #f3efe6;
   --surface: #fcfaf5;
@@ -89,7 +92,8 @@
   --level-n3: #1f68b0;
   --level-n2: #7445ad;
   --level-n1: #ad3324;
-  --display-font: 'Zen Old Mincho', var(--body-font);
+  --display-font: 'Zen Maru Gothic', var(--body-font);
+  --display-font-ja: 'Zen Kaku Gothic New', var(--body-font);
 }
 
 .dark .theme-japanese {
@@ -116,6 +120,15 @@
 
 @theme {
   --font-sans: var(--body-font);
+}
+
+/*
+ * Japanese display text (`lang="ja"` in or on `font-display`) takes the theme's `--display-font-ja`
+ * when it has one. Unlayered, so it wins over the `font-display` utility.
+ */
+.font-display:lang(ja),
+.font-display :lang(ja) {
+  font-family: var(--display-font-ja, var(--display-font));
 }
 
 @theme inline {

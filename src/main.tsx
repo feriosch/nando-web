@@ -10,9 +10,9 @@ import { createRoutes } from './core/shell/routes'
 // Zen Maru Gothic, the display font of some Module themes, self-hosted.
 import '@fontsource/zen-maru-gothic/500.css'
 import '@fontsource/zen-maru-gothic/700.css'
-// Zen Old Mincho, Japanese's display font: its titles, a Word's spelling and a Kanji's character.
-import '@fontsource/zen-old-mincho/400.css'
-import '@fontsource/zen-old-mincho/700.css'
+// Zen Kaku Gothic New, Japanese's display font for Japanese text: a Word's spelling, a Kanji's character.
+import '@fontsource/zen-kaku-gothic-new/400.css'
+import '@fontsource/zen-kaku-gothic-new/700.css'
 import './index.css'
 import { registry } from './registry'
 
