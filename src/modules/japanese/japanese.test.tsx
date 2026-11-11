@@ -1,7 +1,7 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { fakeApi, noPush, renderApp, type Answer, type Answers } from '../../test/app'
+import { fakeApi, fakeShare, noPush, renderApp, type Answer, type Answers } from '../../test/app'
 import { japanese } from '.'
 
 // The API's JSON shapes, as nando-server's internal/japanese/API.md documents them.
@@ -318,5 +318,148 @@ describe('A load that fails', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: '海' })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+// The JLPT deck as GET /api/japanese/anki/jlpt.csv answers it.
+const deckCsv = '#separator:Comma\n#html:true\n#notetype:Benkyo Note Type V2\n#deck:JLPT Benkyo Deck V2\nw2,足跡,あしあと,"huella, pisada"\n'
+const deck: Answer = {
+  status: 200,
+  body: deckCsv,
+  headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="jlpt-2026-11-11.csv"' },
+}
+
+// The Japanese Settings Section on the Settings screen, found by its heading.
+async function japaneseSection() {
+  return await screen.findByRole('region', { name: 'Japanese' })
+}
+
+describe('Japanese Settings Section', () => {
+  it('shares the JLPT deck as a CSV file named for today, for AnkiMobile', async () => {
+    const user = userEvent.setup()
+    const { share, shared } = fakeShare()
+    renderApp('/settings', fakeApi({ 'GET /api/japanese/anki/jlpt.csv': deck }).api, noPush, [japanese], share)
+
+    const section = await japaneseSection()
+    expect(within(section).getByText('In AnkiMobile, set Existing notes to Update.')).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'Export JLPT deck' }))
+
+    await waitFor(() => expect(shared).toHaveLength(1))
+    expect(shared[0].name).toBe('jlpt-2026-11-11.csv')
+    expect(shared[0].type).toBe('text/csv')
+    expect(await shared[0].text()).toBe(deckCsv)
+  })
+
+  it('downloads the deck where the device has no share sheet for files', async () => {
+    const user = userEvent.setup()
+    const { share, shared, downloaded } = fakeShare({ canShareFiles: false })
+    renderApp('/settings', fakeApi({ 'GET /api/japanese/anki/jlpt.csv': deck }).api, noPush, [japanese], share)
+
+    await user.click(within(await japaneseSection()).getByRole('button', { name: 'Export JLPT deck' }))
+
+    await waitFor(() => expect(downloaded).toHaveLength(1))
+    expect(downloaded[0].name).toBe('jlpt-2026-11-11.csv')
+    expect(await downloaded[0].text()).toBe(deckCsv)
+    expect(shared).toEqual([])
+  })
+
+  it('says nothing when the Owner closes the share sheet, and shares again on the next tap', async () => {
+    const user = userEvent.setup()
+    const { share, shared } = fakeShare({ answers: ['cancelled'] })
+    renderApp('/settings', fakeApi({ 'GET /api/japanese/anki/jlpt.csv': deck }).api, noPush, [japanese], share)
+
+    const section = await japaneseSection()
+    await user.click(within(section).getByRole('button', { name: 'Export JLPT deck' }))
+    // The row is ready again once the sheet is closed.
+    await waitFor(() => expect(within(section).getByRole('button', { name: 'Export JLPT deck' })).toBeEnabled())
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    expect(shared).toEqual([])
+
+    await user.click(within(section).getByRole('button', { name: 'Export JLPT deck' }))
+    await waitFor(() => expect(shared).toHaveLength(1))
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it("says why the deck couldn't be fetched, and fetches it again", async () => {
+    const user = userEvent.setup()
+    const { share, shared } = fakeShare()
+    let answered = 0
+    const api = fakeApi({
+      'GET /api/japanese/anki/jlpt.csv': () => (answered++ === 0 ? { status: 500, body: 'database unavailable' } : deck),
+    }).api
+    renderApp('/settings', api, noPush, [japanese], share)
+
+    const section = await japaneseSection()
+    await user.click(within(section).getByRole('button', { name: 'Export JLPT deck' }))
+
+    expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't get the JLPT deck: database unavailable")
+    expect(shared).toEqual([])
+    await user.click(within(section).getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => expect(shared).toHaveLength(1))
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('shows it is busy while the deck is fetched, and a second tap does nothing', async () => {
+    const user = userEvent.setup()
+    const { share, shared } = fakeShare()
+    let answer: (answer: Answer) => void = () => {}
+    const { api, sent } = fakeApi({ 'GET /api/japanese/anki/jlpt.csv': () => new Promise<Answer>((resolve) => (answer = resolve)) })
+    renderApp('/settings', api, noPush, [japanese], share)
+
+    const section = await japaneseSection()
+    const row = within(section).getByRole('button', { name: 'Export JLPT deck' })
+    await user.click(row)
+    await waitFor(() => expect(row).toBeDisabled())
+    expect(row).toHaveTextContent('Preparing…')
+    await user.click(row)
+
+    answer(deck)
+    await waitFor(() => expect(shared).toHaveLength(1))
+    expect(sent.filter((request) => request.path === '/api/japanese/anki/jlpt.csv')).toHaveLength(1)
+    await waitFor(() => expect(row).toBeEnabled())
+  })
+
+  it('offers to share the fetched deck with another tap when Safari refuses the first', async () => {
+    const user = userEvent.setup()
+    const { share, shared } = fakeShare({ answers: ['not-allowed'] })
+    const { api, sent } = fakeApi({ 'GET /api/japanese/anki/jlpt.csv': deck })
+    renderApp('/settings', api, noPush, [japanese], share)
+
+    const section = await japaneseSection()
+    await user.click(within(section).getByRole('button', { name: 'Export JLPT deck' }))
+    await user.click(await within(section).findByRole('button', { name: 'Share jlpt-2026-11-11.csv' }))
+
+    await waitFor(() => expect(shared).toHaveLength(1))
+    expect(shared[0].name).toBe('jlpt-2026-11-11.csv')
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    // The deck was fetched once, and the row is back to exporting.
+    expect(sent.filter((request) => request.path === '/api/japanese/anki/jlpt.csv')).toHaveLength(1)
+    expect(await within(section).findByRole('button', { name: 'Export JLPT deck' })).toBeEnabled()
+  })
+
+  it("says the share sheet failed, not the fetch, when sharing goes wrong", async () => {
+    const user = userEvent.setup()
+    const { share } = fakeShare({ answers: ['failed'] })
+    renderApp('/settings', fakeApi({ 'GET /api/japanese/anki/jlpt.csv': deck }).api, noPush, [japanese], share)
+
+    const section = await japaneseSection()
+    await user.click(within(section).getByRole('button', { name: 'Export JLPT deck' }))
+
+    expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't share the JLPT deck.")
+  })
+
+  it('names the file after its path when the server hides Content-Disposition', async () => {
+    const user = userEvent.setup()
+    const { share, shared } = fakeShare()
+    const hidden: Answer = { ...deck, headers: { 'Content-Type': 'text/csv; charset=utf-8' } }
+    renderApp('/settings', fakeApi({ 'GET /api/japanese/anki/jlpt.csv': hidden }).api, noPush, [japanese], share)
+
+    await user.click(within(await japaneseSection()).getByRole('button', { name: 'Export JLPT deck' }))
+
+    await waitFor(() => expect(shared).toHaveLength(1))
+    expect(shared[0].name).toBe('jlpt.csv')
+    expect(shared[0].type).toBe('text/csv')
   })
 })
