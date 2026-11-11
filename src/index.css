@@ -74,6 +74,43 @@
   --warn-bar: #ff7b6b;
 }
 
+/*
+ * Ai-zome: Japanese. Washi paper written on in indigo ink. Display text is in Zen Maru Gothic, as in
+ * Calories, and Japanese display text (a Word's spelling, a Kanji's character) in Zen Kaku Gothic New.
+ */
+.theme-japanese {
+  --bg: #f3efe6;
+  --surface: #fcfaf5;
+  --ink: #1d2230;
+  --sub: #5f6474;
+  --line: #e2dccf;
+  --fill: #ebe5d8;
+  --accent: #2f4b7c;
+  --accent-ink: #ffffff;
+  /* The JLPT levels' chips, easiest to hardest: Basic, N3, N2, N1. */
+  --level-basic: #276d44;
+  --level-n3: #1f68b0;
+  --level-n2: #7445ad;
+  --level-n1: #ad3324;
+  --display-font: 'Zen Maru Gothic', var(--body-font);
+  --display-font-ja: 'Zen Kaku Gothic New', var(--body-font);
+}
+
+.dark .theme-japanese {
+  --bg: #0f121a;
+  --surface: #191d28;
+  --ink: #ece8df;
+  --sub: #a3a7b5;
+  --line: #2c3140;
+  --fill: #242937;
+  --accent: #93acdb;
+  --accent-ink: #0e1730;
+  --level-basic: #7fcf9c;
+  --level-n3: #82b6ee;
+  --level-n2: #c4a2ee;
+  --level-n1: #f28e80;
+}
+
 /* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
 .on-board {
   --ink: var(--board-ink);
@@ -83,6 +120,15 @@
 
 @theme {
   --font-sans: var(--body-font);
+}
+
+/*
+ * Japanese display text (`lang="ja"` in or on `font-display`) takes the theme's `--display-font-ja`
+ * when it has one. Unlayered, so it wins over the `font-display` utility.
+ */
+.font-display:lang(ja),
+.font-display :lang(ja) {
+  font-family: var(--display-font-ja, var(--display-font));
 }
 
 @theme inline {
@@ -100,6 +146,10 @@
   --color-board-track: var(--board-track);
   --color-bar-fill: var(--bar-fill);
   --color-warn-bar: var(--warn-bar);
+  --color-level-basic: var(--level-basic);
+  --color-level-n3: var(--level-n3);
+  --color-level-n2: var(--level-n2);
+  --color-level-n1: var(--level-n1);
   --font-display: var(--display-font);
 }
 
