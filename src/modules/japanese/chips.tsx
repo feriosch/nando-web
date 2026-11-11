@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-// A tag, such as a Word Tag or a Nuance Tag, as a small pill on the fill colour.
+// A tag, such as a Group, a Word Tag or a Nuance Tag, as a small pill in the accent colour.
 export function Chip({ children }: { children: ReactNode }) {
-  return <span className="inline-block rounded-full bg-fill px-2.5 py-0.5 text-[13px] text-sub">{children}</span>
+  return <span className="inline-block shrink-0 rounded-full bg-accent/10 px-2.5 py-0.5 text-[13px] text-accent">{children}</span>
 }
 
 // A row of chips, as a list named `label`; its items are `<li>`s holding a `Chip`.

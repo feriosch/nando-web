@@ -6,6 +6,7 @@
       "name": "nando-web",
       "dependencies": {
         "@fontsource/zen-maru-gothic": "^5.3.1",
+        "@fontsource/zen-old-mincho": "^5",
         "@tailwindcss/vite": "^4.3.5",
         "@tanstack/react-query": "^5.104.5",
         "lucide-react": "^1.70.0",
@@ -253,6 +254,8 @@
     "@exodus/bytes": ["@exodus/bytes@1.16.0", "", { "peerDependencies": { "@noble/hashes": "^1.8.0 || ^2.0.0" }, "optionalPeers": ["@noble/hashes"] }, "sha512-IcpW84uEn3N7ETtNZMlxKhfl6Pec8rUNGOTBtWbK1FKhJxIFAptZyVrvVRVBimAJxJCgc3PxepxkdWWG4DVzfA=="],
 
     "@fontsource/zen-maru-gothic": ["@fontsource/zen-maru-gothic@5.3.1", "", {}, "sha512-DtDKg44WTu44VuUWIJq8oAdCMHkkKrlpUaYHPbBQQkr8eZUNUjdWtzTJM3QIVlYYqdUPZN0Oy2a20EbxPJnF/g=="],
+
+    "@fontsource/zen-old-mincho": ["@fontsource/zen-old-mincho@5.3.1", "", {}, "sha512-wahFUlw1s0zKkxiTRj9jJiyVrdNT5uHNYWakr6cDEIgp91YoP/LOvfD2+JVIKiXIwTChDM1oW1yqXJbdtlI56w=="],
 
     "@img/colour": ["@img/colour@1.1.0", "", {}, "sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ=="],
 

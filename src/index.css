@@ -74,6 +74,30 @@
   --warn-bar: #ff7b6b;
 }
 
+/* Ai-zome: Japanese. Washi paper written on in indigo ink, with Zen Old Mincho for display text. */
+.theme-japanese {
+  --bg: #f3efe6;
+  --surface: #fcfaf5;
+  --ink: #1d2230;
+  --sub: #5f6474;
+  --line: #e2dccf;
+  --fill: #ebe5d8;
+  --accent: #2f4b7c;
+  --accent-ink: #ffffff;
+  --display-font: 'Zen Old Mincho', var(--body-font);
+}
+
+.dark .theme-japanese {
+  --bg: #0f121a;
+  --surface: #191d28;
+  --ink: #ece8df;
+  --sub: #a3a7b5;
+  --line: #2c3140;
+  --fill: #242937;
+  --accent: #93acdb;
+  --accent-ink: #0e1730;
+}
+
 /* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
 .on-board {
   --ink: var(--board-ink);

@@ -53,7 +53,7 @@ export function KanjiRowLink({ kanji }: { kanji: KanjiRow }) {
 export function KanjiTile({ children, irregular = false }: { children?: ReactNode; irregular?: boolean }) {
   if (irregular) return <span aria-hidden="true" className="size-10 shrink-0 rounded-[10px] border border-dashed border-sub/50" />
   return (
-    <span lang="ja" className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-fill text-[24px] leading-none">
+    <span lang="ja" className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-accent/10 font-display text-[24px] leading-none text-accent">
       {children}
     </span>
   )

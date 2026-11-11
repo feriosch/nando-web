@@ -31,7 +31,7 @@ A **theme** is a palette plus a display font, applied by a class on a container 
 
 Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the walnut board: the Day view's summary and the Home Card), `bar-fill` and `warn-bar` (over the Daily Limit). On the board, `on-board` has `ink`, `sub` and `fill` read the board's own, so blocks such as `LoadProblem` and `CardHeader` stay legible there. Body text is always `font-sans`, the system font.
 
-Themes today: **Paper** (`theme-paper`, Core) and **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font).
+Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font) and **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Old Mincho display font).
 
 ## A Module's theme and icon
 
@@ -40,13 +40,13 @@ Every Module brings its own theme. Its `Module` object (`src/core/module.ts`) de
 - `theme`: its class, defined in `src/index.css` with the same token names for light and under `.dark` for dark. Fonts come from Fontsource, imported in `src/main.tsx`; the service worker keeps font files for offline.
 - `icon`: one custom 24px icon in the lucide style, drawn with `Icon` from `src/core/ui/Icon.tsx` (stroke 1.8, round caps). Calories' bowl is `src/modules/calories/icon.tsx`.
 
-Core never names a Module's theme; the shell reads it from the `Module`. On the Settings screen, a Module's Settings Section takes its theme as a **tint**: its header in the Module's accent after its icon, and its `GroupedList`s on the Module's surface with a hairline border (they draw it inside any `data-tint` ancestor). The screen around it stays Paper. Planned palettes for future Modules, as references only: **Slate** and **Washi & sumi**.
+Core never names a Module's theme; the shell reads it from the `Module`. On the Settings screen, a Module's Settings Section takes its theme as a **tint**: its header in the Module's accent after its icon, and its `GroupedList`s on the Module's surface with a hairline border (they draw it inside any `data-tint` ancestor). The screen around it stays Paper. Planned palettes for future Modules, as references only: **Slate**.
 
 ## Building blocks
 
 All in `src/core/ui/`:
 
-- `ScreenHeader`: 44px top bar (`back` link or a `leading` text button on the left, `actions` text buttons on the right), 34px bold display-font title, optional `subtitle`. `HeaderLink` is a top-bar text button that opens another screen.
+- `ScreenHeader`: 44px top bar (`back` link or a `leading` text button on the left, `actions` text buttons on the right), 34px bold display-font title, optional `overline` over it (a Word's reading) and `subtitle` under it. `HeaderLink` is a top-bar text button that opens another screen.
 - `SectionHeader`: 13px uppercase in `sub`; an `h2`. `tone="accent"` and an `icon` for a Module's Settings Section.
 - `GroupedList` + `ListRow`: surface, 14px corners, 0.5px separators, rows at least 52px, optional `footer`. The 16px side margins are the screen's own padding (the shell's `<main>`). Inside a `Sheet`, which is on the surface itself, its rows are on `bg`.
 - `FieldRow` (`FieldRow.tsx`): a text field as a `ListRow`, its label on the left and the field right-aligned, filling the rest. A form's fields are a `GroupedList` of these; `lang="ja"` on one that takes Japanese.
