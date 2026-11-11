@@ -8,8 +8,8 @@ import { GroupedList, ListRow } from '../../core/ui/List'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { Chip, Chips } from './chips'
 import { typeOf, words, type Hint, type Word, type WordLink, type WordLinkKind } from './japanese'
-import { KanjiRowLink, rowLinkClasses } from './rows'
-import { Section } from './Section'
+import { KanjiRowLink, rowLinkClasses, WordLines } from './rows'
+import { Section, TextBlock } from './Section'
 
 // Word Links are shown by kind, in this order.
 const kinds: { kind: WordLinkKind; title: string }[] = [
@@ -32,12 +32,13 @@ export function WordPage() {
   if (!word.data) {
     return (
       <>
-        <ScreenHeader title="" back={back} />
+        <ScreenHeader back={back} />
         {word.isError && <LoadProblem message="Couldn't load this Word." retry={() => word.refetch()} />}
       </>
     )
   }
   const w = word.data
+  const type = typeOf(w.type)
   return (
     <>
       <ScreenHeader
@@ -56,10 +57,10 @@ export function WordPage() {
         </Chips>
       )}
       <GroupedList>
-        {Object.keys(w.type).length > 0 && (
+        {type !== '' && (
           <ListRow>
             <span>Type</span>
-            <span className="text-right text-sub">{typeOf(w.type)}</span>
+            <span className="text-right text-sub">{type}</span>
           </ListRow>
         )}
         <ListRow>
@@ -72,11 +73,7 @@ export function WordPage() {
       </GroupedList>
       {w.notes && (
         <Section title="Notes">
-          <GroupedList>
-            <p lang="es" className="m-0 px-4 py-3 text-[17px] whitespace-pre-line">
-              {w.notes}
-            </p>
-          </GroupedList>
+          <TextBlock>{w.notes}</TextBlock>
         </Section>
       )}
       {w.sentences.length > 0 && (
@@ -136,19 +133,7 @@ function WordLinkRow({ link }: { link: WordLink }) {
   return (
     <Link to={`/japanese/words/${word.id}`} viewTransition className={rowLinkClasses}>
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <span lang="ja" className="text-[19px] leading-snug">
-            {word.word}
-          </span>
-          {word.hiragana && (
-            <span lang="ja" className="text-[14px] text-sub">
-              {word.hiragana}
-            </span>
-          )}
-        </span>
-        <span lang="es" className="block text-[15px] text-sub">
-          {word.spanish}
-        </span>
+        <WordLines word={word} />
         {note && (
           <span lang="es" className="mt-1 block text-[15px]">
             {note}

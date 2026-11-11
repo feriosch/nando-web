@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
+import type { Level } from './japanese'
 
 // A chip's colour: the accent, or one of the JLPT levels' (see src/index.css).
-export type ChipTone = 'accent' | 'basic' | 'n3' | 'n2' | 'n1'
+export type ChipTone = 'accent' | Level
 
 // Whole class names, so Tailwind finds them.
 const tones: Record<ChipTone, string> = {

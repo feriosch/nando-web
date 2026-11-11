@@ -3,11 +3,11 @@ import type { ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
-import { GroupedList, ListRow } from '../../core/ui/List'
+import { ListRow } from '../../core/ui/List'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import type { Component, Kanji } from './japanese'
 import { KanjiRowLink, KanjiTile, WordRowLink } from './rows'
-import { Section } from './Section'
+import { Section, TextBlock } from './Section'
 
 // A Kanji page, at /japanese/kanji/:id: the character, large, its meaning, readings, Heisig numbers
 // and story, its Components (a stored Kanji opens its page) and the Words spelled with it.
@@ -23,7 +23,7 @@ export function KanjiPage() {
   if (!kanji.data) {
     return (
       <>
-        <ScreenHeader title="" back={back} />
+        <ScreenHeader back={back} />
         {kanji.isError && <LoadProblem message="Couldn't load this Kanji." retry={() => kanji.refetch()} />}
       </>
     )
@@ -52,11 +52,7 @@ export function KanjiPage() {
       </Section>
       {k.story && (
         <Section title="Story">
-          <GroupedList>
-            <p lang="es" className="m-0 px-4 py-3 text-[17px] whitespace-pre-line">
-              {k.story}
-            </p>
-          </GroupedList>
+          <TextBlock>{k.story}</TextBlock>
         </Section>
       )}
       {k.components.length > 0 && (

@@ -45,14 +45,16 @@ export function groupName(key: string): string {
 
 // The level a Group studies, easiest first, for its chip's colour: Basic, then JLPT N3, N2 and N1.
 // The other Groups are where a Word was found, not a level.
-const groupLevels: Record<string, 'basic' | 'n3' | 'n2' | 'n1'> = {
+export type Level = 'basic' | 'n3' | 'n2' | 'n1'
+
+const groupLevels: Record<string, Level> = {
   basic: 'basic',
   jlpt_n3: 'n3',
   jlpt_n2: 'n2',
   jlpt_n1: 'n1',
 }
 
-export function groupLevel(key: string): 'basic' | 'n3' | 'n2' | 'n1' | undefined {
+export function groupLevel(key: string): Level | undefined {
   return groupLevels[key]
 }
 

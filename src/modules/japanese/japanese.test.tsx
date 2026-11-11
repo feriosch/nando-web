@@ -44,6 +44,22 @@ describe('Search', () => {
     )
   })
 
+  it('keeps the search when coming back from a Word', async () => {
+    const user = userEvent.setup()
+    renderJapanese('/japanese', {
+      ...searchServer({ 足: { words: [ashi, ashiato], kanji: [ashiKanji] } }),
+      'GET /api/japanese/words/w2': { status: 200, body: wordPage(ashiato) },
+    })
+
+    await user.type(await screen.findByRole('searchbox', { name: 'Search' }), '足')
+    await user.click(within(await screen.findByRole('list', { name: 'Words' })).getByRole('link', { name: /足跡/ }))
+    await screen.findByRole('heading', { level: 1, name: '足跡' })
+    await user.click(screen.getByRole('link', { name: 'Search' }))
+
+    expect(await screen.findByRole('searchbox', { name: 'Search' })).toHaveValue('足')
+    expect(rowsOf('Words')).toEqual(['足あしpie, piernaBasic', '足跡あしあとhuella, pisadaJLPT N2'])
+  })
+
   it('shows a hint of what can be searched while the field is empty, and nothing else', async () => {
     const user = userEvent.setup()
     const { sent } = renderJapanese('/japanese', searchServer({ 足: { words: [ashi], kanji: [ashiKanji] } }))

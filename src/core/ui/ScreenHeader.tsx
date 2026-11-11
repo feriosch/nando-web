@@ -5,7 +5,8 @@ import { lucideProps } from './icons'
 
 // The large-title header at the top of a screen: a 44px top bar (a back link, or a `leading` text
 // button, on the left; text buttons on the right), then the title in the theme's display font, with an
-// optional line over it (such as a Word's reading) and under it.
+// optional line over it (such as a Word's reading) and under it. A screen still loading what its
+// title names leaves `title` out and shows the top bar alone.
 export function ScreenHeader({
   title,
   overline,
@@ -14,7 +15,7 @@ export function ScreenHeader({
   leading,
   actions,
 }: {
-  title: ReactNode
+  title?: ReactNode
   overline?: ReactNode
   subtitle?: ReactNode
   back?: { to: string; label: string }
@@ -39,7 +40,7 @@ export function ScreenHeader({
         {actions && <div className="flex items-center gap-1">{actions}</div>}
       </div>
       {overline && <p className="mt-1 mb-0 text-[15px] text-sub">{overline}</p>}
-      <h1 className="my-0 font-display text-[34px] leading-[1.15] font-bold tracking-tight">{title}</h1>
+      {title !== undefined && <h1 className="my-0 font-display text-[34px] leading-[1.15] font-bold tracking-tight">{title}</h1>}
       {subtitle && <p className="mt-1 mb-0 text-[15px] text-sub">{subtitle}</p>}
     </header>
   )

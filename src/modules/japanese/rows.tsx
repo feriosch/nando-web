@@ -15,23 +15,32 @@ export function WordRowLink({ word }: { word: WordRow }) {
   return (
     <Link to={`/japanese/words/${word.id}`} viewTransition className={rowLinkClasses}>
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <span lang="ja" className="text-[19px] leading-snug">
-            {word.word}
-          </span>
-          {word.hiragana && (
-            <span lang="ja" className="text-[14px] text-sub">
-              {word.hiragana}
-            </span>
-          )}
-        </span>
-        <span lang="es" className="block truncate text-[15px] text-sub">
-          {word.spanish}
-        </span>
+        <WordLines word={word} />
       </span>
       <Chip tone={groupLevel(word.group)}>{groupName(word.group)}</Chip>
       <ChevronRight {...lucideProps} className="-mr-1.5 size-5 shrink-0 text-sub" />
     </Link>
+  )
+}
+
+// A Word as a row shows it: its spelling and reading on one line, its Spanish meaning under them.
+export function WordLines({ word }: { word: WordRow }) {
+  return (
+    <>
+      <span className="flex flex-wrap items-baseline gap-x-2">
+        <span lang="ja" className="text-[19px] leading-snug">
+          {word.word}
+        </span>
+        {word.hiragana && (
+          <span lang="ja" className="text-[14px] text-sub">
+            {word.hiragana}
+          </span>
+        )}
+      </span>
+      <span lang="es" className="block truncate text-[15px] text-sub">
+        {word.spanish}
+      </span>
+    </>
   )
 }
 
