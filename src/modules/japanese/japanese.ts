@@ -43,6 +43,19 @@ export function groupName(key: string): string {
   return groupNames[key] ?? words(key)
 }
 
+// The level a Group studies, easiest first, for its chip's colour: Basic, then JLPT N3, N2 and N1.
+// The other Groups are where a Word was found, not a level.
+const groupLevels: Record<string, 'basic' | 'n3' | 'n2' | 'n1'> = {
+  basic: 'basic',
+  jlpt_n3: 'n3',
+  jlpt_n2: 'n2',
+  jlpt_n1: 'n1',
+}
+
+export function groupLevel(key: string): 'basic' | 'n3' | 'n2' | 'n1' | undefined {
+  return groupLevels[key]
+}
+
 // A snake_case key written for display, such as `usually_kana` as "usually kana".
 export function words(key: string): string {
   return key.replaceAll('_', ' ')

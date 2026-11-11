@@ -29,7 +29,7 @@ A **theme** is a palette plus a display font, applied by a class on a container 
 | accent-ink | `text-accent-ink` | text on accent |
 | display font | `font-display` | large titles and other display text |
 
-Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the walnut board: the Day view's summary and the Home Card), `bar-fill` and `warn-bar` (over the Daily Limit). On the board, `on-board` has `ink`, `sub` and `fill` read the board's own, so blocks such as `LoadProblem` and `CardHeader` stay legible there. Body text is always `font-sans`, the system font.
+Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the walnut board: the Day view's summary and the Home Card), `bar-fill` and `warn-bar` (over the Daily Limit). On the board, `on-board` has `ink`, `sub` and `fill` read the board's own, so blocks such as `LoadProblem` and `CardHeader` stay legible there. Japanese adds `level-basic`, `level-n3`, `level-n2` and `level-n1` (green, blue, purple, red: easiest to hardest), the colours of the Basic and JLPT Groups' chips. Body text is always `font-sans`, the system font.
 
 Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font) and **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Old Mincho display font).
 

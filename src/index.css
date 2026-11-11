@@ -84,6 +84,11 @@
   --fill: #ebe5d8;
   --accent: #2f4b7c;
   --accent-ink: #ffffff;
+  /* The JLPT levels' chips, easiest to hardest: Basic, N3, N2, N1. */
+  --level-basic: #276d44;
+  --level-n3: #1f68b0;
+  --level-n2: #7445ad;
+  --level-n1: #ad3324;
   --display-font: 'Zen Old Mincho', var(--body-font);
 }
 
@@ -96,6 +101,10 @@
   --fill: #242937;
   --accent: #93acdb;
   --accent-ink: #0e1730;
+  --level-basic: #7fcf9c;
+  --level-n3: #82b6ee;
+  --level-n2: #c4a2ee;
+  --level-n1: #f28e80;
 }
 
 /* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
@@ -124,6 +133,10 @@
   --color-board-track: var(--board-track);
   --color-bar-fill: var(--bar-fill);
   --color-warn-bar: var(--warn-bar);
+  --color-level-basic: var(--level-basic);
+  --color-level-n3: var(--level-n3);
+  --color-level-n2: var(--level-n2);
+  --color-level-n1: var(--level-n1);
   --font-display: var(--display-font);
 }
 
