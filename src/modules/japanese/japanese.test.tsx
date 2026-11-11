@@ -438,4 +438,28 @@ describe('Japanese Settings Section', () => {
     expect(sent.filter((request) => request.path === '/api/japanese/anki/jlpt.csv')).toHaveLength(1)
     expect(await within(section).findByRole('button', { name: 'Export JLPT deck' })).toBeEnabled()
   })
+
+  it("says the share sheet failed, not the fetch, when sharing goes wrong", async () => {
+    const user = userEvent.setup()
+    const { share } = fakeShare({ answers: ['failed'] })
+    renderApp('/settings', fakeApi({ 'GET /api/japanese/anki/jlpt.csv': deck }).api, noPush, [japanese], share)
+
+    const section = await japaneseSection()
+    await user.click(within(section).getByRole('button', { name: 'Export JLPT deck' }))
+
+    expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't share the JLPT deck.")
+  })
+
+  it('names the file after its path when the server hides Content-Disposition', async () => {
+    const user = userEvent.setup()
+    const { share, shared } = fakeShare()
+    const hidden: Answer = { ...deck, headers: { 'Content-Type': 'text/csv; charset=utf-8' } }
+    renderApp('/settings', fakeApi({ 'GET /api/japanese/anki/jlpt.csv': hidden }).api, noPush, [japanese], share)
+
+    await user.click(within(await japaneseSection()).getByRole('button', { name: 'Export JLPT deck' }))
+
+    await waitFor(() => expect(shared).toHaveLength(1))
+    expect(shared[0].name).toBe('jlpt.csv')
+    expect(shared[0].type).toBe('text/csv')
+  })
 })

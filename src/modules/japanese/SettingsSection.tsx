@@ -55,6 +55,8 @@ function AnkiExport() {
   }
 
   function tapShare(file: File) {
+    // A second tap while the sheet is opening asks for nothing.
+    if (working.current) return
     // Asked for before anything is awaited, while the tap still counts.
     const sharing = share.shareFiles([file])
     start(() => settle(sharing, file))
@@ -69,7 +71,7 @@ function AnkiExport() {
     } catch (error) {
       if (isNamed(error, 'AbortError')) return setReady(null)
       if (isNamed(error, 'NotAllowedError')) return setReady(file)
-      throw error
+      throw new ShareFailed(error)
     }
   }
 
@@ -112,8 +114,17 @@ function AnkiExport() {
   )
 }
 
-// Why the deck couldn't be fetched: the server's own message if it gave one.
+// The deck was fetched, but the share sheet failed with `cause`.
+class ShareFailed extends Error {
+  constructor(cause: unknown) {
+    super("Couldn't share the JLPT deck.", { cause })
+  }
+}
+
+// Why the deck couldn't be exported: the share sheet failed, or the deck couldn't be fetched, with
+// the server's own message if it gave one.
 function describe(error: unknown): string {
+  if (error instanceof ShareFailed) return error.message
   if (error instanceof ApiError && error.detail) return `Couldn't get the JLPT deck: ${error.detail}`
   if (error instanceof ApiError) return "Couldn't get the JLPT deck."
   return "Couldn't get the JLPT deck. Check the connection."

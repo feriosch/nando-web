@@ -18,8 +18,11 @@ export const browserShare: Share = {
     const link = document.createElement('a')
     link.href = url
     link.download = file.name
+    // In the document while clicked, which some browsers need to download it.
+    document.body.append(link)
     link.click()
-    // Once the download has started with it.
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    link.remove()
+    // Long after the download has read it, even on a slow device.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   },
 }

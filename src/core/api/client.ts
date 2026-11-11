@@ -78,7 +78,13 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
 function fileName(contentDisposition: string | null): string | null {
   if (!contentDisposition) return null
   const encoded = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition)
-  if (encoded) return decodeURIComponent(encoded[1])
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1])
+    } catch {
+      // Malformed: the plain filename, if there is one, will do.
+    }
+  }
   const plain = /filename="?([^";]+)"?/i.exec(contentDisposition)
   return plain ? plain[1] : null
 }

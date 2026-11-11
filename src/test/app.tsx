@@ -101,12 +101,13 @@ export const noPush = fakePush({ supported: false }).push
 
 // This device's share sheet, faked: every file shared or downloaded is recorded. `canShareFiles` is
 // false on a desktop, which gets a download instead. `answers` says how each share sheet ends, in
-// turn: shared (`'shared'`, and once they run out), closed by the Owner (`'cancelled'`), or refused
-// by Safari because the tap was too long ago (`'not-allowed'`).
+// turn: shared (`'shared'`, and once they run out), closed by the Owner (`'cancelled'`), refused
+// by Safari because the tap was too long ago (`'not-allowed'`), or failed for any other reason
+// (`'failed'`, such as a file the share sheet won't take).
 export function fakeShare({
   canShareFiles = true,
   answers = [],
-}: { canShareFiles?: boolean; answers?: ('shared' | 'cancelled' | 'not-allowed')[] } = {}) {
+}: { canShareFiles?: boolean; answers?: ('shared' | 'cancelled' | 'not-allowed' | 'failed')[] } = {}) {
   const shared: File[] = []
   const downloaded: File[] = []
   const pending = [...answers]
@@ -116,6 +117,7 @@ export function fakeShare({
       const answer = pending.shift() ?? 'shared'
       if (answer === 'cancelled') throw new DOMException('Share canceled', 'AbortError')
       if (answer === 'not-allowed') throw new DOMException('The request is not allowed by the user agent.', 'NotAllowedError')
+      if (answer === 'failed') throw new TypeError('Not shareable')
       shared.push(...files)
     },
     download: (file) => {
