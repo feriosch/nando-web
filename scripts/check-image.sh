@@ -12,7 +12,8 @@ base="http://127.0.0.1:$port"
 
 models=$(mktemp -d)
 printf '{\n  "version": "v-test"\n}\n' > "$models/version.json"
-yes kanji | head -c 50000 > "$models/kanji.tflite"
+printf '%50000s' '' > "$models/kanji.tflite"  # 50 KB that gzip can shrink; no pipe, so pipefail can't trip
+chmod 755 "$models" && chmod 644 "$models"/*  # mktemp makes it 700, but nginx's worker is another user
 container=$(docker run -d -p "127.0.0.1:$port:8080" -v "$models:/usr/share/nginx/html/models/kanji:ro" "$image")
 trap 'docker rm -f "$container" >/dev/null; rm -rf "$models"' EXIT
 
