@@ -50,4 +50,7 @@ jobs:
       # Runs `bun run build` (tsc -b && vite build) as main's image does, and
       # catches a broken Dockerfile or nginx template before merge. The API
       # origin is a placeholder: the build only needs one to be set.
-      - run: docker build --build-arg VITE_API_BASE_URL=https://api.example.com .
+      - run: docker build --build-arg VITE_API_BASE_URL=https://api.example.com -t nando-web:pr .
+      # Runs that image and checks what nginx serves: app routes, 404s, the kanji
+      # model's cache headers and compression.
+      - run: scripts/check-image.sh nando-web:pr
