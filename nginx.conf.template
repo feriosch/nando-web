@@ -1,10 +1,21 @@
 # Rendered by the nginx image's envsubst step; Cloud Run sets PORT.
+
+# The kanji model's files are requested with its version in the URL (?v=v1, nando-server's
+# ADR 0005), so a versioned request can be cached forever. One without the version must be
+# revalidated, or a phone could keep an old model.
+map $arg_v $model_cache_control {
+    ""      "no-cache";
+    default "public, max-age=31536000, immutable";
+}
+
 server {
     listen ${PORT};
     root /usr/share/nginx/html;
 
     gzip on;
-    gzip_types text/css application/javascript application/json application/manifest+json image/svg+xml;
+    # application/octet-stream is the kanji model (.tflite): gzip saves about 8% of its 3.8 MB.
+    gzip_types text/css application/javascript application/json application/manifest+json image/svg+xml
+        application/octet-stream;
 
     # Client-side routes (/settings, /calories, ...) fall back to the app.
     location / {
@@ -28,6 +39,19 @@ server {
     # Hashed by Vite, so safe to cache forever; a missing one is a real 404, not the app.
     location /assets/ {
         add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # The kanji model from nando-kanji-ml's release. A missing file is a real 404, not the app,
+    # so the runtime never tries to load index.html as a model.
+    location /models/ {
+        add_header Cache-Control $model_cache_control;
+        try_files $uri =404;
+    }
+
+    # Says which model is current, so the app must always see the latest one.
+    location = /models/kanji/version.json {
+        add_header Cache-Control "no-cache";
         try_files $uri =404;
     }
 }
