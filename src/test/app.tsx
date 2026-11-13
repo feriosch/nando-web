@@ -52,9 +52,15 @@ export function fakeApi(answers: Answers) {
   return { api: createApiClient({ baseUrl: 'https://api.example.com', fetch }), sent }
 }
 
-// The server's answer for pending Connector request `r1`: Claude asks, and returns to claude.ai.
-export const claudeAsking: Answers = {
-  'GET /auth/connect/r1': { status: 200, body: { clientName: 'Claude', redirectHost: 'claude.ai' } },
+// Pending Connector request `r1`, as the server answers it: Claude asks, returns to claude.ai, and
+// would be able to do what `toolsDescriptions` say (none by default).
+export function claudeRequest(toolsDescriptions: string[] = []): Answer {
+  return { status: 200, body: { clientName: 'Claude', redirectHost: 'claude.ai', toolsDescriptions } }
+}
+
+// The server answering with that request.
+export function claudeAsking(toolsDescriptions: string[] = []): Answers {
+  return { 'GET /auth/connect/r1': claudeRequest(toolsDescriptions) }
 }
 
 const noPasskeys: Passkeys = {

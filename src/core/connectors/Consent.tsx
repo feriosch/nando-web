@@ -7,13 +7,14 @@ import { useApi, useLeave, usePasskeys } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import { pillClasses } from '../ui/pill'
 
-// A pending request to approve a Connector, as GET /auth/connect/{request} answers it.
-type ConnectRequest = { clientName: string; redirectHost: string }
+// A pending request to approve a Connector, as GET /auth/connect/{request} answers it: who asks,
+// where it returns, and what Core and each Module with Tools (each Tool provider) say they let it do.
+type ConnectRequest = { clientName: string; redirectHost: string; toolsDescriptions: string[] }
 
 // The consent page, at /connect?request=<id>: the server's OAuth authorize sends the browser here
 // when the Owner adds Nando as a connector in an app such as Claude. It often opens in a browser
 // with no Session, so it needs none: it approves with a Passkey, without signing in.
-export function Consent({ toolsDescriptions }: { toolsDescriptions: string[] }) {
+export function Consent() {
   const api = useApi()
   const passkeys = usePasskeys()
   const leave = useLeave()
@@ -75,7 +76,7 @@ export function Consent({ toolsDescriptions }: { toolsDescriptions: string[] }) 
             <h1 className="my-0 font-display text-[28px] leading-[1.2] font-bold tracking-tight">
               {asking.clientName} wants to use Nando
             </h1>
-            <p className="my-0 text-[17px]">It will be able to {canDo(toolsDescriptions)}.</p>
+            <p className="my-0 text-[17px]">It will be able to {canDo(asking.toolsDescriptions)}.</p>
             <p className="my-0 text-[15px] text-sub">
               Then back to <span className="font-semibold text-ink">{asking.redirectHost}</span>
             </p>
@@ -128,10 +129,10 @@ function describe(error: unknown, connectorName: string): string {
   return "Couldn't reach Nando. Try again."
 }
 
-// What a Connector can do, from what each Module says its Tools let it do, such as "search your
-// Words, and log your workouts". With no Module saying, simply every Tool.
+// What a Connector can do, from what each Tool provider says its Tools let it do, as the server
+// sends them, such as "search your Words, and log your workouts". With none, simply every Tool.
 function canDo(descriptions: string[]): string {
   if (descriptions.length === 0) return 'use every Tool Nando offers'
-  // A comma before each "and": a description can have its own "and", such as Japanese's.
+  // A comma before each "and": a description can have its own "and", as Japanese's does.
   return descriptions.length === 1 ? descriptions[0] : `${descriptions.slice(0, -1).join(', ')}, and ${descriptions.at(-1)}`
 }
