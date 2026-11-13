@@ -36,7 +36,15 @@ export function Draw({ recognizer }: { recognizer: Recognizer }) {
   return (
     <>
       <ScreenHeader back={{ to: '/japanese', label: 'Search' }} title="Draw" />
-      <DrawingArea onStroke={(stroke) => setDrawing((strokes) => [...strokes, stroke])} drawing={drawing} />
+      <div className="relative">
+        <DrawingArea onStroke={(stroke) => setDrawing((strokes) => [...strokes, stroke])} drawing={drawing} />
+        {/* Inside the square's foot, so it's always in view and nothing moves under the finger. */}
+        {candidates.length > 0 && unknown && (
+          <p role="status" className="pointer-events-none absolute inset-x-0 bottom-3 m-0 text-center text-[13px] text-sub">
+            {unknown}
+          </p>
+        )}
+      </div>
       <div className="mt-3 flex justify-center gap-3">
         <Button isDisabled={drawing.length === 0} onPress={() => setDrawing((strokes) => strokes.slice(0, -1))} className="gap-1.5">
           <Undo2 {...lucideProps} className="size-5" />
@@ -47,6 +55,11 @@ export function Draw({ recognizer }: { recognizer: Recognizer }) {
           Clear
         </Button>
       </div>
+      {drawing.length === 0 && (
+        <div className="mt-4 text-center">
+          <EmptyNote>Draw a kanji to find it among yours.</EmptyNote>
+        </div>
+      )}
       {candidates.length > 0 && (
         <ul aria-label="Candidates" className="m-0 mt-4 grid list-none grid-cols-4 gap-2 p-0">
           {candidates.map((kanji) => (
@@ -56,7 +69,6 @@ export function Draw({ recognizer }: { recognizer: Recognizer }) {
           ))}
         </ul>
       )}
-      {candidates.length > 0 && unknown && <EmptyNote>{unknown}</EmptyNote>}
     </>
   )
 }

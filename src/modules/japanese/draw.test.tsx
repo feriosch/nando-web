@@ -70,6 +70,20 @@ describe('Draw', () => {
     expect(router.state.location.pathname).toBe('/japanese/draw')
   })
 
+  it('says what to do while nothing is drawn, and nothing else', async () => {
+    const user = userEvent.setup()
+    renderDraw('/japanese/draw', storedKanji(), fakeRecognizer(() => ['一']).recognizer)
+    const hint = 'Draw a kanji to find it among yours.'
+
+    expect(await screen.findByText(hint)).toBeInTheDocument()
+    drawStroke([[10, 20], [90, 20]])
+    await waitFor(() => expect(candidates()).toEqual(['一']))
+    expect(screen.queryByText(hint)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(screen.getByText(hint)).toBeInTheDocument()
+  })
+
   it('reads each stroke as it ends, and shows its Candidates, best first', async () => {
     const { recognizer, asked } = fakeRecognizer(() => eightCandidates)
     renderDraw('/japanese/draw', storedKanji(), recognizer)
