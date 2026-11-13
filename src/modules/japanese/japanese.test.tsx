@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { fakeApi, fakeConnection, fakePageScroll, fakeShare, noPush, renderApp, type Answer, type Answers } from '../../test/app'
+import { fakeApi, fakeConnection, fakePageScroll, fakeShare, noPush, renderApp, renderAppWith, type Answer, type Answers } from '../../test/app'
 import { japanese } from '.'
 
 // The API's JSON shapes, as nando-server's internal/japanese/API.md documents them.
@@ -559,5 +559,14 @@ describe('Japanese Settings Section', () => {
     await waitFor(() => expect(shared).toHaveLength(1))
     expect(shared[0].name).toBe('jlpt.csv')
     expect(shared[0].type).toBe('text/csv')
+  })
+})
+
+describe('Connector consent page', () => {
+  it('says what Japanese’s Tools let a Connector do', async () => {
+    const { api } = fakeApi({ 'GET /auth/connect/r1': { status: 200, body: { clientName: 'Claude', redirectHost: 'claude.ai' } } })
+    renderAppWith('/connect?request=r1', { api, modules: [japanese] })
+
+    expect(await screen.findByText('It will be able to search your Words and Kanji, and add and change your Words.')).toBeInTheDocument()
   })
 })

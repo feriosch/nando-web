@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Passkeys } from '../identity/passkeys'
+import type { Module } from '../module'
 import { fakeApi, renderAppWith, type Answers } from '../../test/app'
 
 const requestOptions = { challenge: 'Y29ubmVjdA', rpId: 'nanders.app', userVerification: 'required' }
@@ -29,11 +30,27 @@ function fakeLeave() {
 
 // The consent page for pending request `r1`, with the server answering `answers` on top of a
 // request from Claude that returns to claude.ai.
-function renderConsent(answers: Answers = {}, passkeys = fakePasskeys().passkeys) {
+function renderConsent(answers: Answers = {}, passkeys = fakePasskeys().passkeys, modules: Module[] = []) {
   const fake = fakeApi({ 'GET /auth/connect/r1': { status: 200, body: { clientName: 'Claude', redirectHost: 'claude.ai' } }, ...answers })
   const { leave, left } = fakeLeave()
-  const router = renderAppWith('/connect?request=r1', { api: fake.api, passkeys, leave })
+  const router = renderAppWith('/connect?request=r1', { api: fake.api, passkeys, leave, modules })
   return { ...fake, left, router }
+}
+
+// A Module with no screens, whose Tools, if it has any, let a Connector do `tools`.
+function moduleWithTools(name: string, tools?: string): Module {
+  const id = name.toLowerCase()
+  return {
+    id,
+    name,
+    path: `/${id}`,
+    theme: `theme-${id}`,
+    icon: () => <svg />,
+    routes: [],
+    homeCards: [],
+    settingsSections: [],
+    toolsDescription: tools,
+  }
 }
 
 describe('Connector consent page', () => {
@@ -42,9 +59,8 @@ describe('Connector consent page', () => {
     const { sent } = renderConsent({}, passkeys)
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Claude wants to use Nando' })).toBeInTheDocument()
-    expect(
-      screen.getByText('It will be able to search, add and change your Words, and use every other Tool Nando offers.'),
-    ).toBeInTheDocument()
+    // No Module here describes its Tools.
+    expect(screen.getByText('It will be able to use every Tool Nando offers.')).toBeInTheDocument()
     expect(screen.getByText('claude.ai')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Allow with Face ID' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: "Don't allow" })).toBeInTheDocument()
@@ -53,6 +69,18 @@ describe('Connector consent page', () => {
     // WebAuthn starts only from a tap.
     expect(sent.map((request) => `${request.method} ${request.path}`)).toEqual(['GET /auth/connect/r1'])
     expect(asked).toEqual([])
+  })
+
+  it('says what every Module’s Tools let it do, in one sentence, as each Module describes them', async () => {
+    renderConsent({}, undefined, [
+      moduleWithTools('Japanese', 'search your Words and Kanji, and add and change your Words'),
+      moduleWithTools('Calories'),
+      moduleWithTools('Workouts', 'log your workouts'),
+    ])
+
+    expect(
+      await screen.findByText('It will be able to search your Words and Kanji, and add and change your Words, and log your workouts.'),
+    ).toBeInTheDocument()
   })
 
   it('approves the Connector with Face ID when the Owner taps Allow, then goes back to it', async () => {
