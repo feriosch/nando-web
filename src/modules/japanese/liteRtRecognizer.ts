@@ -22,13 +22,43 @@ function load(): Promise<Loaded> {
   return loading
 }
 
+// The kept model files' cache (src/sw.ts), and where the last version that loaded is remembered.
+const MODEL_CACHE = 'kanji-model'
+const LAST_LOADED_KEY = 'nando.kanji-model.version'
+
+// Loads the version version.json names. If that fails (its download was cut off, or version.json
+// can't be fetched at all), the last version that loaded, which is still kept, so a release never
+// leaves Draw without a model. Only once a version has loaded are the others' files deleted.
 async function loadModel(): Promise<Loaded> {
-  // version.json names the current model; its files are requested with it, so a new release is
-  // fetched afresh and the old one is never mixed in (nando-server's ADR 0005).
-  const { version } = await fetchJson<{ version: string }>(`${MODEL_DIR}/version.json`)
-  const [litert, labels] = await Promise.all([import('@litertjs/core'), fetchJson<string[]>(`${MODEL_DIR}/labels.json?v=${version}`)])
+  const named = await fetchJson<{ version: string }>(`${MODEL_DIR}/version.json`).then(
+    ({ version }) => version,
+    () => null,
+  )
+  const versions = [...new Set([named, lastLoaded()].filter((version) => version !== null))]
+  if (versions.length === 0) throw new Error('No kanji model version to load: version.json is out of reach')
+  const litert = await import('@litertjs/core')
   await litert.loadLiteRt(__LITERT_WASM_DIR__)
-  const model = await litert.loadAndCompile(`${MODEL_DIR}/kanji.tflite?v=${version}`, { accelerator: 'wasm' })
+  let failure: unknown
+  for (const version of versions) {
+    try {
+      const loaded = await loadVersion(litert, version)
+      rememberLoaded(version)
+      void keepOnly(version)
+      return loaded
+    } catch (error) {
+      failure = error
+    }
+  }
+  throw failure
+}
+
+// The model and labels of `version`, requested with it (?v=), so a new release is fetched afresh
+// and labels and weights from different versions never mix (nando-server's ADR 0005).
+async function loadVersion(litert: typeof import('@litertjs/core'), version: string): Promise<Loaded> {
+  const [labels, model] = await Promise.all([
+    fetchJson<string[]>(`${MODEL_DIR}/labels.json?v=${version}`),
+    litert.loadAndCompile(`${MODEL_DIR}/kanji.tflite?v=${version}`, { accelerator: 'wasm' }),
+  ])
   return {
     labels,
     classify: async (input) => {
@@ -39,6 +69,38 @@ async function loadModel(): Promise<Loaded> {
       for (const output of outputs) output.delete()
       return scores
     },
+  }
+}
+
+// The last version that loaded on this phone, or null. localStorage can be unavailable (some
+// private modes): then there's simply no fallback.
+function lastLoaded(): string | null {
+  try {
+    return localStorage.getItem(LAST_LOADED_KEY)
+  } catch {
+    return null
+  }
+}
+
+function rememberLoaded(version: string) {
+  try {
+    localStorage.setItem(LAST_LOADED_KEY, version)
+  } catch {
+    // No fallback next time, nothing worse.
+  }
+}
+
+// Deletes the kept files of every version but `version`, now that it has loaded.
+async function keepOnly(version: string) {
+  if (typeof caches === 'undefined') return
+  try {
+    const cache = await caches.open(MODEL_CACHE)
+    for (const kept of await cache.keys()) {
+      const keptVersion = new URL(kept.url).searchParams.get('v')
+      if (keptVersion !== null && keptVersion !== version) await cache.delete(kept)
+    }
+  } catch {
+    // Left for the next load to clean up.
   }
 }
 
