@@ -1,7 +1,7 @@
 import { ChevronLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { useOpenedFrom } from './cameFrom'
+import { useCameFrom } from './cameFrom'
 import { lucideProps } from './icons'
 
 // The large-title header at the top of a screen: a 44px top bar (a back link, or a `leading` text
@@ -24,7 +24,7 @@ export function ScreenHeader({
   actions?: ReactNode
 }) {
   const navigate = useNavigate()
-  const openedFrom = useOpenedFrom()
+  const cameFrom = useCameFrom()
   return (
     <header className="pb-2">
       <div className="flex h-11 items-center justify-between gap-2">
@@ -33,9 +33,11 @@ export function ScreenHeader({
             to={back.to}
             viewTransition
             // Back to the screen this one was opened from: through history, as the back gesture goes,
-            // so it's scrolled as it was left (the shell's <ScrollRestoration />).
+            // so it's scrolled as it was left (the shell's <ScrollRestoration />). A click meant to
+            // open it elsewhere, such as in a new tab, is left to the link.
             onClick={(event) => {
-              if (!openedFrom(back.to)) return
+              const plain = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+              if (!plain || cameFrom !== back.to) return
               event.preventDefault()
               navigate(-1)
             }}

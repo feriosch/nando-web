@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { fakeApi, fakeConnection, noPush, renderApp, type Answers } from '../../test/app'
@@ -292,6 +292,35 @@ describe('Draw', () => {
     await user.click(screen.getByRole('link', { name: 'Draw' }))
     expect(await screen.findByLabelText('Drawing')).toBeInTheDocument()
     expect(strokesShown()).toBe(1)
+  })
+
+  it('goes back to the Drawing from a Candidate stored since it was checked, rather than opening Draw again', async () => {
+    const user = userEvent.setup()
+    const ice = { id: 'k9', kanji: '氷', spanish: 'hielo', v1: 138 }
+    const { router } = renderDraw(
+      '/japanese',
+      {
+        ...storedKanji(),
+        [`GET /api/japanese/lookup/kanji/${encodeURIComponent('氷')}`]: { status: 409, body: { id: 'k9' } },
+        'GET /api/japanese/kanji/k9': {
+          status: 200,
+          body: { ...ice, on: 'ヒョウ', kun: 'こおり', v2: null, story: null, components: [], words: [] },
+        },
+      },
+      fakeRecognizer(() => ['氷']).recognizer,
+    )
+    await user.click(await screen.findByRole('link', { name: 'Draw' }))
+    await screen.findByLabelText('Drawing')
+    drawStroke([[10, 20], [50, 60]])
+    await user.click(await screen.findByRole('link', { name: '氷, not stored' }))
+    await screen.findByRole('heading', { level: 1, name: '氷' })
+
+    await user.click(screen.getByRole('link', { name: 'Draw' }))
+    await screen.findByLabelText('Drawing')
+
+    // Draw was gone back to, not opened again: the back gesture now leaves it for Search.
+    await act(() => router.navigate(-1))
+    expect(await screen.findByRole('searchbox', { name: 'Search' })).toBeInTheDocument()
   })
 
   it('comes back from a Candidate’s Kanji Lookup to the same Drawing', async () => {
