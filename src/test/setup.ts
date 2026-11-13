@@ -9,4 +9,7 @@ afterEach(() => {
   document.documentElement.className = ''
   document.documentElement.removeAttribute('style')
   document.body.className = ''
+  // Back online, as each test starts: fakeConnection's navigator.onLine is dropped (the next test's
+  // query client reads it, src/core/queries.ts).
+  Reflect.deleteProperty(navigator, 'onLine')
 })

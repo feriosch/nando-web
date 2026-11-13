@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { fakeApi, fakeShare, noPush, renderApp, type Answer, type Answers } from '../../test/app'
+import { fakeApi, fakeConnection, fakeShare, noPush, renderApp, type Answer, type Answers } from '../../test/app'
 import { japanese } from '.'
 
 // The API's JSON shapes, as nando-server's internal/japanese/API.md documents them.
@@ -77,6 +77,46 @@ describe('Search', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
     // An empty field never asks the server.
     expect(sent.map((request) => request.path)).toEqual(['/api/japanese/search'])
+  })
+
+  it('searches again on its own once back online, when Nando was opened offline', async () => {
+    const user = userEvent.setup()
+    const connection = fakeConnection({ online: false })
+    renderJapanese('/japanese', searchServer({ 足: { words: [ashi], kanji: [ashiKanji] } }))
+
+    await user.type(await screen.findByRole('searchbox', { name: 'Search' }), '足')
+    expect(await screen.findByText("Couldn't search.")).toBeInTheDocument()
+    expect(screen.getByText("You're offline. This loads again once you're back online.")).toBeInTheDocument()
+
+    connection.goOnline()
+
+    expect(await screen.findByRole('list', { name: 'Words' })).toBeInTheDocument()
+    expect(rowsOf('Words')).toEqual(['足あしpie, piernaBasic'])
+    expect(screen.queryByText("Couldn't search.")).not.toBeInTheDocument()
+  })
+
+  it('searches again once Nando comes back to the foreground online, when the connection came back while it was away', async () => {
+    const user = userEvent.setup()
+    const connection = fakeConnection({ online: false })
+    renderJapanese('/japanese', searchServer({ 足: { words: [ashi], kanji: [ashiKanji] } }))
+
+    await user.type(await screen.findByRole('searchbox', { name: 'Search' }), '足')
+    expect(await screen.findByText("Couldn't search.")).toBeInTheDocument()
+
+    connection.goOnlineWhileAway()
+
+    expect(await screen.findByRole('list', { name: 'Words' })).toBeInTheDocument()
+    expect(screen.queryByText(/You're offline/)).not.toBeInTheDocument()
+  })
+
+  it('says only what went wrong when the server fails while online', async () => {
+    const user = userEvent.setup()
+    renderJapanese('/japanese', { 'GET /api/japanese/search': { status: 500, body: 'boom' } })
+
+    await user.type(await screen.findByRole('searchbox', { name: 'Search' }), '足')
+
+    expect(await screen.findByText("Couldn't search.")).toBeInTheDocument()
+    expect(screen.queryByText("You're offline. This loads again once you're back online.")).not.toBeInTheDocument()
   })
 
   it('says so when a search finds nothing', async () => {

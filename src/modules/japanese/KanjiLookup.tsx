@@ -17,8 +17,9 @@ export function KanjiLookup() {
   const lookup = useQuery({
     queryKey: ['japanese', 'lookup', kanji],
     queryFn: () => api.get<Lookup>(`/api/japanese/lookup/kanji/${encodeURIComponent(kanji)}`),
-    // Never retried on its own: the server's 503 has already retried kanjiapi.dev, any other answer
-    // would come again, and offline a retry can't help. Try again is the Owner's to tap.
+    // Never retried on its own: the server's 503 has already retried kanjiapi.dev, and any other
+    // answer would come again. Try again is the Owner's to tap; offline, it looks again once back
+    // online (src/core/queries.ts).
     retry: false,
   })
   // Opened from a Drawing's Candidates, it goes back to the Drawing; otherwise, to Search.
@@ -41,11 +42,8 @@ export function KanjiLookup() {
         <ScreenHeader back={back} title={<KanjiTitle>{kanji}</KanjiTitle>} />
         {lookup.isError && !retryable && <EmptyNote>Nothing is known about this kanji.</EmptyNote>}
         {retryable && (
-          <LoadProblem
-            // A request that never reached the server, rather than one it answered with an error.
-            message={status === null ? 'Offline: can’t look this kanji up.' : 'Couldn’t look this kanji up.'}
-            retry={() => lookup.refetch()}
-          />
+          // Offline, LoadProblem says so.
+          <LoadProblem message="Couldn’t look this kanji up." retry={() => lookup.refetch()} />
         )}
       </>
     )

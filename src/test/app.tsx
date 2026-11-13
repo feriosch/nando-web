@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { createApiClient } from '../core/api/client'
 import { core } from '../core/core'
 import { CoreProvider } from '../core/CoreProvider'
+import { createQueryClient } from '../core/queries'
 import type { Passkeys } from '../core/identity/passkeys'
 import type { Leave } from '../core/leave'
 import type { Module, Registry } from '../core/module'
@@ -19,7 +20,7 @@ export type Sent = { method: string; path: string; body: unknown }
 
 // The API, faked at fetch: each "METHOD /path" answers as given (or as a function of the request's
 // body and query, read when the request arrives, which may answer later with a promise), and every
-// request is recorded.
+// request is recorded. While the device is offline (fakeConnection), fetch fails, as Safari's does.
 export type Answers = Record<string, Answer | ((body: unknown, query: URLSearchParams) => Answer | Promise<Answer>)>
 
 export function fakeApi(answers: Answers) {
@@ -30,6 +31,7 @@ export function fakeApi(answers: Answers) {
     const method = init.method ?? 'GET'
     const body = init.body === undefined ? undefined : JSON.parse(String(init.body))
     sent.push({ method, path, body })
+    if (!navigator.onLine) throw new TypeError('Load failed')
     const answer = answers[`${method} ${path}`] ?? { status: 404 }
     const { status, body: answerBody, headers } = typeof answer === 'function' ? await answer(body, url.searchParams) : answer
     if (answerBody === undefined) {
@@ -145,7 +147,7 @@ export function withProviders(
     leave = stay,
   }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share; leave?: Leave },
 ) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = createQueryClient({ retry: false })
   return (
     <CoreProvider api={api} passkeys={passkeys} push={push} share={share} leave={leave}>
       <QueryClientProvider client={queryClient}>{app}</QueryClientProvider>
@@ -177,4 +179,26 @@ export function renderAppWith(
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
   render(withProviders(<RouterProvider router={router} />, services))
   return router
+}
+
+// This device's connection, faked: `navigator.onLine` reads it, and going on or off line fires the
+// browser's 'online' or 'offline' event, as the iPhone does. The fake API's answers decide what a
+// request does meanwhile; restored after each test (src/test/setup.ts).
+export function fakeConnection({ online }: { online: boolean }) {
+  let isOnline = online
+  Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => isOnline })
+  const set = (next: boolean) => {
+    isOnline = next
+    window.dispatchEvent(new Event(next ? 'online' : 'offline'))
+  }
+  return {
+    goOnline: () => set(true),
+    goOffline: () => set(false),
+    // Back online while Nando was in the background, suspended: no 'online' event, only Nando
+    // coming back to the foreground.
+    goOnlineWhileAway: () => {
+      isOnline = true
+      document.dispatchEvent(new Event('visibilitychange'))
+    },
+  }
 }
