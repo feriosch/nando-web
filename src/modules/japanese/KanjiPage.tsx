@@ -1,14 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
 import { useLocation, useParams } from 'react-router'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
-import { ListRow } from '../../core/ui/List'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import type { KanjiPageFrom } from './Draw'
 import type { Component, Kanji } from './japanese'
 import { KanjiRowLink, KanjiTile, WordRowLink } from './rows'
-import { Section, TextBlock } from './Section'
+import { Detail, Section, TextBlock } from './Section'
 
 // A Kanji page, at /japanese/kanji/:id: the character, large, its meaning, readings, Heisig numbers
 // and story, its Components (a stored Kanji opens its page) and the Words spelled with it.
@@ -77,18 +75,6 @@ export function KanjiPage() {
         </Section>
       )}
     </>
-  )
-}
-
-// A row of the page's details: its label, and its value on the right.
-function Detail({ label, lang, children }: { label: string; lang?: string; children: ReactNode }) {
-  return (
-    <ListRow as="li">
-      <span>{label}</span>
-      <span lang={lang} className="text-right text-sub tabular-nums">
-        {children}
-      </span>
-    </ListRow>
   )
 }
 

@@ -132,3 +132,19 @@ export type CandidateKanji = KanjiRow & {
   // Its number in Heisig's Remembering the Kanji, volume 1.
   v1: number
 }
+
+// A Kanji Lookup: what Nando finds out about a kanji the Owner hasn't stored, from kanjiapi.dev and
+// jisho.org, as GET /api/japanese/lookup/kanji/{kanji} answers it. Meanings are in English.
+export type KanjiLookup = {
+  kanji: string
+  meanings: string[]
+  on: string[]
+  kun: string[]
+  strokes: number
+  // Its school grade: 1 to 6, 8 for secondary school, 9 or 10 for jinmeiyō; null for none.
+  grade: number | null
+  joyo: boolean
+  jlpt: number | null
+  // Common words spelled with it, from Jisho.
+  words: { word: string; reading: string; meanings: string[] }[]
+}

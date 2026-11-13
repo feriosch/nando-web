@@ -1,6 +1,7 @@
 import type { Module } from '../../core/module'
 import { Draw } from './Draw'
 import { BrushIcon } from './icon'
+import { KanjiLookup } from './KanjiLookup'
 import { KanjiPage } from './KanjiPage'
 import { Search } from './Search'
 import { JapaneseSettingsSection } from './SettingsSection'
@@ -22,6 +23,7 @@ export function createJapanese({ recognizer }: { recognizer: Recognizer }): Modu
       { path: 'words/:id', element: <WordPage /> },
       { path: 'kanji/:id', element: <KanjiPage /> },
       { path: 'draw', element: <Draw recognizer={recognizer} /> },
+      { path: 'lookup/:kanji', element: <KanjiLookup /> },
     ],
     homeCards: [],
     settingsSections: [{ id: 'japanese', title: 'Japanese', Component: JapaneseSettingsSection }],
