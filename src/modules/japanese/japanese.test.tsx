@@ -1,7 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { fakeApi, fakeConnection, fakeShare, noPush, renderApp, type Answer, type Answers } from '../../test/app'
+import { fakeApi, fakeConnection, fakePageScroll, fakeShare, noPush, renderApp, type Answer, type Answers } from '../../test/app'
 import { japanese } from '.'
 
 // The API's JSON shapes, as nando-server's internal/japanese/API.md documents them.
@@ -58,6 +58,43 @@ describe('Search', () => {
 
     expect(await screen.findByRole('searchbox', { name: 'Search' })).toHaveValue('足')
     expect(rowsOf('Words')).toEqual(['足あしpie, piernaBasic', '足跡あしあとhuella, pisadaJLPT N2'])
+  })
+
+  it('comes back from a Word to where the search was scrolled', async () => {
+    const user = userEvent.setup()
+    const page = fakePageScroll()
+    renderJapanese('/japanese', {
+      ...searchServer({ 足: { words: [ashi, ashiato], kanji: [ashiKanji] } }),
+      'GET /api/japanese/words/w2': { status: 200, body: wordPage(ashiato) },
+    })
+    await user.type(await screen.findByRole('searchbox', { name: 'Search' }), '足')
+    const found = await screen.findByRole('list', { name: 'Words' })
+    page.scrollTo(600)
+
+    await user.click(within(found).getByRole('link', { name: /足跡/ }))
+    await screen.findByRole('heading', { level: 1, name: '足跡' })
+    expect(page.y).toBe(0)
+    await user.click(screen.getByRole('link', { name: 'Search' }))
+
+    expect(await screen.findByRole('list', { name: 'Words' })).toBeInTheDocument()
+    expect(page.y).toBe(600)
+  })
+
+  it('opens Search at its top from a Word opened from elsewhere', async () => {
+    const user = userEvent.setup()
+    const page = fakePageScroll()
+    renderJapanese('/japanese/words/w3', {
+      'GET /api/japanese/words/w3': { status: 200, body: kitai },
+      'GET /api/japanese/words/w4': { status: 200, body: wordPage(machinozomu) },
+    })
+    await user.click(within(await screen.findByRole('list', { name: 'Synonyms' })).getByRole('link', { name: /待ち望む/ }))
+    await screen.findByRole('heading', { level: 1, name: '待ち望む' })
+    page.scrollTo(400)
+
+    await user.click(screen.getByRole('link', { name: 'Search' }))
+
+    expect(await screen.findByRole('searchbox', { name: 'Search' })).toBeInTheDocument()
+    expect(page.y).toBe(0)
   })
 
   it('shows a hint of what can be searched while the field is empty, and nothing else', async () => {
@@ -225,6 +262,27 @@ describe('Word page', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '待ち望む' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/japanese/words/w4')
     expect(rowsOf('Synonyms')).toEqual(['期待きたいexpectativaspoken'])
+  })
+
+  it('opens a linked Word at its title, and goes back to where the Owner was', async () => {
+    const user = userEvent.setup()
+    const page = fakePageScroll()
+    const { router } = renderJapanese('/japanese/words/w3', {
+      'GET /api/japanese/words/w3': { status: 200, body: kitai },
+      'GET /api/japanese/words/w4': { status: 200, body: wordPage(machinozomu) },
+    })
+    const synonyms = await screen.findByRole('list', { name: 'Synonyms' })
+    // Down at the Word Links.
+    page.scrollTo(1200)
+
+    await user.click(within(synonyms).getByRole('link', { name: /待ち望む/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: '待ち望む' })).toBeInTheDocument()
+    expect(page.y).toBe(0)
+
+    // Back, as the back gesture goes.
+    await act(() => router.navigate(-1))
+    expect(await screen.findByRole('heading', { level: 1, name: '期待' })).toBeInTheDocument()
+    expect(page.y).toBe(1200)
   })
 
   it('opens a Kanji in its spelling', async () => {
