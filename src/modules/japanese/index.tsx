@@ -4,6 +4,7 @@ import { BrushIcon } from './icon'
 import { KanjiPage } from './KanjiPage'
 import { Search } from './Search'
 import { JapaneseSettingsSection } from './SettingsSection'
+import { liteRtRecognizer } from './liteRtRecognizer'
 import type { Recognizer } from './recognizer'
 import { WordPage } from './WordPage'
 
@@ -27,5 +28,4 @@ export function createJapanese({ recognizer }: { recognizer: Recognizer }): Modu
   }
 }
 
-// Until the kanji model is wired in, nothing is recognised.
-export const japanese = createJapanese({ recognizer: { recognize: async () => [] } })
+export const japanese = createJapanese({ recognizer: liteRtRecognizer })

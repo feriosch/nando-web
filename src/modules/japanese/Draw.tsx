@@ -29,6 +29,7 @@ export function Draw({ recognizer }: { recognizer: Recognizer }) {
       queryClient.setQueryData(lastDrawingKey, next)
       return next
     })
+  useEffect(() => recognizer.prepare?.(), [recognizer])
   const candidates = useCandidates(recognizer, drawing)
   const { stored, unknown } = useStoredKanji(candidates)
 
@@ -135,11 +136,19 @@ function useCandidates(recognizer: Recognizer, drawing: Drawing): string[] {
 // The square the Owner draws in. Each stroke is recorded in CSS pixels from its top left and handed
 // to `onStroke` when the finger lifts.
 function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (stroke: number[][]) => void }) {
+  // The stroke being drawn: in a ref, so a finger lifting before React re-renders still hands over
+  // every point, and copied to state only to show it.
+  const live = useRef<number[][] | null>(null)
   const [stroke, setStroke] = useState<number[][] | null>(null)
   const area = useRef<SVGSVGElement>(null)
   const pointAt = (event: PointerEvent) => {
     const box = area.current!.getBoundingClientRect()
     return [event.clientX - box.left, event.clientY - box.top]
+  }
+  const end = () => {
+    if (live.current) onStroke(live.current)
+    live.current = null
+    setStroke(null)
   }
 
   return (
@@ -148,16 +157,19 @@ function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (strok
       aria-label="Drawing"
       role="img"
       className="block aspect-square w-full touch-none rounded-[22px] bg-surface text-ink select-none"
-      onPointerDown={(event) => setStroke([pointAt(event)])}
+      onPointerDown={(event) => {
+        // Keeps the stroke's moves coming even when the finger slides off the square.
+        if (event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId)
+        live.current = [pointAt(event)]
+        setStroke(live.current)
+      }}
       onPointerMove={(event) => {
-        const point = pointAt(event)
-        // Several moves can arrive between renders: each adds to the stroke as it is by then.
-        setStroke((points) => points && [...points, point])
+        if (!live.current) return
+        live.current = [...live.current, pointAt(event)]
+        setStroke(live.current)
       }}
-      onPointerUp={() => {
-        if (stroke) onStroke(stroke)
-        setStroke(null)
-      }}
+      onPointerUp={end}
+      onPointerCancel={end}
     >
       {/* Faint guides through the middle, as on squared writing paper. */}
       <g className="text-line" stroke="currentColor" strokeDasharray="6 6" strokeWidth={1}>
