@@ -27,7 +27,6 @@ export function createJapanese({ recognizer }: { recognizer: Recognizer }): Modu
     ],
     homeCards: [],
     settingsSections: [{ id: 'japanese', title: 'Japanese', Component: JapaneseSettingsSection }],
-    toolsDescription: 'search your Words and Kanji, and add and change your Words',
   }
 }
 
