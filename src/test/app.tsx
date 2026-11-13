@@ -191,5 +191,14 @@ export function fakeConnection({ online }: { online: boolean }) {
     isOnline = next
     window.dispatchEvent(new Event(next ? 'online' : 'offline'))
   }
-  return { goOnline: () => set(true), goOffline: () => set(false) }
+  return {
+    goOnline: () => set(true),
+    goOffline: () => set(false),
+    // Back online while Nando was in the background, suspended: no 'online' event, only Nando
+    // coming back to the foreground.
+    goOnlineWhileAway: () => {
+      isOnline = true
+      document.dispatchEvent(new Event('visibilitychange'))
+    },
+  }
 }

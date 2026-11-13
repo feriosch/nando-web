@@ -146,27 +146,18 @@ describe('Draw', () => {
 
   it('still reads the Drawing offline, and checks the Candidates once back online', async () => {
     const water = { id: 'k1', kanji: '水', spanish: 'agua', v1: 137 }
-    let online = false
-    const lookup = storedKanji(water)['GET /api/japanese/kanji']
-    renderDraw(
-      '/japanese/draw',
-      {
-        // Offline, the request never reaches the server: fetch itself fails.
-        'GET /api/japanese/kanji': (body, query) => (online && typeof lookup === 'function' ? lookup(body, query) : Promise.reject(new TypeError('Load failed'))),
-      },
-      fakeRecognizer(() => ['水', '氷']).recognizer,
-    )
+    const connection = fakeConnection({ online: true })
+    renderDraw('/japanese/draw', storedKanji(water), fakeRecognizer(() => ['水', '氷']).recognizer)
     await screen.findByLabelText('Drawing')
 
-    window.dispatchEvent(new Event('offline'))
+    connection.goOffline()
     drawStroke([[10, 20], [50, 60]])
 
     expect(await screen.findByText('Offline: can’t check your kanji.')).toBeInTheDocument()
     expect(candidates()).toEqual(['水', '氷'])
     expect(screen.queryByRole('link', { name: /水/ })).not.toBeInTheDocument()
 
-    online = true
-    window.dispatchEvent(new Event('online'))
+    connection.goOnline()
 
     expect(await screen.findByRole('link', { name: /水/ })).toHaveAttribute('href', '/japanese/kanji/k1')
     expect(candidates()).toEqual(['水agua137', '氷'])

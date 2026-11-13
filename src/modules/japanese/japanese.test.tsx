@@ -95,6 +95,20 @@ describe('Search', () => {
     expect(screen.queryByText("Couldn't search.")).not.toBeInTheDocument()
   })
 
+  it('searches again once Nando comes back to the foreground online, when the connection came back while it was away', async () => {
+    const user = userEvent.setup()
+    const connection = fakeConnection({ online: false })
+    renderJapanese('/japanese', searchServer({ 足: { words: [ashi], kanji: [ashiKanji] } }))
+
+    await user.type(await screen.findByRole('searchbox', { name: 'Search' }), '足')
+    expect(await screen.findByText("Couldn't search.")).toBeInTheDocument()
+
+    connection.goOnlineWhileAway()
+
+    expect(await screen.findByRole('list', { name: 'Words' })).toBeInTheDocument()
+    expect(screen.queryByText(/You're offline/)).not.toBeInTheDocument()
+  })
+
   it('says only what went wrong when the server fails while online', async () => {
     const user = userEvent.setup()
     renderJapanese('/japanese', { 'GET /api/japanese/search': { status: 500, body: 'boom' } })

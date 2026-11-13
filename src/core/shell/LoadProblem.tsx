@@ -6,7 +6,7 @@ import { Button } from '../ui/Button'
 // `message`, centred, and a quiet pill to load it again. Offline, it also says so, and that it loads
 // again by itself once the connection is back (src/core/queries.ts).
 export function LoadProblem({ message, retry }: { message: string; retry: () => void }) {
-  const online = useSyncExternalStore(onlineManager.subscribe.bind(onlineManager), () => onlineManager.isOnline())
+  const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline())
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-5 text-center">
       <p role="alert" className="my-0 text-[15px] text-sub">
