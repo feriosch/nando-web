@@ -184,4 +184,29 @@ describe('Draw', () => {
       [[60, 20], [20, 60]],
     ])
   })
+
+  it('checks the Candidates once back online, even when the app started offline', async () => {
+    const water = { id: 'k1', kanji: '水', spanish: 'agua', v1: 137 }
+    let online = false
+    const lookup = storedKanji(water)['GET /api/japanese/kanji']
+    renderDraw(
+      '/japanese/draw',
+      {
+        // No 'offline' event this time: the app opened with no connection, so it only finds out
+        // when the request fails.
+        'GET /api/japanese/kanji': (body, query) => (online && typeof lookup === 'function' ? lookup(body, query) : Promise.reject(new TypeError('Load failed'))),
+      },
+      fakeRecognizer(() => ['水', '氷']).recognizer,
+    )
+    await screen.findByLabelText('Drawing')
+
+    drawStroke([[10, 20], [50, 60]])
+    expect(await screen.findByText('Offline: can’t check your kanji.')).toBeInTheDocument()
+
+    online = true
+    window.dispatchEvent(new Event('online'))
+
+    expect(await screen.findByRole('link', { name: /水/ })).toHaveAttribute('href', '/japanese/kanji/k1')
+    expect(screen.queryByText('Offline: can’t check your kanji.')).not.toBeInTheDocument()
+  })
 })

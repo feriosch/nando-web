@@ -35,4 +35,13 @@ check "a versioned model file is cached for good" "immutable" "$(header Cache-Co
 check "an unversioned model file is revalidated" "no-cache" "$(header Cache-Control "$base/models/kanji/kanji.tflite")"
 check "the model is gzipped" "gzip" "$(header Content-Encoding -H 'Accept-Encoding: gzip' "$base/models/kanji/kanji.tflite?v=v-test")"
 
+# LiteRT.js's WASM, from the build (vite.config.ts): whichever version it is, found from the image.
+litert=$(docker exec "$container" sh -c 'ls -d /usr/share/nginx/html/litert/*/ | head -1' | sed 's#/usr/share/nginx/html##')
+wasm=$(docker exec "$container" sh -c "ls /usr/share/nginx/html$litert | grep '\\.wasm$' | head -1")
+check "LiteRT.js's WASM is in the image" "200" "$(status "$base$litert$wasm")"
+check "LiteRT.js's WASM is served as WASM" "application/wasm" "$(header Content-Type "$base$litert$wasm")"
+check "LiteRT.js's WASM is cached for good" "immutable" "$(header Cache-Control "$base$litert$wasm")"
+check "LiteRT.js's WASM is gzipped" "gzip" "$(header Content-Encoding -H 'Accept-Encoding: gzip' "$base$litert$wasm")"
+check "a missing LiteRT.js file is a real 404" "404" "$(status "$base${litert}missing.wasm")"
+
 exit "$failures"

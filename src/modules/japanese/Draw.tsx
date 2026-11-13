@@ -70,7 +70,19 @@ function useStoredKanji(candidates: string[]): { stored: Map<string, CandidateKa
     queryKey: ['japanese', 'candidates', asked],
     queryFn: () => api.get<CandidateKanji[]>(`/api/japanese/kanji?kanji=${encodeURIComponent(asked)}`),
     enabled: asked !== '',
+    // A request that never reached the server (offline) isn't retried: it's made again when the
+    // connection is back, below.
+    retry: (failures, error) => error instanceof ApiError && failures < 3,
   })
+  // React Query only knows the app is offline from an 'offline' event, which never comes when the app
+  // opened offline, so it wouldn't look again on 'online': this does.
+  const { isError, refetch } = lookup
+  useEffect(() => {
+    if (!isError) return
+    const retry = () => void refetch()
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [isError, refetch])
   const offline = lookup.fetchStatus === 'paused' || (lookup.isError && !(lookup.error instanceof ApiError))
   const unknown = offline ? 'Offline: can’t check your kanji.' : lookup.isError ? 'Couldn’t check your kanji.' : null
   return { stored: new Map((lookup.data ?? []).map((kanji) => [kanji.kanji, kanji])), unknown }
