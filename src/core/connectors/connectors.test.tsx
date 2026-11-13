@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Passkeys } from '../identity/passkeys'
-import { claudeAsking, fakeApi, renderAppWith, type Answers } from '../../test/app'
+import { claudeAsking, claudeRequest, fakeApi, renderAppWith, type Answers } from '../../test/app'
 
 const requestOptions = { challenge: 'Y29ubmVjdA', rpId: 'nanders.app', userVerification: 'required' }
 const assertion = { id: 'q1w2', rawId: 'q1w2', type: 'public-key', response: { signature: 'c2ln' } }
@@ -169,9 +169,7 @@ describe('Connector consent page', () => {
     let answered = 0
     renderConsent({
       'GET /auth/connect/r1': () =>
-        answered++ === 0
-          ? { status: 503, body: 'unavailable' }
-          : { status: 200, body: { clientName: 'Claude', redirectHost: 'claude.ai', toolsDescriptions: [] } },
+        answered++ === 0 ? { status: 503, body: 'unavailable' } : claudeRequest(),
     })
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this request.")

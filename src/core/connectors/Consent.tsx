@@ -8,7 +8,7 @@ import { LoadProblem } from '../shell/LoadProblem'
 import { pillClasses } from '../ui/pill'
 
 // A pending request to approve a Connector, as GET /auth/connect/{request} answers it: who asks,
-// where it returns, and what each Module with Tools says they let it do.
+// where it returns, and what Core and each Module with Tools (each Tool provider) say they let it do.
 type ConnectRequest = { clientName: string; redirectHost: string; toolsDescriptions: string[] }
 
 // The consent page, at /connect?request=<id>: the server's OAuth authorize sends the browser here
@@ -129,10 +129,10 @@ function describe(error: unknown, connectorName: string): string {
   return "Couldn't reach Nando. Try again."
 }
 
-// What a Connector can do, from what each Module with Tools says they let it do, as the server
+// What a Connector can do, from what each Tool provider says its Tools let it do, as the server
 // sends them, such as "search your Words, and log your workouts". With none, simply every Tool.
 function canDo(descriptions: string[]): string {
   if (descriptions.length === 0) return 'use every Tool Nando offers'
-  // A comma before each "and": a description can have its own "and", such as Japanese's.
+  // A comma before each "and": a description can have its own "and", as Japanese's does.
   return descriptions.length === 1 ? descriptions[0] : `${descriptions.slice(0, -1).join(', ')}, and ${descriptions.at(-1)}`
 }
