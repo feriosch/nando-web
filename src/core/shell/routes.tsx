@@ -36,7 +36,7 @@ export function createRoutes(registry: Registry): RouteObject[] {
       path: '/connect',
       element: (
         <SignedOut>
-          <Consent tools={registry.modules.flatMap((module) => module.toolsDescription ?? [])} />
+          <Consent toolsDescriptions={registry.modules.flatMap((module) => module.toolsDescription ?? [])} />
         </SignedOut>
       ),
     },

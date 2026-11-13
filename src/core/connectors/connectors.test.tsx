@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Passkeys } from '../identity/passkeys'
 import type { Module } from '../module'
-import { fakeApi, renderAppWith, type Answers } from '../../test/app'
+import { claudeAsking, fakeApi, renderAppWith, type Answers } from '../../test/app'
 
 const requestOptions = { challenge: 'Y29ubmVjdA', rpId: 'nanders.app', userVerification: 'required' }
 const assertion = { id: 'q1w2', rawId: 'q1w2', type: 'public-key', response: { signature: 'c2ln' } }
@@ -31,7 +31,7 @@ function fakeLeave() {
 // The consent page for pending request `r1`, with the server answering `answers` on top of a
 // request from Claude that returns to claude.ai.
 function renderConsent(answers: Answers = {}, passkeys = fakePasskeys().passkeys, modules: Module[] = []) {
-  const fake = fakeApi({ 'GET /auth/connect/r1': { status: 200, body: { clientName: 'Claude', redirectHost: 'claude.ai' } }, ...answers })
+  const fake = fakeApi({ ...claudeAsking, ...answers })
   const { leave, left } = fakeLeave()
   const router = renderAppWith('/connect?request=r1', { api: fake.api, passkeys, leave, modules })
   return { ...fake, left, router }
