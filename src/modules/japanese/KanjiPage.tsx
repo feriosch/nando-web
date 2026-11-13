@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { useParams } from 'react-router'
+import { useLocation, useParams } from 'react-router'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { ListRow } from '../../core/ui/List'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
+import type { KanjiPageFrom } from './Draw'
 import type { Component, Kanji } from './japanese'
 import { KanjiRowLink, KanjiTile, WordRowLink } from './rows'
 import { Section, TextBlock } from './Section'
@@ -18,7 +19,9 @@ export function KanjiPage() {
     queryKey: ['japanese', 'kanji', id],
     queryFn: () => api.get<Kanji>(`/api/japanese/kanji/${id}`),
   })
-  const back = { to: '/japanese', label: 'Search' }
+  // Opened from a Drawing's Candidates, it goes back to the Drawing; otherwise, to Search.
+  const fromDraw = (useLocation().state as KanjiPageFrom | null)?.from === 'draw'
+  const back = fromDraw ? { to: '/japanese/draw', label: 'Draw' } : { to: '/japanese', label: 'Search' }
 
   if (!kanji.data) {
     return (
