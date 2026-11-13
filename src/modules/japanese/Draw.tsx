@@ -172,13 +172,16 @@ function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (strok
   const [stroke, setStroke] = useState<number[][] | null>(null)
   const area = useRef<SVGSVGElement>(null)
   // A finger drawing in the square never scrolls the page. iOS ignores touch-action on an SVG
-  // (WebKit bug 200610), so the square's wrapper takes it, and each touch move is cancelled too:
-  // by a listener of its own, as React's touch listeners are passive and can't.
+  // (WebKit bug 200610), so the square's wrapper takes it (which covers the SVG too), and each touch
+  // move is cancelled as well: by a listener of its own, as React's touch listeners are passive and
+  // can't.
   const square = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const element = square.current
     if (!element) return
-    const keepStill = (event: TouchEvent) => event.preventDefault()
+    const keepStill = (event: TouchEvent) => {
+      if (event.cancelable) event.preventDefault()
+    }
     element.addEventListener('touchmove', keepStill, { passive: false })
     return () => element.removeEventListener('touchmove', keepStill)
   }, [])
@@ -200,7 +203,7 @@ function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (strok
         ref={area}
         aria-label="Drawing"
         role="img"
-        className="block aspect-square w-full touch-none rounded-[22px] bg-surface text-ink select-none"
+        className="block aspect-square w-full rounded-[22px] bg-surface text-ink select-none"
         onPointerDown={(event) => {
           if (finger.current !== null) return
           finger.current = event.pointerId
