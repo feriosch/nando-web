@@ -102,7 +102,7 @@ function useStoredKanji(candidates: string[]): { stored: Map<string, CandidateKa
 }
 
 // A Candidate: a stored Kanji with its meaning and Heisig number, opening its page; a kanji that
-// isn't stored, dimmed; or, while that can't be checked, the kanji alone.
+// isn't stored, dimmed, opening its Kanji Lookup; or, while that can't be checked, the kanji alone.
 function CandidateTile({ kanji, stored }: { kanji: string; stored: CandidateKanji | 'unknown' | undefined }) {
   if (stored === 'unknown') {
     return (
@@ -114,12 +114,18 @@ function CandidateTile({ kanji, stored }: { kanji: string; stored: CandidateKanj
     )
   }
   if (!stored) {
+    // Dimmed, as not one of the Owner's, and opening what Nando can find out about it.
     return (
-      <div aria-disabled="true" className={`${tileClasses} text-sub opacity-50`}>
+      <Link
+        to={`/japanese/lookup/${kanji}`}
+        state={{ from: 'draw' } satisfies KanjiPageFrom}
+        viewTransition
+        aria-label={`${kanji}, not stored`}
+        className={`${tileClasses} text-sub no-underline opacity-50 active:opacity-30`}>
         <span lang="ja" className="font-display text-[32px] leading-none">
           {kanji}
         </span>
-      </div>
+      </Link>
     )
   }
   return (
@@ -127,6 +133,7 @@ function CandidateTile({ kanji, stored }: { kanji: string; stored: CandidateKanj
       to={`/japanese/kanji/${stored.id}`}
       state={{ from: 'draw' } satisfies KanjiPageFrom}
       viewTransition
+      aria-label={`${kanji} ${stored.spanish} ${stored.v1}`}
       className={`${tileClasses} text-ink no-underline active:opacity-60`}>
       <span lang="ja" className="font-display text-[32px] leading-none text-accent">
         {kanji}

@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from 'react'
-import { GroupedList, SectionHeader } from '../../core/ui/List'
+import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
 
 // A section of a Word or Kanji page: its header over a grouped list, which is a list named by the header if `list`.
 export function Section({ title, list = false, children }: { title: string; list?: boolean; children: ReactNode }) {
@@ -27,5 +27,17 @@ export function TextBlock({ children }: { children: ReactNode }) {
         {children}
       </p>
     </GroupedList>
+  )
+}
+
+// A row of a page's details: its label, and its value on the right.
+export function Detail({ label, lang, children }: { label: string; lang?: string; children: ReactNode }) {
+  return (
+    <ListRow as="li">
+      <span>{label}</span>
+      <span lang={lang} className="text-right text-sub tabular-nums">
+        {children}
+      </span>
+    </ListRow>
   )
 }

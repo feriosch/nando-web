@@ -95,21 +95,27 @@ describe('Draw', () => {
     expect(asked).toEqual([[[[10, 20], [30, 40], [50, 60]]]])
   })
 
-  it('shows what each stored Candidate means and opens it, and dims the ones not stored', async () => {
+  it('opens a stored Candidate’s Kanji, and the Kanji Lookup of one not stored', async () => {
     const water = { id: 'k1', kanji: '水', spanish: 'agua', v1: 137 }
     const swim = { id: 'k2', kanji: '泳', spanish: 'nadar', v1: 140 }
-    const { router } = renderDraw('/japanese/draw', storedKanji(water, swim), fakeRecognizer(() => eightCandidates).recognizer)
+    const { router, sent } = renderDraw('/japanese/draw', storedKanji(water, swim), fakeRecognizer(() => eightCandidates).recognizer)
     await screen.findByLabelText('Drawing')
 
     drawStroke([[10, 20], [50, 60]])
 
     await waitFor(() => expect(candidates()).toEqual(['水agua137', '氷', '永', '泳nadar140', '承', '次', '派', '旅']))
     const list = screen.getByRole('list', { name: 'Candidates' })
-    expect(within(list).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/japanese/kanji/k1', '/japanese/kanji/k2'])
-    expect(within(list).getByText('氷').closest('[aria-disabled]')).toHaveAttribute('aria-disabled', 'true')
+    const opens = (name: string) => decodeURIComponent(within(list).getByRole('link', { name }).getAttribute('href')!)
+    expect(opens('水 agua 137')).toBe('/japanese/kanji/k1')
+    expect(opens('泳 nadar 140')).toBe('/japanese/kanji/k2')
+    // Not stored: dimmed, and opening what Nando can find out about it.
+    expect(opens('氷, not stored')).toBe('/japanese/lookup/氷')
+    expect(opens('旅, not stored')).toBe('/japanese/lookup/旅')
 
-    fireEvent.click(within(list).getByRole('link', { name: /水/ }))
+    fireEvent.click(within(list).getByRole('link', { name: '水 agua 137' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/japanese/kanji/k1'))
+    // A stored Kanji is never looked up outside Nando.
+    expect(sent.filter((request) => request.path.startsWith('/api/japanese/lookup/'))).toEqual([])
   })
 
   it('reads the Drawing again after Undo, and Clear starts over', async () => {
@@ -276,5 +282,59 @@ describe('Draw', () => {
     expect(candidates()).toEqual([])
     answerSecond(['水'])
     await waitFor(() => expect(candidates()).toEqual(['水']))
+  })
+
+  it('opens the Kanji page of a Candidate stored since it was checked', async () => {
+    const user = userEvent.setup()
+    // The lookup of Candidates said 氷 isn't stored, but it was just added.
+    const ice = { id: 'k9', kanji: '氷', spanish: 'hielo', v1: 138 }
+    const { router } = renderDraw(
+      '/japanese/draw',
+      {
+        ...storedKanji(),
+        [`GET /api/japanese/lookup/kanji/${encodeURIComponent('氷')}`]: { status: 409, body: { id: 'k9' } },
+        'GET /api/japanese/kanji/k9': {
+          status: 200,
+          body: { ...ice, on: 'ヒョウ', kun: 'こおり', v2: null, story: null, components: [], words: [] },
+        },
+      },
+      fakeRecognizer(() => ['氷']).recognizer,
+    )
+    await screen.findByLabelText('Drawing')
+    drawStroke([[10, 20], [50, 60]])
+
+    await user.click(await screen.findByRole('link', { name: '氷, not stored' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: '氷' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/japanese/kanji/k9')
+    await user.click(screen.getByRole('link', { name: 'Draw' }))
+    expect(await screen.findByLabelText('Drawing')).toBeInTheDocument()
+    expect(strokesShown()).toBe(1)
+  })
+
+  it('comes back from a Candidate’s Kanji Lookup to the same Drawing', async () => {
+    const user = userEvent.setup()
+    renderDraw(
+      '/japanese/draw',
+      {
+        ...storedKanji(),
+        [`GET /api/japanese/lookup/kanji/${encodeURIComponent('氷')}`]: {
+          status: 200,
+          body: { kanji: '氷', meanings: ['ice'], on: ['ヒョウ'], kun: ['こおり'], strokes: 5, grade: 3, joyo: true, jlpt: 3, words: [] },
+        },
+      },
+      fakeRecognizer(() => ['氷']).recognizer,
+    )
+    await screen.findByLabelText('Drawing')
+    drawStroke([[10, 20], [50, 60]])
+    drawStroke([[60, 20], [20, 60]])
+
+    await user.click(await screen.findByRole('link', { name: '氷, not stored' }))
+    expect(await screen.findByRole('heading', { level: 1, name: '氷' })).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Draw' }))
+
+    await screen.findByLabelText('Drawing')
+    expect(strokesShown()).toBe(2)
+    await waitFor(() => expect(candidates()).toEqual(['氷']))
   })
 })
