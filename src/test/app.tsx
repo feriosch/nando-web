@@ -202,3 +202,27 @@ export function fakeConnection({ online }: { online: boolean }) {
     },
   }
 }
+
+// The page's scroll, faked, as jsdom lays nothing out and can't scroll: `window.scrollY` reads it,
+// `window.scrollTo` (as the app scrolls) sets it, and `scrollTo` here is the Owner scrolling.
+// Restored after each test (src/test/setup.ts).
+export function fakePageScroll() {
+  let y = 0
+  Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y })
+  Object.defineProperty(window, 'scrollTo', {
+    configurable: true,
+    writable: true,
+    value: (x: number | ScrollToOptions, top?: number) => {
+      y = typeof x === 'number' ? (top ?? 0) : (x.top ?? y)
+    },
+  })
+  return {
+    scrollTo: (top: number) => {
+      y = top
+      window.dispatchEvent(new Event('scroll'))
+    },
+    get y() {
+      return y
+    },
+  }
+}

@@ -549,6 +549,24 @@ describe('Meals', () => {
     expect(items[1]).not.toHaveTextContent('🍙')
     expect(items[0].querySelector('img')).not.toBeInTheDocument()
   })
+
+  it('goes back to today from Meals opened on another Day', async () => {
+    const user = userEvent.setup()
+    const { router } = renderCalories('/calories', {
+      ...caloriesServer({ day: '2026-11-09' }),
+      ...caloriesServer({ day: '2026-11-05' }),
+      ...mealsServer([onigiri]),
+    })
+    await pickDay(user, 'Thursday, 5 November')
+    await screen.findByRole('heading', { level: 1, name: 'Thu 5 Nov' })
+
+    await user.click(screen.getByRole('link', { name: 'Meals' }))
+    await screen.findByRole('heading', { level: 1, name: 'Meals' })
+    await user.click(screen.getByRole('link', { name: 'Today' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument()
+    expect(router.state.location.search).toBe('')
+  })
 })
 
 describe('Creating a Meal', () => {
