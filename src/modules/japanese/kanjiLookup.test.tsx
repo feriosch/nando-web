@@ -1,7 +1,7 @@
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { fakeApi, noPush, renderApp, type Answers } from '../../test/app'
+import { fakeApi, fakeConnection, noPush, renderApp, type Answers } from '../../test/app'
 import { createJapanese } from '.'
 
 // A Kanji Lookup as GET /api/japanese/lookup/kanji/{kanji} answers it (nando-server's API.md).
@@ -94,17 +94,25 @@ describe('Kanji Lookup', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 
-  it.each([
-    ['kanjiapi.dev can’t be asked', 'Couldn’t look this kanji up.', () => ({ status: 503, body: 'try again later' })],
-    ['offline', 'Offline: can’t look this kanji up.', () => Promise.reject(new TypeError('Load failed'))],
-  ])('can try again when %s', async (_, message, failure) => {
+  it('can try again when kanjiapi.dev can’t be asked', async () => {
     const user = userEvent.setup()
     let failing = true
-    renderLookup('/japanese/lookup/士', { [lookupOf('士')]: () => (failing ? failure() : { status: 200, body: shi }) })
+    renderLookup('/japanese/lookup/士', { [lookupOf('士')]: () => (failing ? { status: 503, body: 'try again later' } : { status: 200, body: shi }) })
 
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(await screen.findByText('Couldn’t look this kanji up.')).toBeInTheDocument()
     failing = false
     await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('gentleman, scholar, samurai')).toBeInTheDocument()
+  })
+
+  it('says once that it’s offline, and looks the kanji up on its own once back online, when Nando was opened offline', async () => {
+    const connection = fakeConnection({ online: false })
+    renderLookup('/japanese/lookup/士', { [lookupOf('士')]: { status: 200, body: shi } })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t look this kanji up.')
+    expect(screen.getAllByText(/offline/i)).toHaveLength(1)
+    connection.goOnline()
 
     expect(await screen.findByText('gentleman, scholar, samurai')).toBeInTheDocument()
   })

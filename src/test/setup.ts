@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { onlineManager } from '@tanstack/react-query'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
@@ -9,4 +10,8 @@ afterEach(() => {
   document.documentElement.className = ''
   document.documentElement.removeAttribute('style')
   document.body.className = ''
+  // Back online, as each test starts: fakeConnection's navigator.onLine is dropped, and React
+  // Query's online state, which is global, is reset.
+  Reflect.deleteProperty(navigator, 'onLine')
+  onlineManager.setOnline(true)
 })

@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fakeApi, noPush, renderApp, type Answer, type Answers } from '../../test/app'
+import { fakeApi, fakeConnection, noPush, renderApp, type Answer, type Answers } from '../../test/app'
 import { addDays } from '../../core/days'
 import { calories } from '.'
 
@@ -724,6 +724,19 @@ describe('When something fails', () => {
 
     await expectConsumed('800 / 2,000 kcal')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says the Day is out of reach while offline, and loads it once back online, when Nando was opened offline', async () => {
+    const connection = fakeConnection({ online: false })
+    renderCalories('/calories', caloriesServer({ day: '2026-11-09', entries: [entry({ id: 'e1', day: '2026-11-09', name: 'Ramen', kcalPerServing: 800 })] }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the Day.")
+    expect(screen.getByText("You're offline. This loads again once you're back online.")).toBeInTheDocument()
+    connection.goOnline()
+
+    await expectConsumed('800 / 2,000 kcal')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/You're offline/)).not.toBeInTheDocument()
   })
 
   it("says the Day can no longer be changed when it left the Editable Window while open", async () => {

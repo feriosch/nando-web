@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { fakeApi, noPush, renderApp, type Answers } from '../../test/app'
+import { fakeApi, fakeConnection, noPush, renderApp, type Answers } from '../../test/app'
 import { createJapanese } from '.'
 import type { Drawing } from './drawing'
 import type { Recognizer } from './recognizer'
@@ -207,24 +207,15 @@ describe('Draw', () => {
 
   it('checks the Candidates once back online, even when the app started offline', async () => {
     const water = { id: 'k1', kanji: '水', spanish: 'agua', v1: 137 }
-    let online = false
-    const lookup = storedKanji(water)['GET /api/japanese/kanji']
-    renderDraw(
-      '/japanese/draw',
-      {
-        // No 'offline' event this time: the app opened with no connection, so it only finds out
-        // when the request fails.
-        'GET /api/japanese/kanji': (body, query) => (online && typeof lookup === 'function' ? lookup(body, query) : Promise.reject(new TypeError('Load failed'))),
-      },
-      fakeRecognizer(() => ['水', '氷']).recognizer,
-    )
+    // No 'offline' event this time: the app opened with no connection.
+    const connection = fakeConnection({ online: false })
+    renderDraw('/japanese/draw', storedKanji(water), fakeRecognizer(() => ['水', '氷']).recognizer)
     await screen.findByLabelText('Drawing')
 
     drawStroke([[10, 20], [50, 60]])
     expect(await screen.findByText('Offline: can’t check your kanji.')).toBeInTheDocument()
 
-    online = true
-    window.dispatchEvent(new Event('online'))
+    connection.goOnline()
 
     expect(await screen.findByRole('link', { name: /水/ })).toHaveAttribute('href', '/japanese/kanji/k1')
     expect(screen.queryByText('Offline: can’t check your kanji.')).not.toBeInTheDocument()
