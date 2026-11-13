@@ -171,6 +171,17 @@ function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (strok
   const finger = useRef<number | null>(null)
   const [stroke, setStroke] = useState<number[][] | null>(null)
   const area = useRef<SVGSVGElement>(null)
+  // A finger drawing in the square never scrolls the page. iOS ignores touch-action on an SVG
+  // (WebKit bug 200610), so the square's wrapper takes it, and each touch move is cancelled too:
+  // by a listener of its own, as React's touch listeners are passive and can't.
+  const square = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const element = square.current
+    if (!element) return
+    const keepStill = (event: TouchEvent) => event.preventDefault()
+    element.addEventListener('touchmove', keepStill, { passive: false })
+    return () => element.removeEventListener('touchmove', keepStill)
+  }, [])
   const pointAt = (event: PointerEvent) => {
     const box = area.current!.getBoundingClientRect()
     return [event.clientX - box.left, event.clientY - box.top]
@@ -184,44 +195,46 @@ function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (strok
   }
 
   return (
-    <svg
-      ref={area}
-      aria-label="Drawing"
-      role="img"
-      className="block aspect-square w-full touch-none rounded-[22px] bg-surface text-ink select-none"
-      onPointerDown={(event) => {
-        if (finger.current !== null) return
-        finger.current = event.pointerId
-        // Keeps the stroke's moves coming even when the finger slides off the square.
-        if (event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId)
-        live.current = [pointAt(event)]
-        setStroke(live.current)
-      }}
-      onPointerMove={(event) => {
-        if (event.pointerId !== finger.current || !live.current) return
-        live.current = [...live.current, pointAt(event)]
-        setStroke(live.current)
-      }}
-      onPointerUp={end}
-      onPointerCancel={end}
-    >
-      {/* Faint guides through the middle, as on squared writing paper. */}
-      <g className="text-line" stroke="currentColor" strokeDasharray="6 6" strokeWidth={1}>
-        <line x1="50%" y1="8%" x2="50%" y2="92%" />
-        <line x1="8%" y1="50%" x2="92%" y2="50%" />
-      </g>
-      {[...drawing, ...(stroke ? [stroke] : [])].map((points, i) => (
-        <polyline
-          key={i}
-          // A tap is a dot: a line from the point to itself, drawn with round caps.
-          points={(points.length === 1 ? [points[0], points[0]] : points).map(([x, y]) => `${x},${y}`).join(' ')}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={9}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ))}
-    </svg>
+    <div ref={square} className="touch-none">
+      <svg
+        ref={area}
+        aria-label="Drawing"
+        role="img"
+        className="block aspect-square w-full touch-none rounded-[22px] bg-surface text-ink select-none"
+        onPointerDown={(event) => {
+          if (finger.current !== null) return
+          finger.current = event.pointerId
+          // Keeps the stroke's moves coming even when the finger slides off the square.
+          if (event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId)
+          live.current = [pointAt(event)]
+          setStroke(live.current)
+        }}
+        onPointerMove={(event) => {
+          if (event.pointerId !== finger.current || !live.current) return
+          live.current = [...live.current, pointAt(event)]
+          setStroke(live.current)
+        }}
+        onPointerUp={end}
+        onPointerCancel={end}
+      >
+        {/* Faint guides through the middle, as on squared writing paper. */}
+        <g className="text-line" stroke="currentColor" strokeDasharray="6 6" strokeWidth={1}>
+          <line x1="50%" y1="8%" x2="50%" y2="92%" />
+          <line x1="8%" y1="50%" x2="92%" y2="50%" />
+        </g>
+        {[...drawing, ...(stroke ? [stroke] : [])].map((points, i) => (
+          <polyline
+            key={i}
+            // A tap is a dot: a line from the point to itself, drawn with round caps.
+            points={(points.length === 1 ? [points[0], points[0]] : points).map(([x, y]) => `${x},${y}`).join(' ')}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={9}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+      </svg>
+    </div>
   )
 }

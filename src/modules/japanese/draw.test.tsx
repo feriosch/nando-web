@@ -84,6 +84,17 @@ describe('Draw', () => {
     expect(screen.getByText(hint)).toBeInTheDocument()
   })
 
+  it('keeps the page still while a finger draws, so a downward stroke doesn’t scroll it', async () => {
+    renderDraw('/japanese/draw', storedKanji())
+    const area = await screen.findByLabelText('Drawing')
+
+    // iOS ignores touch-action on an SVG (WebKit bug 200610): the finger's move itself must be
+    // kept from scrolling. fireEvent answers false when it was.
+    const touch = { clientX: 40, clientY: 40 }
+    fireEvent.touchStart(area, { touches: [touch] })
+    expect(fireEvent.touchMove(area, { touches: [{ clientX: 40, clientY: 160 }] })).toBe(false)
+  })
+
   it('reads each stroke as it ends, and shows its Candidates, best first', async () => {
     const { recognizer, asked } = fakeRecognizer(() => eightCandidates)
     renderDraw('/japanese/draw', storedKanji(), recognizer)
