@@ -25,8 +25,9 @@ registerRoute(
 // Draw's kanji model (public/models/kanji/, nando-server's ADR 0005), kept the first time Draw loads
 // it, so a Drawing is read offline. version.json names the current model and always comes from the
 // network when there is one; the model and labels are requested with that version (?v=v1) and
-// kept for good. Once a new version is kept, the old one's files are deleted, so labels and
-// weights from different models never mix.
+// kept for good. The old version's files are deleted by the app once a new one has loaded
+// (liteRtRecognizer.ts), not as soon as a new file arrives: a download cut off halfway mustn't
+// leave the phone without a working model.
 const kanjiModel = 'kanji-model'
 registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname === '/models/kanji/version.json',
@@ -34,7 +35,7 @@ registerRoute(
 )
 registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/models/kanji/') && url.searchParams.has('v'),
-  new CacheFirst({ cacheName: kanjiModel, plugins: [onlyThisVersion()] }),
+  new CacheFirst({ cacheName: kanjiModel }),
 )
 
 // LiteRT.js's WASM (vite.config.ts), under /litert/<its version>/, so never stale: kept the first
@@ -44,20 +45,6 @@ registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/litert/'),
   new CacheFirst({ cacheName: 'litert', plugins: [onlyThisLiteRtVersion()] }),
 )
-
-// When a versioned model file is kept, deletes the files kept for any other version.
-function onlyThisVersion(): WorkboxPlugin {
-  return {
-    cacheDidUpdate: async ({ cacheName, request }) => {
-      const version = new URL(request.url).searchParams.get('v')
-      const cache = await caches.open(cacheName)
-      for (const kept of await cache.keys()) {
-        const keptVersion = new URL(kept.url).searchParams.get('v')
-        if (keptVersion !== null && keptVersion !== version) await cache.delete(kept)
-      }
-    },
-  }
-}
 
 // When a LiteRT.js file is kept, deletes the files kept for any other version (/litert/<version>/).
 function onlyThisLiteRtVersion(): WorkboxPlugin {
