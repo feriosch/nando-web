@@ -8,7 +8,7 @@ import type { Recognizer } from './recognizer'
 
 // The kanji model, faked: each Drawing it's asked about is recorded, and it answers with the
 // Candidates `answer` gives for that Drawing (by default, none).
-function fakeRecognizer(answer: (drawing: Drawing) => string[] = () => []) {
+function fakeRecognizer(answer: (drawing: Drawing) => string[] | Promise<string[]> = () => []) {
   const asked: Drawing[] = []
   const recognizer: Recognizer = {
     recognize: async (drawing) => {
@@ -222,5 +222,59 @@ describe('Draw', () => {
 
     expect(await screen.findByRole('link', { name: /水/ })).toHaveAttribute('href', '/japanese/kanji/k1')
     expect(screen.queryByText('Offline: can’t check your kanji.')).not.toBeInTheDocument()
+  })
+
+  it('says so when the Drawing can’t be read, and reads the next stroke again', async () => {
+    let broken = true
+    renderDraw('/japanese/draw', storedKanji(), fakeRecognizer(() => (broken ? Promise.reject(new Error('model not loaded')) : ['一'])).recognizer)
+    await screen.findByLabelText('Drawing')
+
+    drawStroke([[10, 20], [90, 20]])
+
+    expect(await screen.findByText('Couldn’t read the Drawing. Draw again to retry.')).toBeInTheDocument()
+    expect(candidates()).toEqual([])
+
+    broken = false
+    drawStroke([[10, 60], [90, 60]])
+    await waitFor(() => expect(candidates()).toEqual(['一']))
+    expect(screen.queryByText('Couldn’t read the Drawing. Draw again to retry.')).not.toBeInTheDocument()
+  })
+
+  it('ignores a second finger while a stroke is being drawn', async () => {
+    const { recognizer, asked } = fakeRecognizer(() => ['一'])
+    renderDraw('/japanese/draw', storedKanji(), recognizer)
+    const area = await screen.findByLabelText('Drawing')
+    const finger = (pointerId: number, [x, y]: number[]) => ({ clientX: x, clientY: y, pointerId, pointerType: 'touch' })
+
+    fireEvent.pointerDown(area, finger(1, [10, 20]))
+    fireEvent.pointerMove(area, finger(1, [50, 20]))
+    // A thumb lands, moves and lifts mid-stroke.
+    fireEvent.pointerDown(area, finger(2, [200, 200]))
+    fireEvent.pointerMove(area, finger(2, [210, 210]))
+    fireEvent.pointerUp(area, finger(2, [210, 210]))
+    fireEvent.pointerMove(area, finger(1, [90, 20]))
+    fireEvent.pointerUp(area, finger(1, [90, 20]))
+
+    await waitFor(() => expect(asked).toEqual([[[[10, 20], [50, 20], [90, 20]]]]))
+  })
+
+  it('never shows the Candidates of a cleared Drawing for a new one', async () => {
+    const user = userEvent.setup()
+    let answerSecond: (found: string[]) => void = () => {}
+    const { recognizer } = fakeRecognizer((drawing) =>
+      drawing[0][0][0] === 10 ? ['木'] : new Promise<string[]>((resolve) => (answerSecond = resolve)),
+    )
+    renderDraw('/japanese/draw', storedKanji(), recognizer)
+    await screen.findByLabelText('Drawing')
+    drawStroke([[10, 20], [90, 20]])
+    await waitFor(() => expect(candidates()).toEqual(['木']))
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    drawStroke([[20, 20], [90, 90]])
+
+    // Still being read: nothing yet, not 木 again.
+    expect(candidates()).toEqual([])
+    answerSecond(['水'])
+    await waitFor(() => expect(candidates()).toEqual(['水']))
   })
 })

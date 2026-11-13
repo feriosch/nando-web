@@ -38,10 +38,11 @@ registerRoute(
 )
 
 // LiteRT.js's WASM (vite.config.ts), under /litert/<its version>/, so never stale: kept the first
-// time Draw loads it. Only the one build of four this phone uses is ever fetched.
+// time Draw loads it. Only the one build of four this phone uses is ever fetched. Once a new version
+// is kept, the old one's files (about 11 MB) are deleted.
 registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/litert/'),
-  new CacheFirst({ cacheName: 'litert', plugins: [new ExpirationPlugin({ maxEntries: 8 })] }),
+  new CacheFirst({ cacheName: 'litert', plugins: [onlyThisLiteRtVersion()] }),
 )
 
 // When a versioned model file is kept, deletes the files kept for any other version.
@@ -53,6 +54,20 @@ function onlyThisVersion(): WorkboxPlugin {
       for (const kept of await cache.keys()) {
         const keptVersion = new URL(kept.url).searchParams.get('v')
         if (keptVersion !== null && keptVersion !== version) await cache.delete(kept)
+      }
+    },
+  }
+}
+
+// When a LiteRT.js file is kept, deletes the files kept for any other version (/litert/<version>/).
+function onlyThisLiteRtVersion(): WorkboxPlugin {
+  const versionDir = (url: string) => new URL(url).pathname.split('/').slice(0, 3).join('/')
+  return {
+    cacheDidUpdate: async ({ cacheName, request }) => {
+      const current = versionDir(request.url)
+      const cache = await caches.open(cacheName)
+      for (const kept of await cache.keys()) {
+        if (versionDir(kept.url) !== current) await cache.delete(kept)
       }
     },
   }

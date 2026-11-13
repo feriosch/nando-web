@@ -30,8 +30,9 @@ export function Draw({ recognizer }: { recognizer: Recognizer }) {
       return next
     })
   useEffect(() => recognizer.prepare?.(), [recognizer])
-  const candidates = useCandidates(recognizer, drawing)
+  const { candidates, failed } = useCandidates(recognizer, drawing)
   const { stored, unknown } = useStoredKanji(candidates)
+  const note = failed ? 'Couldn’t read the Drawing. Draw again to retry.' : candidates.length > 0 ? unknown : null
 
   return (
     <>
@@ -39,9 +40,9 @@ export function Draw({ recognizer }: { recognizer: Recognizer }) {
       <div className="relative">
         <DrawingArea onStroke={(stroke) => setDrawing((strokes) => [...strokes, stroke])} drawing={drawing} />
         {/* Inside the square's foot, so it's always in view and nothing moves under the finger. */}
-        {candidates.length > 0 && unknown && (
+        {note && (
           <p role="status" className="pointer-events-none absolute inset-x-0 bottom-3 m-0 text-center text-[13px] text-sub">
-            {unknown}
+            {note}
           </p>
         )}
       </div>
@@ -82,9 +83,9 @@ function useStoredKanji(candidates: string[]): { stored: Map<string, CandidateKa
     queryKey: ['japanese', 'candidates', asked],
     queryFn: () => api.get<CandidateKanji[]>(`/api/japanese/kanji?kanji=${encodeURIComponent(asked)}`),
     enabled: asked !== '',
-    // A request that never reached the server (offline) isn't retried: it's made again when the
-    // connection is back, below.
-    retry: (failures, error) => error instanceof ApiError && failures < 3,
+    // Only a server error is retried. A request that never reached the server (offline) is made
+    // again when the connection is back, below; any other answer would only come again.
+    retry: (failures, error) => error instanceof ApiError && error.status >= 500 && failures < 3,
   })
   // React Query only knows the app is offline from an 'offline' event, which never comes when the app
   // opened offline, so it wouldn't look again on 'online': this does.
@@ -140,21 +141,28 @@ function CandidateTile({ kanji, stored }: { kanji: string; stored: CandidateKanj
 
 const tileClasses = 'flex h-[88px] flex-col items-center justify-center rounded-[14px] bg-surface px-1'
 
-// What `recognizer` reads `drawing` as, once each stroke has ended; nothing for an empty Drawing. An
-// answer for an older Drawing, arriving late, is dropped.
-function useCandidates(recognizer: Recognizer, drawing: Drawing): string[] {
-  const [found, setFound] = useState<string[]>([])
+// What `recognizer` read a Drawing as: its Candidates, or null when it couldn't read it.
+type Answer = { drawing: Drawing; candidates: string[] | null }
+
+// What `recognizer` reads `drawing` as, once each stroke has ended, and whether reading it failed.
+// An answer still shows while strokes are added, until the next one arrives; after Undo or Clear it
+// belongs to another Drawing and doesn't. A late answer for an older Drawing is dropped.
+function useCandidates(recognizer: Recognizer, drawing: Drawing): { candidates: string[]; failed: boolean } {
+  const [answer, setAnswer] = useState<Answer | null>(null)
   useEffect(() => {
     if (drawing.length === 0) return
     let current = true
-    void recognizer.recognize(drawing).then((candidates) => {
-      if (current) setFound(candidates)
-    })
+    recognizer.recognize(drawing).then(
+      (candidates) => current && setAnswer({ drawing, candidates }),
+      () => current && setAnswer({ drawing, candidates: null }),
+    )
     return () => {
       current = false
     }
   }, [recognizer, drawing])
-  return drawing.length === 0 ? [] : found
+  const applies = answer !== null && answer.drawing.length <= drawing.length && answer.drawing.every((stroke, i) => stroke === drawing[i])
+  if (!applies) return { candidates: [], failed: false }
+  return { candidates: answer.candidates ?? [], failed: answer.candidates === null && answer.drawing === drawing }
 }
 
 // The square the Owner draws in. Each stroke is recorded in CSS pixels from its top left and handed
@@ -163,15 +171,19 @@ function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (strok
   // The stroke being drawn: in a ref, so a finger lifting before React re-renders still hands over
   // every point, and copied to state only to show it.
   const live = useRef<number[][] | null>(null)
+  // The finger drawing it: another touching the square meanwhile, such as a thumb, is ignored.
+  const finger = useRef<number | null>(null)
   const [stroke, setStroke] = useState<number[][] | null>(null)
   const area = useRef<SVGSVGElement>(null)
   const pointAt = (event: PointerEvent) => {
     const box = area.current!.getBoundingClientRect()
     return [event.clientX - box.left, event.clientY - box.top]
   }
-  const end = () => {
+  const end = (event: PointerEvent) => {
+    if (event.pointerId !== finger.current) return
     if (live.current) onStroke(live.current)
     live.current = null
+    finger.current = null
     setStroke(null)
   }
 
@@ -182,13 +194,15 @@ function DrawingArea({ drawing, onStroke }: { drawing: Drawing; onStroke: (strok
       role="img"
       className="block aspect-square w-full touch-none rounded-[22px] bg-surface text-ink select-none"
       onPointerDown={(event) => {
+        if (finger.current !== null) return
+        finger.current = event.pointerId
         // Keeps the stroke's moves coming even when the finger slides off the square.
         if (event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId)
         live.current = [pointAt(event)]
         setStroke(live.current)
       }}
       onPointerMove={(event) => {
-        if (!live.current) return
+        if (event.pointerId !== finger.current || !live.current) return
         live.current = [...live.current, pointAt(event)]
         setStroke(live.current)
       }}

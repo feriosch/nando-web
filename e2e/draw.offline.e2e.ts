@@ -1,38 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
-import type { CoreSettings } from '../src/core/settings/settings'
-import fixtures from '../public/models/kanji/drawings.json' with { type: 'json' }
+import { candidates, drawFixture, settings } from './draw'
 
 // Draw offline, in the production build with its service worker: once Draw has been opened online,
 // the model, its labels and LiteRT.js's WASM are kept, so a Drawing is still read with no network.
 
-const settings: CoreSettings = {
-  timeZone: 'Asia/Tokyo',
-  heightCm: null,
-  weighInReminder: { enabled: false, weekday: 'sunday', time: '08:00' },
-}
-
-async function drawFixture(page: Page, name: string) {
-  const { strokes } = (fixtures as { name: string; strokes: number[][][] }[]).find((f) => f.name === name)!
-  await page.waitForFunction(() => {
-    const area = document.querySelector('[aria-label="Drawing"]')
-    const box = area?.getBoundingClientRect()
-    return !!box && document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('svg') === area
-  })
-  const box = (await page.getByLabel('Drawing').boundingBox())!
-  const points = strokes.flat()
-  const [lowX, lowY] = [Math.min(...points.map((p) => p[0])), Math.min(...points.map((p) => p[1]))]
-  const extent = Math.max(...points.map((p) => p[0] - lowX), ...points.map((p) => p[1] - lowY))
-  const scale = (box.width - 80) / extent
-  const at = ([x, y]: number[]) => [box.x + 40 + (x - lowX) * scale, box.y + 40 + (y - lowY) * scale] as const
-  for (const stroke of strokes) {
-    await page.mouse.move(...at(stroke[0]))
-    await page.mouse.down()
-    for (const point of stroke.slice(1)) await page.mouse.move(...at(point))
-    await page.mouse.up()
-  }
-}
-
-const firstCandidate = (page: Page) => page.getByRole('list', { name: 'Candidates' }).getByRole('listitem').first()
+const firstCandidate = (page: Page) => candidates(page).first()
 
 test('reads a Drawing offline once Draw has been opened online', async ({ page, context }) => {
   // The fake API: context-wide, so it also answers what the service worker fetches. Nothing is

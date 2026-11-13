@@ -54,9 +54,15 @@ function render(drawing: Drawing): { pixels: Float64Array; size: number } | null
       const dx = bx - ax
       const dy = by - ay
       const length2 = dx * dx + dy * dy
-      for (let row = 0; row < size; row++) {
+      // Only pixels within PEN of the segment get any ink (further away it's below 0, and ink starts
+      // at 0), so only its bounding box, widened by PEN, is measured: the same pixels, far fewer sums.
+      const firstRow = Math.max(0, Math.floor(Math.min(ay, by) - PEN - 0.5))
+      const lastRow = Math.min(size - 1, Math.ceil(Math.max(ay, by) + PEN - 0.5))
+      const firstCol = Math.max(0, Math.floor(Math.min(ax, bx) - PEN - 0.5))
+      const lastCol = Math.min(size - 1, Math.ceil(Math.max(ax, bx) + PEN - 0.5))
+      for (let row = firstRow; row <= lastRow; row++) {
         const y = row + 0.5
-        for (let col = 0; col < size; col++) {
+        for (let col = firstCol; col <= lastCol; col++) {
           const x = col + 0.5
           const t = length2 > 0 ? Math.min(Math.max(((x - ax) * dx + (y - ay) * dy) / length2, 0), 1) : 0
           const offX = x - (ax + t * dx)
