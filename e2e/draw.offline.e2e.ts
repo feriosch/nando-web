@@ -110,10 +110,8 @@ test('a new model version cut off mid-download leaves the kept one working', asy
 
   // A release later, the server names v2, but the 3.8 MB model never finishes downloading.
   await context.route('**/models/kanji/version.json', (route) => route.fulfill({ json: { version: 'v2' } }))
-  await context.route(
-    (url) => url.pathname === '/models/kanji/kanji.tflite' && url.searchParams.get('v') === 'v2',
-    (route) => route.abort('connectionreset'),
-  )
+  const v2Model = (url: URL) => url.pathname === '/models/kanji/kanji.tflite' && url.searchParams.get('v') === 'v2'
+  await context.route(v2Model, (route) => route.abort('connectionreset'))
   await page.reload()
   await drawFixture(page, '十')
   await expect(firstCandidate(page)).toHaveText('十', { timeout: 30_000 })
@@ -126,6 +124,15 @@ test('a new model version cut off mid-download leaves the kept one working', asy
 
   await expect(firstCandidate(page)).toHaveText('口', { timeout: 30_000 })
   expect(await keptModelFiles(page)).toEqual(expect.arrayContaining(['/models/kanji/kanji.tflite?v=v1', '/models/kanji/labels.json?v=v1']))
+
+  // Back on a good connection, v2 is tried again, loads, and only then are v1's files deleted.
+  await context.unroute(v2Model)
+  network.offline = false
+  await context.setOffline(false)
+  await page.reload()
+  await drawFixture(page, '十')
+  await expect(firstCandidate(page)).toHaveText('十', { timeout: 30_000 })
+  await expect.poll(() => keptModelFiles(page)).toEqual(['/models/kanji/kanji.tflite?v=v2', '/models/kanji/labels.json?v=v2', '/models/kanji/version.json'])
 })
 
 test('reads a Drawing offline even when version.json can’t be had, from the version that last loaded', async ({ page, context }) => {

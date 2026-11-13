@@ -46,6 +46,9 @@ async function loadModel(): Promise<Loaded> {
       void keepOnly(version)
       return loaded
     } catch (error) {
+      // Said where it can be seen, as a release that can't load otherwise goes unnoticed: phones
+      // quietly keep using the version before it.
+      console.warn(`Kanji model ${version} couldn't load${version === versions.at(-1) ? '' : ', trying the last one that did'}`, error)
       failure = error
     }
   }
@@ -55,10 +58,18 @@ async function loadModel(): Promise<Loaded> {
 // The model and labels of `version`, requested with it (?v=), so a new release is fetched afresh
 // and labels and weights from different versions never mix (nando-server's ADR 0005).
 async function loadVersion(litert: typeof import('@litertjs/core'), version: string): Promise<Loaded> {
-  const [labels, model] = await Promise.all([
+  const [labelsResult, modelResult] = await Promise.allSettled([
     fetchJson<string[]>(`${MODEL_DIR}/labels.json?v=${version}`),
     litert.loadAndCompile(`${MODEL_DIR}/kanji.tflite?v=${version}`, { accelerator: 'wasm' }),
   ])
+  if (labelsResult.status === 'rejected') {
+    // The model may have compiled: it won't be used, so its memory is freed before trying another.
+    if (modelResult.status === 'fulfilled') modelResult.value.delete()
+    throw labelsResult.reason
+  }
+  if (modelResult.status === 'rejected') throw modelResult.reason
+  const labels = labelsResult.value
+  const model = modelResult.value
   return {
     labels,
     classify: async (input) => {
