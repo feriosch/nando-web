@@ -52,6 +52,11 @@ export function fakeApi(answers: Answers) {
   return { api: createApiClient({ baseUrl: 'https://api.example.com', fetch }), sent }
 }
 
+// The server's answer for pending Connector request `r1`: Claude asks, and returns to claude.ai.
+export const claudeAsking: Answers = {
+  'GET /auth/connect/r1': { status: 200, body: { clientName: 'Claude', redirectHost: 'claude.ai' } },
+}
+
 const noPasskeys: Passkeys = {
   get: () => Promise.reject(new Error('no Passkeys in these tests')),
   create: () => Promise.reject(new Error('no Passkeys in these tests')),

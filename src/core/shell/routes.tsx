@@ -31,7 +31,15 @@ export function createRoutes(registry: Registry): RouteObject[] {
     { path: '/sign-in', element: <SignedOut><SignIn /></SignedOut> },
     { path: '/enroll', element: <SignedOut><Enroll /></SignedOut> },
     // Approving a Connector, often in a browser with no Session: no tab bar, like sign-in.
-    { path: '/connect', element: <SignedOut><Consent /></SignedOut> },
+    // It says what the Connector can do as the Modules describe their Tools: Core doesn't know them.
+    {
+      path: '/connect',
+      element: (
+        <SignedOut>
+          <Consent toolsDescriptions={registry.modules.flatMap((module) => module.toolsDescription ?? [])} />
+        </SignedOut>
+      ),
+    },
     {
       path: '/',
       element: <Layout modules={registry.modules} />,

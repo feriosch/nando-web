@@ -33,6 +33,9 @@ export type Module = Contributions & {
   theme: string
   icon: ModuleIcon
   routes: RouteObject[]
+  // What the Module's Tools let a Connector do, if it has any, as the consent page goes on from "It
+  // will be able to", such as "search your Words and Kanji, and add and change your Words".
+  toolsDescription?: string
 }
 
 export type Registry = {

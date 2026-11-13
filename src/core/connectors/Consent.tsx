@@ -13,7 +13,7 @@ type ConnectRequest = { clientName: string; redirectHost: string }
 // The consent page, at /connect?request=<id>: the server's OAuth authorize sends the browser here
 // when the Owner adds Nando as a connector in an app such as Claude. It often opens in a browser
 // with no Session, so it needs none: it approves with a Passkey, without signing in.
-export function Consent() {
+export function Consent({ toolsDescriptions }: { toolsDescriptions: string[] }) {
   const api = useApi()
   const passkeys = usePasskeys()
   const leave = useLeave()
@@ -75,7 +75,7 @@ export function Consent() {
             <h1 className="my-0 font-display text-[28px] leading-[1.2] font-bold tracking-tight">
               {asking.clientName} wants to use Nando
             </h1>
-            <p className="my-0 text-[17px]">It will be able to search, add and change your Words, and use every other Tool Nando offers.</p>
+            <p className="my-0 text-[17px]">It will be able to {canDo(toolsDescriptions)}.</p>
             <p className="my-0 text-[15px] text-sub">
               Then back to <span className="font-semibold text-ink">{asking.redirectHost}</span>
             </p>
@@ -126,4 +126,12 @@ function describe(error: unknown, connectorName: string): string {
   if (error instanceof DOMException) return `Face ID didn't finish, so ${connectorName} wasn't allowed.`
   if (error instanceof ApiError && error.status === 401) return `This Passkey wasn't accepted, so ${connectorName} wasn't allowed.`
   return "Couldn't reach Nando. Try again."
+}
+
+// What a Connector can do, from what each Module says its Tools let it do, such as "search your
+// Words, and log your workouts". With no Module saying, simply every Tool.
+function canDo(descriptions: string[]): string {
+  if (descriptions.length === 0) return 'use every Tool Nando offers'
+  // A comma before each "and": a description can have its own "and", such as Japanese's.
+  return descriptions.length === 1 ? descriptions[0] : `${descriptions.slice(0, -1).join(', ')}, and ${descriptions.at(-1)}`
 }
