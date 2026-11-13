@@ -1,6 +1,6 @@
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fakeApi, noPush, renderApp, type Answers } from '../../test/app'
 import { createJapanese } from '.'
 
@@ -50,8 +50,8 @@ describe('Kanji Lookup', () => {
   it('tells what a kanji the Owner hasn’t stored is', async () => {
     renderLookup('/japanese/lookup/士', { [lookupOf('士')]: { status: 200, body: shi } })
 
-    expect(await screen.findByRole('heading', { level: 1, name: '士' })).toBeInTheDocument()
-    expect(screen.getByText('gentleman, scholar, samurai')).toBeInTheDocument()
+    expect(await screen.findByText('gentleman, scholar, samurai')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '士' })).toBeInTheDocument()
     expect(screen.getByText('Not one of your Kanji yet.')).toBeInTheDocument()
     expect(rowsOf('Readings')).toEqual(['Onシ', 'Kunさむらい'])
     expect(rowsOf('Details')).toEqual(['Strokes3', 'JōyōYes, grade 4', 'JLPTN1'])
@@ -72,7 +72,7 @@ describe('Kanji Lookup', () => {
     }
     renderLookup('/japanese/lookup/龘', { [lookupOf('龘')]: { status: 200, body: ryu } })
 
-    expect(await screen.findByRole('heading', { level: 1, name: '龘' })).toBeInTheDocument()
+    expect(await screen.findByText('appearance of a dragon')).toBeInTheDocument()
     expect(rowsOf('Readings')).toEqual(['Onトウ、ドウ'])
     expect(rowsOf('Details')).toEqual(['Strokes48', 'JōyōNo'])
     expect(screen.queryByRole('list', { name: 'Words' })).not.toBeInTheDocument()
@@ -106,7 +106,39 @@ describe('Kanji Lookup', () => {
     failing = false
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: '士' })).toBeInTheDocument()
+    expect(await screen.findByText('gentleman, scholar, samurai')).toBeInTheDocument()
+  })
+
+  it('says nothing is known, without Try again, for what the server won’t look up', async () => {
+    renderLookup('/japanese/lookup/abc', { [lookupOf('abc')]: { status: 400, body: 'kanji must be one kanji' } })
+
+    expect(await screen.findByText('Nothing is known about this kanji.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('shows which kanji it is about while it can’t be looked up', async () => {
+    renderLookup('/japanese/lookup/龘', { [lookupOf('龘')]: { status: 404, body: 'not known' } })
+
+    expect(await screen.findByText('Nothing is known about this kanji.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '龘' })).toBeInTheDocument()
+  })
+
+  it('takes whether it is jōyō from the server, the grade only for how', async () => {
+    renderLookup('/japanese/lookup/士', { [lookupOf('士')]: { status: 200, body: { ...shi, grade: 7, joyo: true } } })
+
+    expect(await screen.findByText('Yes, secondary school')).toBeInTheDocument()
+  })
+
+  it('lists two words spelled alike as two', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const otona = { word: '大人', reading: 'おとな', meanings: ['adult'] }
+    const taijin = { word: '大人', reading: 'たいじん', meanings: ['giant', 'man of virtue'] }
+    renderLookup('/japanese/lookup/士', { [lookupOf('士')]: { status: 200, body: { ...shi, words: [otona, taijin] } } })
+
+    await screen.findByRole('list', { name: 'Words' })
+    expect(rowsOf('Words')).toEqual(['大人おとなadult', '大人たいじんgiant, man of virtue'])
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/)
+    errors.mockRestore()
   })
 })
 
