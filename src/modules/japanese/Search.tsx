@@ -6,7 +6,7 @@ import { LoadProblem } from '../../core/shell/LoadProblem'
 import { lucideProps } from '../../core/ui/icons'
 import { EmptyNote } from '../../core/ui/Notice'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
-import { ScreenHeader } from '../../core/ui/ScreenHeader'
+import { HeaderLink, ScreenHeader } from '../../core/ui/ScreenHeader'
 import type { SearchResults } from './japanese'
 import { KanjiRowLink, WordRowLink } from './rows'
 
@@ -47,7 +47,7 @@ export function Search() {
 
   return (
     <>
-      <ScreenHeader title="Japanese" />
+      <ScreenHeader title="Japanese" actions={<HeaderLink to="/japanese/draw">Draw</HeaderLink>} />
       {/* A form so the keyboard's Search key puts the keyboard away, uncovering the results. */}
       <form
         role="search"

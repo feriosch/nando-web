@@ -125,3 +125,10 @@ export type Kanji = KanjiRow & {
   // Up to 50 Words spelled with it, shorter first.
   words: WordRow[]
 }
+
+// A stored Kanji that one of a Drawing's Candidates turned out to be, as GET /api/japanese/kanji?kanji=
+// answers it.
+export type CandidateKanji = KanjiRow & {
+  // Its number in Heisig's Remembering the Kanji, volume 1.
+  v1: number
+}
