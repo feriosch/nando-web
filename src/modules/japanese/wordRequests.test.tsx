@@ -244,3 +244,26 @@ describe('Asking Claude from Japanese search', () => {
     expect(within(strip).getByText('Waiting')).toBeInTheDocument()
   })
 })
+
+describe('When the server refuses', () => {
+  const asked = wordRequest({ id: 'r7', text: 'かける', state: 'needs_answer', question: 'Which かける?', choices: ['掛ける', '架ける'], attempts: 1 })
+  const gaveUp = wordRequest({ id: 'r8', text: 'たべたべ', state: 'failed', attempts: 3, summary: 'jisho.org has no such word.' })
+
+  it('says an answer did not go through', async () => {
+    const user = userEvent.setup()
+    renderJapanese('/japanese', { ...listing([asked]), 'POST /api/japanese/word-requests/r7/answer': { status: 500, body: 'oops' } })
+
+    await user.click(within(await screen.findByRole('list', { name: 'Pending' })).getByRole('button', { name: '掛ける' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't send your answer. Try again.")
+  })
+
+  it('says a retry did not go through', async () => {
+    const user = userEvent.setup()
+    renderJapanese('/japanese', { ...listing([gaveUp]), 'POST /api/japanese/word-requests/r8/retry': { status: 500, body: 'oops' } })
+
+    await user.click(within(await screen.findByRole('list', { name: 'Pending' })).getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't retry. Try again.")
+  })
+})

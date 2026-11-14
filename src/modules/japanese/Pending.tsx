@@ -79,6 +79,7 @@ function Failed({ request }: { request: WordRequest }) {
           Retry
         </Button>
       </div>
+      {retry.isError && <Refused>Couldn't retry. Try again.</Refused>}
     </Row>
   )
 }
@@ -90,17 +91,20 @@ function Question({ request }: { request: WordRequest }) {
   const [other, setOther] = useState<string | null>(null)
   const fieldId = useId()
   const send = (text: string) => answer.mutate({ id: request.id, answer: text })
+  // Once answered, it stays so until the strip reloads and shows it waiting again: a second tap
+  // would only be refused.
+  const busy = answer.isPending || answer.isSuccess
   return (
     <Row text={request.text}>
       <p className="my-0 text-[15px]">{request.question}</p>
       <div className="mt-2 flex flex-wrap gap-2">
-        {request.choices.map((choice) => (
-          <Button key={choice} isDisabled={answer.isPending} onPress={() => send(choice)}>
+        {request.choices.map((choice, index) => (
+          <Button key={index} isDisabled={busy} onPress={() => send(choice)}>
             <span lang="ja">{choice}</span>
           </Button>
         ))}
         {other === null && (
-          <Button isDisabled={answer.isPending} onPress={() => setOther('')}>
+          <Button isDisabled={busy} onPress={() => setOther('')}>
             Other…
           </Button>
         )}
@@ -126,12 +130,22 @@ function Question({ request }: { request: WordRequest }) {
             placeholder="Your answer"
             className="m-0 min-h-11 min-w-0 flex-1 rounded-[12px] border-0 bg-fill px-3 py-0 text-[16px] text-ink outline-none placeholder:text-sub/70"
           />
-          <Button type="submit" variant="accent" isDisabled={answer.isPending || other.trim() === ''}>
+          <Button type="submit" variant="accent" isDisabled={busy || other.trim() === ''}>
             Send
           </Button>
         </form>
       )}
+      {answer.isError && <Refused>Couldn't send your answer. Try again.</Refused>}
     </Row>
+  )
+}
+
+// Why something the Owner did on a row didn't go through, under the row's buttons.
+function Refused({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="mt-2 mb-0 text-[15px] text-sub">
+      {children}
+    </p>
   )
 }
 
