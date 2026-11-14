@@ -69,8 +69,9 @@ const noPasskeys: Passkeys = {
 }
 
 // This device's Notification permission and Push Subscription, faked: `subscribe` hands back
-// `subscribed` once the permission is granted. Records each permission request and the VAPID key
-// each subscribe was given.
+// `subscribed` once the permission is granted, or, as a browser does, the Push Subscription this
+// device already holds. Records each permission request, the VAPID key each subscribe was given, and
+// how often the Push Subscription was unsubscribed.
 export function fakePush({
   supported = true,
   permission = 'default',
@@ -85,7 +86,7 @@ export function fakePush({
   answerPermission?: NotificationPermission
   subscribed?: PushSubscriptionJSON
 } = {}) {
-  const calls = { permissionRequests: 0, subscribedWith: [] as string[] }
+  const calls = { permissionRequests: 0, subscribedWith: [] as string[], unsubscribed: 0 }
   let current = subscription
   const push: Push = {
     supported: () => supported,
@@ -99,8 +100,12 @@ export function fakePush({
     subscribe: async (vapidPublicKey) => {
       calls.subscribedWith.push(vapidPublicKey)
       if (permission !== 'granted') throw new DOMException('Permission not granted.', 'NotAllowedError')
-      current = subscribed
-      return subscribed
+      current ??= subscribed
+      return current
+    },
+    unsubscribe: async () => {
+      if (current) calls.unsubscribed++
+      current = null
     },
   }
   // The Owner changes the permission in the device's settings, outside Nando.

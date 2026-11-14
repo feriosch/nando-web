@@ -1,7 +1,7 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { fakeApi, fakePush, renderApp, type Answer, type Answers } from '../../test/app'
+import { fakeApi, fakePush, renderApp, type Answer, type Answers, type Sent } from '../../test/app'
 
 const vapidKey = { 'GET /api/push-subscriptions/vapid-public-key': { status: 200, body: { publicKey: 'BNcV' } } }
 
@@ -176,6 +176,104 @@ describe('Notifications Settings Section', () => {
 
     expect(await within(section).findByRole('button', { name: 'Enable Notifications' })).toBeInTheDocument()
     expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  describe('a Push Subscription its push service forgot', () => {
+    // Still held by the browser, though its push service no longer knows it.
+    const forgotten = { endpoint: 'https://web.push.apple.com/Zk9a', expirationTime: null, keys: { p256dh: 'BPq2', auth: 'Mn4x' } }
+    const fresh = { endpoint: 'https://web.push.apple.com/QGxt', expirationTime: null, keys: { p256dh: 'BOrK', auth: 'Ys5w' } }
+    // Core registering a Push Subscription, but refusing the forgotten one, as it does once a send removed it.
+    const refusingForgotten = (body: unknown): Answer =>
+      (body as { endpoint: string }).endpoint === forgotten.endpoint
+        ? { status: 410, body: 'its push service no longer knows this Push Subscription: subscribe afresh' }
+        : { status: 204 }
+
+    // The Push Subscriptions registered with Core, in order.
+    const registered = (sent: Sent[]) =>
+      sent.filter((request) => request.method === 'POST' && request.path === '/api/push-subscriptions').map((request) => request.body)
+
+    it('is unsubscribed and replaced by a fresh one when Settings opens, without asking again', async () => {
+      const { api, sent } = fakeApi({ ...vapidKey, 'POST /api/push-subscriptions': refusingForgotten })
+      const { push, calls } = fakePush({ permission: 'granted', subscription: forgotten, subscribed: fresh })
+      renderApp('/settings', api, push)
+
+      const section = await notificationsSection()
+      expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
+      expect(calls.permissionRequests).toBe(0)
+      expect(calls.unsubscribed).toBe(1)
+      expect(calls.subscribedWith).toEqual(['BNcV'])
+      expect(registered(sent)).toEqual([forgotten, fresh])
+      expect(await push.subscription()).toEqual(fresh)
+    })
+
+    it('is replaced by a fresh one when Enable Notifications hands it back', async () => {
+      const user = userEvent.setup()
+      const { api, sent } = fakeApi({ ...vapidKey, 'POST /api/push-subscriptions': refusingForgotten })
+      // Turned off and on again in the device's settings: the browser kept the Push Subscription.
+      const { push, calls } = fakePush({ permission: 'default', subscription: forgotten, subscribed: fresh })
+      renderApp('/settings', api, push)
+
+      const section = await notificationsSection()
+      await user.click(await within(section).findByRole('button', { name: 'Enable Notifications' }))
+
+      expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
+      expect(calls.permissionRequests).toBe(1)
+      expect(calls.unsubscribed).toBe(1)
+      expect(registered(sent)).toEqual([forgotten, fresh])
+    })
+
+    it('is replaced once a test Notification removes it, while the test says what it removed', async () => {
+      const user = userEvent.setup()
+      let removedByTest = false
+      const { api, sent } = fakeApi({
+        ...vapidKey,
+        'POST /api/push-subscriptions': (body) => (removedByTest ? refusingForgotten(body) : { status: 204 }),
+        'POST /api/push-subscriptions/test': () => {
+          removedByTest = true
+          return { status: 200, body: { sent: 1, removed: 1, failed: [] } }
+        },
+      })
+      const { push, calls } = fakePush({ permission: 'granted', subscription: forgotten, subscribed: fresh })
+      renderApp('/settings', api, push)
+      const section = await notificationsSection()
+      await deviceStatus(section)
+
+      await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
+
+      await within(section).findByText('Removed 1 device that no longer gets Notifications.')
+      await waitFor(() => expect(registered(sent)).toEqual([forgotten, forgotten, fresh]))
+      expect(calls.unsubscribed).toBe(1)
+      expect(calls.permissionRequests).toBe(0)
+      expect(await deviceStatus(section)).toHaveTextContent('This deviceOn')
+      expect(within(section).getByRole('status')).toHaveTextContent('Sent to 1 device.')
+    })
+
+    it("isn't looked for after a test Notification that removed nothing", async () => {
+      const user = userEvent.setup()
+      const { api, sent } = fakeApi({
+        'POST /api/push-subscriptions': { status: 204 },
+        'POST /api/push-subscriptions/test': { status: 200, body: { sent: 1, removed: 0, failed: [] } },
+      })
+      const { push } = fakePush({ permission: 'granted', subscription: fresh })
+      renderApp('/settings', api, push)
+      const section = await notificationsSection()
+      await deviceStatus(section)
+
+      await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
+
+      await within(section).findByText('Sent to 1 device.')
+      expect(registered(sent)).toEqual([fresh])
+    })
+
+    it("says Notifications couldn't be checked when Core refuses the fresh one too, and subscribes afresh only once", async () => {
+      const { api } = fakeApi({ ...vapidKey, 'POST /api/push-subscriptions': { status: 410 } })
+      const { push, calls } = fakePush({ permission: 'granted', subscription: forgotten, subscribed: fresh })
+      renderApp('/settings', api, push)
+
+      const section = await notificationsSection()
+      expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't check Notifications on this device.")
+      expect(calls.subscribedWith).toEqual(['BNcV'])
+    })
   })
 
   describe('Send a test Notification', () => {
