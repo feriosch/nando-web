@@ -3,10 +3,15 @@ import { Search as SearchGlass } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
+import { Button } from '../../core/ui/Button'
 import { lucideProps } from '../../core/ui/icons'
 import { EmptyNote } from '../../core/ui/Notice'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
+import { Sheet } from '../../core/ui/Sheet'
+import { useLastShown } from '../../core/ui/useLastShown'
 import { HeaderLink, ScreenHeader } from '../../core/ui/ScreenHeader'
+import { AddWithClaudeForm, AskedStatus } from './withClaude'
+import type { Asked } from './wordRequests'
 import type { SearchResults } from './japanese'
 import { KanjiRowLink, WordRowLink } from './rows'
 
@@ -36,6 +41,12 @@ export function Search() {
     enabled: q !== '',
     placeholderData: keepPreviousData,
   })
+  // The text the "Add with Claude" sheet is open for.
+  const [adding, setAdding] = useState<string | null>(null)
+  const shownAdding = useLastShown(adding)
+  // What came of the last ask, and the search it was made from: said in place of the offer while
+  // that search is on view.
+  const [asked, setAsked] = useState<(Asked & { search: string }) | null>(null)
   const wordsId = useId()
   const kanjiId = useId()
   // A cleared field shows the hint at once, without waiting for the pause.
@@ -43,7 +54,8 @@ export function Search() {
   const failed = !empty && q !== '' && search.isError
   const results = empty || q === '' || failed ? undefined : search.data
   // Said only once the answer is for what's in the field, not the one before it.
-  const foundNothing = results !== undefined && !search.isPlaceholderData && results.words.length === 0 && results.kanji.length === 0
+  const foundNoWord = results !== undefined && !search.isPlaceholderData && results.words.length === 0
+  const foundNothing = foundNoWord && results.kanji.length === 0
 
   return (
     <>
@@ -79,6 +91,18 @@ export function Search() {
       {empty && <EmptyNote>Search your Words and Kanji in kanji, kana or Spanish.</EmptyNote>}
       {failed && <LoadProblem message="Couldn't search." retry={() => search.refetch()} />}
       {foundNothing && <EmptyNote>Nothing found for “{q}”.</EmptyNote>}
+      {foundNoWord &&
+        (asked?.search === q ? (
+          <AskedStatus asked={asked} className="mx-4 my-2">
+            add 「<span lang="ja">{asked.wordRequest.text}</span>」
+          </AskedStatus>
+        ) : (
+          <div className="mx-4 my-3">
+            <Button variant="accent" onPress={() => setAdding(q)}>
+              Add 「<span lang="ja">{q}</span>」 with Claude
+            </Button>
+          </div>
+        ))}
       {results && results.words.length > 0 && (
         <>
           <SectionHeader id={wordsId}>Words</SectionHeader>
@@ -103,6 +127,18 @@ export function Search() {
           </GroupedList>
         </>
       )}
+      <Sheet isOpen={adding !== null} onOpenChange={(open) => !open && setAdding(null)} title="Add with Claude">
+        {shownAdding !== null && (
+          <AddWithClaudeForm
+            key={shownAdding}
+            text={shownAdding}
+            done={(result) => {
+              setAsked({ ...result, search: shownAdding })
+              setAdding(null)
+            }}
+          />
+        )}
+      </Sheet>
     </>
   )
 }
