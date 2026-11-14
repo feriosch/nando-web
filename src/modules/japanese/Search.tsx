@@ -10,7 +10,7 @@ import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { Sheet } from '../../core/ui/Sheet'
 import { useLastShown } from '../../core/ui/useLastShown'
 import { HeaderLink, ScreenHeader } from '../../core/ui/ScreenHeader'
-import { AddWithClaudeForm } from './withClaude'
+import { AddWithClaudeForm, AskedStatus } from './withClaude'
 import type { Asked } from './wordRequests'
 import type { SearchResults } from './japanese'
 import { KanjiRowLink, WordRowLink } from './rows'
@@ -93,10 +93,9 @@ export function Search() {
       {foundNothing && <EmptyNote>Nothing found for “{q}”.</EmptyNote>}
       {foundNoWord &&
         (asked?.search === q ? (
-          <p role="status" className="mx-4 my-2 text-[15px] text-sub">
-            {asked.alreadyAsked ? 'Already asked' : 'Asked'} Claude to add 「<span lang="ja">{asked.wordRequest.text}</span>」
-            {asked.alreadyAsked ? ', still waiting.' : '.'}
-          </p>
+          <AskedStatus asked={asked} className="mx-4 my-2">
+            add 「<span lang="ja">{asked.wordRequest.text}</span>」
+          </AskedStatus>
         ) : (
           <div className="mx-4 my-3">
             <Button variant="accent" onPress={() => setAdding(q)}>

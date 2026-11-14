@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '../../core/ui/Button'
 import { FieldRow } from '../../core/ui/FieldRow'
 import { GroupedList } from '../../core/ui/List'
@@ -37,10 +37,23 @@ export function AddWithClaudeForm({ text: typed, done }: { text: string; done: (
         <FieldRow label="Word" value={text} onChange={setText} maxLength={100} lang="ja" />
         <PickerRow label="Group" value={group} options={groups} onChange={setGroup} />
       </GroupedList>
-      <Button type="submit" variant="accent" size="large" className="mt-4" isDisabled={ask.isPending}>
+      <Button type="submit" variant="accent" size="large" className="mt-4" isDisabled={ask.isPending || text.trim() === ''}>
         Add
       </Button>
     </form>
+  )
+}
+
+// What came of asking Claude about `children` (such as "add 「食べた」"): asked, or already asked
+// and waiting on Claude, or already asked and waiting on the Owner's answer to Claude's question.
+export function AskedStatus({ asked, className, children }: { asked: Asked; className: string; children: ReactNode }) {
+  let ending = '.'
+  if (asked.alreadyAsked) ending = asked.wordRequest.state === 'needs_answer' ? ': it has a question for you.' : ', still waiting.'
+  return (
+    <p role="status" className={`${className} text-[15px] text-sub`}>
+      {asked.alreadyAsked ? 'Already asked' : 'Asked'} Claude to {children}
+      {ending}
+    </p>
   )
 }
 
@@ -71,10 +84,9 @@ export function ImproveWithClaude({ word }: { word: { id: string; word: string }
   const ask = useAskClaude()
   if (ask.isSuccess) {
     return (
-      <p role="status" className="mx-4 my-4 text-[15px] text-sub">
-        {ask.data.alreadyAsked ? 'Already asked' : 'Asked'} Claude to improve <span lang="ja">{word.word}</span>
-        {ask.data.alreadyAsked ? ', still waiting.' : '.'}
-      </p>
+      <AskedStatus asked={ask.data} className="mx-4 my-4">
+        improve <span lang="ja">{word.word}</span>
+      </AskedStatus>
     )
   }
   const improve = () => ask.mutate({ kind: 'improve', wordId: word.id })

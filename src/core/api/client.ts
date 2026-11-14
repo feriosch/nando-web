@@ -51,12 +51,16 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
     return response
   }
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const response = await send(method, path, body)
+  // The body of a response that went through: none for 204, else its JSON.
+  async function bodyOf<T>(response: Response): Promise<T> {
     if (response.status === 204) {
       return undefined as T
     }
     return (await response.json()) as T
+  }
+
+  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    return bodyOf<T>(await send(method, path, body))
   }
 
   return {
@@ -64,7 +68,7 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
     post: (path, body) => request('POST', path, body),
     async postWithStatus(path, body) {
       const response = await send('POST', path, body)
-      return { status: response.status, body: await response.json() }
+      return { status: response.status, body: await bodyOf(response) }
     },
     put: (path, body) => request('PUT', path, body),
     delete: (path) => request('DELETE', path),

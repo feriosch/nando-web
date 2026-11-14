@@ -123,7 +123,8 @@ export function WordPage() {
           ))}
         </Section>
       )}
-      <ImproveWithClaude word={w} />
+      {/* Keyed by Word: going to another Word's cached page must not keep what was asked about this one. */}
+      <ImproveWithClaude key={w.id} word={w} />
     </>
   )
 }
