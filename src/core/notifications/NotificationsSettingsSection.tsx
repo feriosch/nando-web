@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, type ReactNode } from 'react'
 import { useApi, usePush } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
+import { Button } from '../ui/Button'
 import { pillClasses } from '../ui/pill'
 import { GroupedList, ListRow } from '../ui/List'
 import type { PushSubscriptionJSON } from './push'
@@ -75,7 +76,14 @@ export function NotificationsSettingsSection() {
       />
     )
   }
-  if (device.data.subscription) return <DeviceStatus on />
+  if (device.data.subscription) {
+    return (
+      <>
+        <DeviceStatus on />
+        <TestNotification />
+      </>
+    )
+  }
   return (
     <>
       <DeviceStatus
@@ -115,4 +123,69 @@ function thisDevice(): string {
   if (/iPhone/.test(userAgent)) return 'This iPhone'
   if (/iPad/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1)) return 'This iPad'
   return 'This device'
+}
+
+// What Core answers about the test Notification it sent to every Push Subscription.
+type TestNotificationResult = {
+  sent: number
+  removed: number
+  failed: { pushService: string; status?: number; reason: string }[]
+}
+
+// The button that sends a test Notification to every device that gets them, and what came of it under it.
+function TestNotification() {
+  const api = useApi()
+  // Set straight from the tap, so a quick second tap can't send again before `isPending` reaches
+  // the button.
+  const sending = useRef(false)
+  const send = useMutation({
+    mutationFn: () => api.post<TestNotificationResult>('/api/push-subscriptions/test'),
+    onSettled: () => {
+      sending.current = false
+    },
+  })
+
+  function tapSend() {
+    if (sending.current) return
+    sending.current = true
+    send.mutate()
+  }
+  return (
+    <div className="mt-3">
+      <Button size="large" isDisabled={send.isPending} onPress={tapSend}>
+        {send.isPending ? 'Sending…' : 'Send a test Notification'}
+      </Button>
+      {send.isSuccess && (
+        <div role="status" className="mx-4 mt-1.5 text-[13px] text-sub">
+          <p className="my-0">Sent to {devices(send.data.sent)}.</p>
+          {send.data.removed > 0 && (
+            <p className="my-0">
+              Removed {devices(send.data.removed)} that no longer {send.data.removed === 1 ? 'gets' : 'get'} Notifications.
+            </p>
+          )}
+          {send.data.failed.map((failure, i) => (
+            <p key={i} className="my-0">
+              Couldn't reach {pushServiceName(failure.pushService)}
+              {failure.status ? ` (${failure.status})` : ''}.
+            </p>
+          ))}
+        </div>
+      )}
+      {send.isError && <LoadProblem message="Couldn't send the test Notification." retry={tapSend} />}
+    </div>
+  )
+}
+
+// "1 device" or "2 devices".
+function devices(count: number): string {
+  return count === 1 ? '1 device' : `${count} devices`
+}
+
+// The push service at `host`, by whose it is where Nando knows it ("Apple's push service"), else by its host.
+function pushServiceName(host: string): string {
+  if (host === 'web.push.apple.com') return "Apple's push service"
+  if (host === 'fcm.googleapis.com') return "Google's push service"
+  if (host === 'updates.push.services.mozilla.com') return "Mozilla's push service"
+  if (host.endsWith('.notify.windows.com')) return "Microsoft's push service"
+  return host
 }
