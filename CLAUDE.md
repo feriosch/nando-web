@@ -19,3 +19,7 @@ Nando's main phone is the **iPhone 17** (402×874 pt, @3x), running Nando as a H
 ## Design
 
 Build and restyle every screen with the `nando-design` skill (`.claude/skills/nando-design/`): themes, tokens, the shell's building blocks, motion.
+
+## Google Cloud
+
+Nando runs in the GCP project **`benkyo-ferios`**, region **`asia-northeast1`**, as the Cloud Run service `nando-web` beside `nando-server`. Use them in every `gcloud` command (`--project benkyo-ferios`, `--region asia-northeast1`) instead of asking the Owner. The server's `CLAUDE.md` lists what else lives there.
