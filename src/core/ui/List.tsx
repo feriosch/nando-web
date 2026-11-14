@@ -27,6 +27,9 @@ export function SectionHeader({
   )
 }
 
+// The look of a grouped list's footer, for text that explains something right above it the same way.
+export const footerClasses = 'mx-4 mt-1.5 text-[13px] text-sub'
+
 // The grouped inset list: rows on the surface colour, 14px corners, hairline separators. Its 16px
 // side margins are the screen's own padding. An optional footer explains the rows, under the list.
 // `as="ul"` makes it a list (named by `labelledBy`), its rows `ListRow as="li"`. Inside a tint (an
@@ -51,7 +54,7 @@ export function GroupedList({
       >
         {children}
       </List>
-      {footer && <div className="mx-4 mt-1.5 text-[13px] text-sub">{footer}</div>}
+      {footer && <div className={footerClasses}>{footer}</div>}
     </div>
   )
 }
