@@ -6,6 +6,9 @@ export type ApiClientOptions = {
 export type ApiClient = {
   get<T>(path: string): Promise<T>
   post<T>(path: string, body?: unknown): Promise<T>
+  // POSTs, and says which 2xx the server answered with, for a route where it means something, such
+  // as 201 for a new Word Request and 200 for one already there.
+  postWithStatus<T>(path: string, body?: unknown): Promise<{ status: number; body: T }>
   put<T>(path: string, body: unknown): Promise<T>
   delete<T>(path: string): Promise<T>
   // GETs a file, such as the JLPT deck: named from the response's Content-Disposition (else the
@@ -59,6 +62,10 @@ export function createApiClient({ baseUrl, fetch = globalThis.fetch }: ApiClient
   return {
     get: (path) => request('GET', path),
     post: (path, body) => request('POST', path, body),
+    async postWithStatus(path, body) {
+      const response = await send('POST', path, body)
+      return { status: response.status, body: await response.json() }
+    },
     put: (path, body) => request('PUT', path, body),
     delete: (path) => request('DELETE', path),
     async file(path) {

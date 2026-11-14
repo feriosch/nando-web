@@ -6,6 +6,7 @@ import { LoadProblem } from '../../core/shell/LoadProblem'
 import { lucideProps } from '../../core/ui/icons'
 import { GroupedList, ListRow } from '../../core/ui/List'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
+import { ImproveWithClaude } from './withClaude'
 import { Chip, Chips } from './chips'
 import { typeOf, words, type Hint, type Word, type WordLink, type WordLinkKind } from './japanese'
 import { KanjiRowLink, rowLinkClasses, WordLines } from './rows'
@@ -122,6 +123,7 @@ export function WordPage() {
           ))}
         </Section>
       )}
+      <ImproveWithClaude word={w} />
     </>
   )
 }
