@@ -18,7 +18,8 @@ type WordRow = { id: string; word: string; hiragana: string | null; spanish: str
 type KanjiRow = { id: string; kanji: string; spanish: string }
 
 function renderJapanese(path: string, answers: Answers) {
-  const fake = fakeApi(answers)
+  // Japanese search also lists the Owner's Word Requests: none, unless a test says otherwise.
+  const fake = fakeApi({ 'GET /api/japanese/word-requests': { status: 200, body: [] }, ...answers })
   const router = renderApp(path, fake.api, noPush, [japanese])
   return { ...fake, router }
 }

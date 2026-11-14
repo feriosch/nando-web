@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { fakeApi, noPush, renderApp, type Answers } from '../../test/app'
@@ -142,8 +142,8 @@ describe('Pending strip', () => {
       '架ける (to call)',
       'Other…',
     ])
-    expect(failed).toHaveTextContent(/^ぎゃふんCouldn't addjisho.org has no word ぎゃふん\.Retry$/)
-    expect(failedImprove).toHaveTextContent(/^明日Couldn't improveRetry$/)
+    expect(failed).toHaveTextContent(/^ぎゃふんCouldn't addjisho.org has no word ぎゃふん\.ClearRetry$/)
+    expect(failedImprove).toHaveTextContent(/^明日Couldn't improveClearRetry$/)
   })
 
   it('opens a done one with what Claude did and suggests, dismisses it, and opens its Word', async () => {
@@ -265,5 +265,39 @@ describe('When the server refuses', () => {
     await user.click(within(await screen.findByRole('list', { name: 'Pending' })).getByRole('button', { name: 'Retry' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't retry. Try again.")
+  })
+})
+
+describe('Clearing and loading', () => {
+  const gaveUp = wordRequest({ id: 'r8', text: 'たべたべ', state: 'failed', attempts: 3, summary: 'jisho.org has no such word.' })
+
+  it('clears a failed Word Request from the strip', async () => {
+    const user = userEvent.setup()
+    let stored = [gaveUp]
+    const { sent } = renderJapanese('/japanese', {
+      'GET /api/japanese/word-requests': () => ({ status: 200, body: stored }),
+      'POST /api/japanese/word-requests/r8/dismiss': () => {
+        stored = []
+        return { status: 200, body: gaveUp }
+      },
+    })
+
+    await user.click(within(await screen.findByRole('list', { name: 'Pending' })).getByRole('button', { name: 'Clear' }))
+
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Pending' })).not.toBeInTheDocument())
+    expect(sent.filter((request) => request.method === 'POST').map((request) => request.path)).toEqual(['/api/japanese/word-requests/r8/dismiss'])
+  })
+
+  it("says the Word Requests couldn't load, and loads them again", async () => {
+    const user = userEvent.setup()
+    let loads = 0
+    renderJapanese('/japanese', {
+      'GET /api/japanese/word-requests': () => (++loads === 1 ? { status: 500, body: 'oops' } : { status: 200, body: [gaveUp] }),
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }))
+
+    expect(screen.queryByText("Couldn't load your Word Requests.")).not.toBeInTheDocument()
+    expect(within(await screen.findByRole('list', { name: 'Pending' })).getByText('たべたべ')).toBeInTheDocument()
   })
 })

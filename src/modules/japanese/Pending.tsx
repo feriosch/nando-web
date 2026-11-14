@@ -1,7 +1,9 @@
 import { ChevronRight } from 'lucide-react'
-import { useId, useState, type ReactNode } from 'react'
+import { onlineManager } from '@tanstack/react-query'
+import { useId, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Button as AriaButton } from 'react-aria-components'
 import { Link } from 'react-router'
+import { LoadProblem } from '../../core/shell/LoadProblem'
 import { Button } from '../../core/ui/Button'
 import { lucideProps } from '../../core/ui/icons'
 import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
@@ -12,10 +14,13 @@ import { useAnswerWordRequest, useDismissWordRequest, useRetryWordRequest, useWo
 import { rowLinkClasses } from './rows'
 
 // The Pending strip at the top of Japanese search: the Owner's Word Requests, newest first, each as
-// it stands. Shown only when there are some; a list that couldn't load shows nothing either, as the
-// search under it is what the screen is for. A done one opens in a sheet, which dismisses it.
+// it stands. Shown only when there are some. A list that couldn't load says so, with Try again (a
+// Notification about a question or a failure lands here), unless offline. A done one opens in a sheet, which
+// dismisses it.
 export function Pending() {
   const wordRequests = useWordRequests()
+  // Offline, the list loads again by itself once back online, and the search says it is offline.
+  const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline())
   const dismiss = useDismissWordRequest()
   const [opened, setOpened] = useState<WordRequest | null>(null)
   const id = useId()
@@ -26,6 +31,7 @@ export function Pending() {
   const requests = wordRequests.data ?? []
   return (
     <>
+      {wordRequests.isError && online && <LoadProblem message="Couldn't load your Word Requests." retry={() => wordRequests.refetch()} />}
       {requests.length > 0 && (
         <>
           <SectionHeader id={id}>Pending</SectionHeader>
@@ -65,9 +71,11 @@ function PendingRow({ request, open }: { request: WordRequest; open: () => void 
   }
 }
 
-// A Word Request Claude gave up on: why, when it says, and Retry.
+// A Word Request Claude gave up on: why, when it says, Retry, and Clear to take it off the strip.
 function Failed({ request }: { request: WordRequest }) {
   const retry = useRetryWordRequest()
+  const clear = useDismissWordRequest()
+  const busy = retry.isPending || clear.isPending
   return (
     <Row text={request.text}>
       <div className="flex items-center gap-3">
@@ -75,11 +83,15 @@ function Failed({ request }: { request: WordRequest }) {
           <p className="my-0 text-[15px]">{request.kind === 'add' ? "Couldn't add" : "Couldn't improve"}</p>
           {request.summary && <p className="my-0 text-[15px] text-sub">{request.summary}</p>}
         </div>
-        <Button isDisabled={retry.isPending} onPress={() => retry.mutate(request.id)}>
+        <Button isDisabled={busy} onPress={() => clear.mutate(request.id)}>
+          Clear
+        </Button>
+        <Button isDisabled={busy} onPress={() => retry.mutate(request.id)}>
           Retry
         </Button>
       </div>
       {retry.isError && <Refused>Couldn't retry. Try again.</Refused>}
+      {clear.isError && <Refused>Couldn't clear it. Try again.</Refused>}
     </Row>
   )
 }
