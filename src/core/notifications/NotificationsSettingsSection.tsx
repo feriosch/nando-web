@@ -4,7 +4,7 @@ import { useApi, usePush } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import { Button } from '../ui/Button'
 import { pillClasses } from '../ui/pill'
-import { GroupedList, ListRow } from '../ui/List'
+import { footerClasses, GroupedList, ListRow } from '../ui/List'
 import type { PushSubscriptionJSON } from './push'
 
 // This device's Notification permission and, while it is granted, its Push Subscription.
@@ -31,9 +31,7 @@ export function NotificationsSettingsSection() {
     },
     enabled: supported,
   })
-  // Set straight from the tap, so a quick second tap can't start a second subscribe before
-  // `isPending` reaches the button.
-  const enabling = useRef(false)
+  const enabling = useOneAtATime()
   const enable = useMutation({
     mutationFn: async (asked: Promise<NotificationPermission>): Promise<DeviceNotifications> => {
       const permission = await asked
@@ -44,15 +42,11 @@ export function NotificationsSettingsSection() {
       return { permission, subscription }
     },
     onSuccess: (enabled) => queryClient.setQueryData(['push-subscription'], enabled),
-    onSettled: () => {
-      enabling.current = false
-    },
+    onSettled: enabling.done,
   })
 
   function tapEnable() {
-    if (enabling.current) return
-    enabling.current = true
-    enable.mutate(push.requestPermission())
+    enabling.start(() => enable.mutate(push.requestPermission()))
   }
 
   // On iPhone, Safari can't get Notifications; Nando added to the Home Screen can.
@@ -135,45 +129,66 @@ type TestNotificationResult = {
 // The button that sends a test Notification to every device that gets them, and what came of it under it.
 function TestNotification() {
   const api = useApi()
-  // Set straight from the tap, so a quick second tap can't send again before `isPending` reaches
-  // the button.
-  const sending = useRef(false)
+  const sending = useOneAtATime()
   const send = useMutation({
     mutationFn: () => api.post<TestNotificationResult>('/api/push-subscriptions/test'),
-    onSettled: () => {
-      sending.current = false
-    },
+    onSettled: sending.done,
   })
 
   function tapSend() {
-    if (sending.current) return
-    sending.current = true
-    send.mutate()
+    sending.start(() => send.mutate())
   }
   return (
     <div className="mt-3">
       <Button size="large" isDisabled={send.isPending} onPress={tapSend}>
         {send.isPending ? 'Sending…' : 'Send a test Notification'}
       </Button>
-      {send.isSuccess && (
-        <div role="status" className="mx-4 mt-1.5 text-[13px] text-sub">
-          <p className="my-0">Sent to {devices(send.data.sent)}.</p>
-          {send.data.removed > 0 && (
-            <p className="my-0">
-              Removed {devices(send.data.removed)} that no longer {send.data.removed === 1 ? 'gets' : 'get'} Notifications.
-            </p>
-          )}
-          {send.data.failed.map((failure, i) => (
-            <p key={i} className="my-0">
-              Couldn't reach {pushServiceName(failure.pushService)}
-              {failure.status ? ` (${failure.status})` : ''}.
-            </p>
-          ))}
-        </div>
-      )}
+      {/* Always there, so a screen reader reads out the result when it fills in. */}
+      <div role="status" className={send.isSuccess ? footerClasses : undefined}>
+        {send.isSuccess && (
+          <>
+            <p className="my-0">Sent to {devices(send.data.sent)}.</p>
+            {send.data.removed > 0 && (
+              <p className="my-0">
+                Removed {devices(send.data.removed)} that no longer {send.data.removed === 1 ? 'gets' : 'get'} Notifications.
+              </p>
+            )}
+            {send.data.failed.map((failure, i) => (
+              <p key={i} className="my-0">
+                {failureSentence(failure)}
+              </p>
+            ))}
+          </>
+        )}
+      </div>
       {send.isError && <LoadProblem message="Couldn't send the test Notification." retry={tapSend} />}
     </div>
   )
+}
+
+// What one failed push service means for the Owner. One that answered 404 or 410 was reached, but no
+// longer knows the device, which Core couldn't remove this time and removes at the next send.
+function failureSentence({ pushService, status }: TestNotificationResult['failed'][number]): string {
+  const name = pushServiceName(pushService)
+  if (status === 404 || status === 410) return `${name} no longer knows 1 device. Nando removes it next time.`
+  return `Couldn't reach ${name}${status ? ` (${status})` : ''}.`
+}
+
+// A guard for a button whose work must not start twice: `start` runs only while the last run is
+// done. It is set straight from the tap, so a quick second tap can't start again before the
+// mutation's `isPending` reaches the button; pass `done` as the mutation's `onSettled`.
+function useOneAtATime() {
+  const busy = useRef(false)
+  return {
+    start(run: () => void) {
+      if (busy.current) return
+      busy.current = true
+      run()
+    },
+    done: () => {
+      busy.current = false
+    },
+  }
 }
 
 // "1 device" or "2 devices".

@@ -194,16 +194,66 @@ describe('Notifications Settings Section', () => {
       return { section, sent }
     }
 
+    // The result under the button, once Core has answered: the live region is there before it fills in.
+    async function resultOf(section: HTMLElement) {
+      await within(section).findByText(/^Sent to /)
+      return within(section).getByRole('status')
+    }
+
     it('sends the test Notification to every device and says how many got it', async () => {
       const user = userEvent.setup()
       const { section, sent } = await subscribedDevice({ status: 200, body: { sent: 2, removed: 0, failed: [] } })
 
       await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
 
-      expect(await within(section).findByRole('status')).toHaveTextContent('Sent to 2 devices.')
+      expect(await resultOf(section)).toHaveTextContent('Sent to 2 devices.')
       expect(sent.filter((request) => request.path === '/api/push-subscriptions/test')).toEqual([
         { method: 'POST', path: '/api/push-subscriptions/test', body: undefined },
       ])
+    })
+
+    it('has its result read out: the live region is there, empty, before the first send', async () => {
+      const user = userEvent.setup()
+      const { section } = await subscribedDevice({ status: 200, body: { sent: 1, removed: 0, failed: [] } })
+      const result = within(section).getByRole('status')
+      expect(result).toBeEmptyDOMElement()
+
+      await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
+
+      await expect.poll(() => result.textContent).toBe('Sent to 1 device.')
+    })
+
+    it('replaces the last result with the next one', async () => {
+      const user = userEvent.setup()
+      let answer: Answer = { status: 200, body: { sent: 2, removed: 1, failed: [] } }
+      const { section } = await subscribedDevice(() => answer)
+      const button = within(section).getByRole('button', { name: 'Send a test Notification' })
+
+      await user.click(button)
+      await within(section).findByText('Sent to 2 devices.')
+      answer = { status: 200, body: { sent: 1, removed: 0, failed: [] } }
+      await user.click(button)
+
+      await within(section).findByText('Sent to 1 device.')
+      expect(within(section).getByRole('status')).toHaveTextContent(/^Sent to 1 device\.$/)
+    })
+
+    it("says when a push service no longer knows a device that couldn't be removed yet", async () => {
+      const user = userEvent.setup()
+      const { section } = await subscribedDevice({
+        status: 200,
+        body: {
+          sent: 1,
+          removed: 0,
+          failed: [{ pushService: 'web.push.apple.com', status: 410, reason: "push service no longer knows it, and it couldn't be removed" }],
+        },
+      })
+
+      await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
+
+      const result = await within(section).findByText(/Apple's push service/)
+      expect(result).toHaveTextContent("Apple's push service no longer knows 1 device. Nando removes it next time.")
+      expect(within(section).getByRole('status')).not.toHaveTextContent("Couldn't reach")
     })
 
     it('says how many devices were removed because they no longer get Notifications', async () => {
@@ -212,7 +262,7 @@ describe('Notifications Settings Section', () => {
 
       await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
 
-      const result = await within(section).findByRole('status')
+      const result = await resultOf(section)
       expect(result).toHaveTextContent('Sent to 1 device.')
       expect(result).toHaveTextContent('Removed 2 devices that no longer get Notifications.')
     })
@@ -234,7 +284,7 @@ describe('Notifications Settings Section', () => {
 
       await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
 
-      const result = await within(section).findByRole('status')
+      const result = await resultOf(section)
       expect(result).toHaveTextContent('Sent to 0 devices.')
       expect(result).toHaveTextContent('Removed 1 device that no longer gets Notifications.')
       expect(result).toHaveTextContent("Couldn't reach Apple's push service (403).")
@@ -257,7 +307,7 @@ describe('Notifications Settings Section', () => {
       fails = false
       await user.click(within(section).getByRole('button', { name: 'Try again' }))
 
-      expect(await within(section).findByRole('status')).toHaveTextContent('Sent to 1 device.')
+      expect(await resultOf(section)).toHaveTextContent('Sent to 1 device.')
       expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
     })
 
@@ -272,7 +322,7 @@ describe('Notifications Settings Section', () => {
 
       expect(await within(section).findByRole('button', { name: 'Sending…' })).toBeDisabled()
       answer({ status: 200, body: { sent: 1, removed: 0, failed: [] } })
-      expect(await within(section).findByRole('status')).toHaveTextContent('Sent to 1 device.')
+      expect(await resultOf(section)).toHaveTextContent('Sent to 1 device.')
       expect(within(section).getByRole('button', { name: 'Send a test Notification' })).toBeEnabled()
       expect(sent.filter((request) => request.path === '/api/push-subscriptions/test')).toHaveLength(1)
     })
