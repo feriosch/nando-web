@@ -13,6 +13,7 @@ import { HeaderLink, ScreenHeader } from '../../core/ui/ScreenHeader'
 import { AddWithClaudeForm, AskedStatus } from './withClaude'
 import type { Asked } from './wordRequests'
 import type { SearchResults } from './japanese'
+import { Pending } from './Pending'
 import { KanjiRowLink, WordRowLink } from './rows'
 
 // How long typing has to pause before the search is sent.
@@ -88,6 +89,7 @@ export function Search() {
           />
         </label>
       </form>
+      <Pending />
       {empty && <EmptyNote>Search your Words and Kanji in kanji, kana or Spanish.</EmptyNote>}
       {failed && <LoadProblem message="Couldn't search." retry={() => search.refetch()} />}
       {foundNothing && <EmptyNote>Nothing found for “{q}”.</EmptyNote>}

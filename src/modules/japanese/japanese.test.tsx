@@ -18,7 +18,8 @@ type WordRow = { id: string; word: string; hiragana: string | null; spanish: str
 type KanjiRow = { id: string; kanji: string; spanish: string }
 
 function renderJapanese(path: string, answers: Answers) {
-  const fake = fakeApi(answers)
+  // Japanese search also lists the Owner's Word Requests: none, unless a test says otherwise.
+  const fake = fakeApi({ 'GET /api/japanese/word-requests': { status: 200, body: [] }, ...answers })
   const router = renderApp(path, fake.api, noPush, [japanese])
   return { ...fake, router }
 }
@@ -121,8 +122,8 @@ describe('Search', () => {
     await user.clear(field)
     expect(await screen.findByText('Search your Words and Kanji in kanji, kana or Spanish.')).toBeInTheDocument()
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
-    // An empty field never asks the server.
-    expect(sent.map((request) => request.path)).toEqual(['/api/japanese/search'])
+    // An empty field never searches.
+    expect(sent.filter((request) => request.path === '/api/japanese/search')).toHaveLength(1)
   })
 
   it('searches again on its own once back online, when Nando was opened offline', async () => {
