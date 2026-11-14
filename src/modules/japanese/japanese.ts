@@ -1,7 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ApiClient } from '../../core/api/client'
-import { useApi } from '../../core/services'
-
 // The Japanese API's shapes, as nando-server's internal/japanese/API.md documents them. Word Tags
 // and Nuance Tags come as stored, in snake_case; optional strings are null, lists never are.
 
@@ -151,67 +147,4 @@ export type KanjiLookup = {
   jlpt: number | null
   // Common words spelled with it, from Jisho.
   words: { word: string; reading: string; meanings: string[] }[]
-}
-
-// A Word Request: the Owner's ask for Claude to add a word or to improve a stored Word, as
-// GET /api/japanese/word-requests lists it for the Pending strip.
-export type WordRequest = {
-  id: string
-  // The word as the Owner typed it to add, or the Word's spelling to improve.
-  text: string
-  kind: 'add' | 'improve'
-  // The Group the Owner found the word in, to add; null to improve.
-  group: string | null
-  // The Word to improve; once done, the Word added or improved.
-  wordId: string | null
-  state: 'pending' | 'working' | 'done' | 'needs_answer' | 'failed'
-  // How many Claude runs have taken it.
-  attempts: number
-  answer: string | null
-  // What Claude did, once done, or why it gave up, once failed.
-  summary: string | null
-  // What Claude thinks the Owner should do in Claude Code, once done.
-  suggestions: string[]
-  question: string | null
-  choices: string[]
-}
-
-const wordRequestsKey = ['japanese', 'word-requests']
-
-// The Word Requests for the Pending strip, newest first: the open ones, and those done or failed in
-// the last 7 days that the Owner hasn't dismissed. Loaded again whenever Japanese search opens and
-// whenever Nando comes back to the foreground (React Query's refetchOnMount and refetchOnWindowFocus,
-// which follows visibilitychange), never polled.
-export function useWordRequests() {
-  const api = useApi()
-  return useQuery({ queryKey: wordRequestsKey, queryFn: () => api.get<WordRequest[]>('/api/japanese/word-requests') })
-}
-
-// Answers Claude's question on a Word Request, with one of its choices or the Owner's own words,
-// which sends it back to waiting for a Claude run.
-export function useAnswerWordRequest() {
-  return useWordRequestChange((api, { id, answer }: { id: string; answer: string }) =>
-    api.post<WordRequest>(`/api/japanese/word-requests/${encodeURIComponent(id)}/answer`, { answer }),
-  )
-}
-
-// Sends a failed Word Request back to waiting, for 3 fresh Claude runs.
-export function useRetryWordRequest() {
-  return useWordRequestChange((api, id: string) => api.post<WordRequest>(`/api/japanese/word-requests/${encodeURIComponent(id)}/retry`))
-}
-
-// Takes a done or failed Word Request off the Pending strip, as when the Owner opens it.
-export function useDismissWordRequest() {
-  return useWordRequestChange((api, id: string) => api.post<WordRequest>(`/api/japanese/word-requests/${encodeURIComponent(id)}/dismiss`))
-}
-
-// A change the Owner makes to a Word Request, sent with `send`; the strip then loads again, so it
-// shows the Word Request as the server has it, whether the change went through or not.
-function useWordRequestChange<Change>(send: (api: ApiClient, change: Change) => Promise<WordRequest>) {
-  const api = useApi()
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (change: Change) => send(api, change),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: wordRequestsKey }),
-  })
 }

@@ -222,3 +222,25 @@ describe('Pending strip', () => {
     await expect.poll(async () => (await pendingRows()).map((row) => row.textContent)).toEqual(['たべたAdded 食べる (たべる) to Gaming.'])
   })
 })
+
+describe('Asking Claude from Japanese search', () => {
+  it('shows the new Word Request in the Pending strip at once', async () => {
+    const user = userEvent.setup()
+    let stored: WordRequest[] = []
+    renderJapanese('/japanese', {
+      'GET /api/japanese/search': { status: 200, body: { words: [], kanji: [] } },
+      'GET /api/japanese/word-requests': () => ({ status: 200, body: stored }),
+      'POST /api/japanese/word-requests': () => {
+        stored = [wordRequest({ id: 'r9', text: '食べた', state: 'pending', group: 'miscellaneous' })]
+        return { status: 201, body: stored[0] }
+      },
+    })
+    await user.type(await screen.findByRole('searchbox', { name: 'Search' }), '食べた')
+    await user.click(await screen.findByRole('button', { name: 'Add 「食べた」 with Claude' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Add with Claude' })).getByRole('button', { name: 'Add' }))
+
+    const strip = await screen.findByRole('list', { name: 'Pending' })
+    expect(within(strip).getByText('食べた')).toBeInTheDocument()
+    expect(within(strip).getByText('Waiting')).toBeInTheDocument()
+  })
+})

@@ -8,7 +8,7 @@ import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
 import { pillClasses } from '../../core/ui/pill'
 import { Sheet } from '../../core/ui/Sheet'
 import { useLastShown } from '../../core/ui/useLastShown'
-import { useAnswerWordRequest, useDismissWordRequest, useRetryWordRequest, useWordRequests, type WordRequest } from './japanese'
+import { useAnswerWordRequest, useDismissWordRequest, useRetryWordRequest, useWordRequests, type WordRequest } from './wordRequests'
 import { rowLinkClasses } from './rows'
 
 // The Pending strip at the top of Japanese search: the Owner's Word Requests, newest first, each as
