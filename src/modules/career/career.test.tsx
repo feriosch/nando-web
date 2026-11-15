@@ -510,3 +510,178 @@ describe('Late Replies', () => {
     expect(await screen.findByText('No Late Replies.')).toBeInTheDocument()
   })
 })
+
+describe('Open Opportunities', () => {
+  it('lists every open Opportunity, top first, each opening its page', async () => {
+    const user = userEvent.setup()
+    const { router } = renderCareer('/career/opportunities', {
+      'GET /api/career/opportunities': {
+        status: 200,
+        body: [
+          opportunity({ id: 'o1', role: 'Backend Engineer', stage: 'offer' }),
+          opportunity({ id: 'o2', role: 'SRE', company: { id: 'c2', name: 'Sora Bank' }, nextStep: { kind: 'Casual interview', date: '2026-12-02', time: null } }),
+        ],
+      },
+    })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Open Opportunities' })).toBeInTheDocument()
+    const [first, second] = within(await screen.findByRole('list', { name: 'Open Opportunities' })).getAllByRole('link')
+    expect(first).toHaveTextContent('Backend Engineer')
+    expect(first).toHaveTextContent('Offer')
+    expect(second).toHaveTextContent('Sora Bank')
+    expect(second).toHaveTextContent('Casual interview · Wed 2 Dec')
+
+    await user.click(second)
+    expect(router.state.location.pathname).toBe('/career/opportunities/o2')
+  })
+
+  it('says when there are none', async () => {
+    renderCareer('/career/opportunities', { 'GET /api/career/opportunities': { status: 200, body: [] } })
+
+    expect(await screen.findByText('No open Opportunities.')).toBeInTheDocument()
+  })
+})
+
+type PageStep = { id: string; kind: string; date: string; time: string | null; notes: string; next: boolean }
+type OpportunityPage = {
+  id: string
+  role: string
+  stage: 'introduced' | 'in_process' | 'offer' | 'closed'
+  outcome: 'accepted' | 'declined' | 'withdrawn' | 'rejected' | 'faded' | null
+  interest: 'high' | 'normal' | 'low'
+  fitNote: string
+  details: string
+  pay: { firstStated: { min: number; max: number } | null; offered: { min: number; max: number } | null; bonusIncluded: boolean | null }
+  conditions: { remote: 'remote' | 'hybrid' | 'office' | null; officeDays: number | null; officeLocation: string; workingLanguage: 'ja' | 'en' | 'mixed' | null }
+  perks: string[]
+  steps: PageStep[]
+  recruiter: { id: string; name: string } | null
+  company: { id: string; name: string; linkedInUrl: string; websiteUrl: string; brief: string }
+}
+
+// An Opportunity with nothing but its Company and role, as GET /api/career/opportunities/{id} answers it.
+function bareOpportunity(fields: Partial<OpportunityPage> = {}): OpportunityPage {
+  return {
+    id: 'o1',
+    role: 'Backend Engineer',
+    stage: 'introduced',
+    outcome: null,
+    interest: 'normal',
+    fitNote: '',
+    details: '',
+    pay: { firstStated: null, offered: null, bonusIncluded: null },
+    conditions: { remote: null, officeDays: null, officeLocation: '', workingLanguage: null },
+    perks: [],
+    steps: [],
+    recruiter: null,
+    company: { id: 'c1', name: 'Kumo Pay', linkedInUrl: '', websiteUrl: '', brief: '' },
+    ...fields,
+  }
+}
+
+// Kumo Pay's Backend Engineer role, with everything filled in.
+const fullOpportunity = bareOpportunity({
+  stage: 'in_process',
+  interest: 'high',
+  fitNote: 'Go and payments: close to what the Owner does now.',
+  details: 'Ledger team of 8.',
+  pay: { firstStated: { min: 9_000_000, max: 12_000_000 }, offered: { min: 11_500_000, max: 11_500_000 }, bonusIncluded: true },
+  conditions: { remote: 'hybrid', officeDays: 2, officeLocation: 'Shibuya', workingLanguage: 'en' },
+  perks: ['Housing allowance', 'Side jobs allowed'],
+  steps: [
+    { id: 's1', kind: 'Casual interview', date: '2026-11-10', time: '18:00', notes: 'With the CTO.', next: false },
+    { id: 's2', kind: 'Take-home assignment', date: '2026-11-16', time: '10:00', notes: 'Due by noon.', next: true },
+    { id: 's3', kind: 'Final interview', date: '2026-11-27', time: null, notes: '', next: false },
+  ],
+  recruiter: { id: 'r1', name: 'Tanaka Yui' },
+  company: { id: 'c1', name: 'Kumo Pay', linkedInUrl: '', websiteUrl: 'https://kumopay.example.com', brief: 'Payments for small shops in Japan, about 200 people.' },
+})
+
+describe('Opportunity page', () => {
+  it('shows its role, Company, Stage and Interest, and its Steps by date with the next one highlighted', async () => {
+    atNoonMonday()
+    renderCareer('/career/opportunities/o1', { 'GET /api/career/opportunities/o1': { status: 200, body: fullOpportunity } })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Backend Engineer' })).toBeInTheDocument()
+    expect(screen.getByText('Kumo Pay')).toBeInTheDocument()
+    expect(screen.getByText('In Process')).toBeInTheDocument()
+    expect(screen.getByText('High interest')).toBeInTheDocument()
+
+    const steps = within(screen.getByRole('list', { name: 'Steps' })).getAllByRole('listitem')
+    expect(steps.map((s) => s.textContent)).toEqual([
+      'Casual interviewTue 10 Nov, 18:00With the CTO.',
+      'NextTake-home assignmentMon 16 Nov, 10:00Due by noon.',
+      'Final interviewFri 27 Nov',
+    ])
+    expect(steps[1]).toHaveAttribute('aria-current', 'step')
+    expect(steps[0]).not.toHaveAttribute('aria-current')
+  })
+
+  it('shows its pay in 万円 with the yen under it, and its working conditions', async () => {
+    renderCareer('/career/opportunities/o1', { 'GET /api/career/opportunities/o1': { status: 200, body: fullOpportunity } })
+
+    const pay = await screen.findByRole('region', { name: 'Pay and conditions' })
+    const rows = within(pay).getAllByRole('listitem').map((row) => row.textContent)
+    expect(rows).toEqual([
+      'First stated900–1,200万円¥9,000,000 – ¥12,000,000',
+      'Offered1,150万円¥11,500,000',
+      'BonusIncluded',
+      'WorkHybrid, 2 days a week in the office',
+      'OfficeShibuya',
+      'Working languageEnglish',
+    ])
+  })
+
+  it('writes an odd salary to one decimal of 万円', async () => {
+    renderCareer('/career/opportunities/o1', {
+      'GET /api/career/opportunities/o1': { status: 200, body: bareOpportunity({ pay: { firstStated: { min: 9_255_000, max: 9_255_000 }, offered: null, bonusIncluded: false } }) },
+    })
+
+    const pay = await screen.findByRole('region', { name: 'Pay and conditions' })
+    expect(within(pay).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['First stated925.5万円¥9,255,000', 'BonusNot included'])
+  })
+
+  it('shows its Perks, fit note and details, links to its Recruiter, and shows the Company Brief', async () => {
+    renderCareer('/career/opportunities/o1', { 'GET /api/career/opportunities/o1': { status: 200, body: fullOpportunity } })
+
+    const perks = await screen.findByRole('list', { name: 'Perks' })
+    expect(within(perks).getAllByRole('listitem').map((p) => p.textContent)).toEqual(['Housing allowance', 'Side jobs allowed'])
+    expect(screen.getByRole('region', { name: 'Fit note' })).toHaveTextContent('Go and payments: close to what the Owner does now.')
+    expect(screen.getByRole('region', { name: 'Details' })).toHaveTextContent('Ledger team of 8.')
+    expect(screen.getByRole('link', { name: /Tanaka Yui/ })).toHaveAttribute('href', '/career/recruiters/r1')
+    expect(screen.getByRole('region', { name: 'Company Brief' })).toHaveTextContent('Payments for small shops in Japan, about 200 people.')
+  })
+
+  it('shows nothing but its Company and role when that is all there is', async () => {
+    renderCareer('/career/opportunities/o1', { 'GET /api/career/opportunities/o1': { status: 200, body: bareOpportunity() } })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Backend Engineer' })).toBeInTheDocument()
+    expect(screen.getByText('Kumo Pay')).toBeInTheDocument()
+    expect(screen.getByText('Introduced')).toBeInTheDocument()
+    expect(screen.queryAllByRole('heading', { level: 2 })).toEqual([])
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+  })
+
+  it('shows how a closed one ended', async () => {
+    renderCareer('/career/opportunities/o1', {
+      'GET /api/career/opportunities/o1': { status: 200, body: bareOpportunity({ stage: 'closed', outcome: 'declined' }) },
+    })
+
+    expect(await screen.findByText('Closed · Declined')).toBeInTheDocument()
+  })
+
+  it('says when there is no such Opportunity', async () => {
+    renderCareer('/career/opportunities/o9', {
+      'GET /api/career/opportunities/o9': { status: 404, body: "there's no such Opportunity" },
+    })
+    expect(await screen.findByText("This Opportunity isn't in Nando.")).toBeInTheDocument()
+  })
+
+  it("says when an Opportunity couldn't load, with Try again", async () => {
+    renderCareer('/career/opportunities/o8', { 'GET /api/career/opportunities/o8': { status: 500 } })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this Opportunity.")
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+})
+
