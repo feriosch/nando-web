@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, type ReactNode } from 'react'
+import { onlineManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef, useSyncExternalStore, type ReactNode } from 'react'
 import { ApiError, type ApiClient } from '../api'
 import { useApi, usePush } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
@@ -153,6 +153,7 @@ type TestNotificationResult = {
 // it. Calls `onRemoved` when Core removed a device a push service no longer knew.
 function TestNotification({ onRemoved }: { onRemoved: () => void }) {
   const api = useApi()
+  const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline())
   const sending = useOneAtATime()
   const send = useMutation({
     mutationFn: () => api.post<TestNotificationResult>('/api/push-subscriptions/test'),
@@ -180,25 +181,40 @@ function TestNotification({ onRemoved }: { onRemoved: () => void }) {
                 Removed {devices(send.data.removed)} that no longer {send.data.removed === 1 ? 'gets' : 'get'} Notifications.
               </p>
             )}
-            {send.data.failed.map((failure, i) => (
-              <p key={i} className="my-0">
-                {failureSentence(failure)}
+            {failureSentences(send.data.failed).map((sentence) => (
+              <p key={sentence} className="my-0">
+                {sentence}
               </p>
             ))}
           </>
         )}
       </div>
-      {send.isError && <LoadProblem message="Couldn't send the test Notification." retry={tapSend} />}
+      {/* Not a LoadProblem: a send is never made again by itself once back online, and the button
+          above sends again. */}
+      {send.isError && (
+        <p role="alert" className={`${footerClasses} text-ink`}>
+          Couldn't send the test Notification.{!online && " You're offline."}
+        </p>
+      )}
     </div>
   )
 }
 
-// What one failed push service means for the Owner. One that answered 404 or 410 was reached, but no
-// longer knows the device, which Core couldn't remove this time and removes at the next send.
-function failureSentence({ pushService, status }: TestNotificationResult['failed'][number]): string {
-  const name = pushServiceName(pushService)
-  if (status === 404 || status === 410) return `${name} no longer knows 1 device. Nando removes it next time.`
-  return `Couldn't reach ${name}${status ? ` (${status})` : ''}.`
+// What the failed push services mean for the Owner, one sentence for what several devices on the same
+// push service had in common. One that answered 404 or 410 was reached, but no longer knows the
+// device, which Core couldn't remove this time and removes at the next send.
+function failureSentences(failed: TestNotificationResult['failed']): string[] {
+  const forgotten = new Map<string, number>()
+  const unreachable = new Set<string>()
+  for (const { pushService, status } of failed) {
+    const name = pushServiceName(pushService)
+    if (status === 404 || status === 410) forgotten.set(name, (forgotten.get(name) ?? 0) + 1)
+    else unreachable.add(`Couldn't reach ${name}${status ? ` (${status})` : ''}.`)
+  }
+  return [
+    ...[...forgotten].map(([name, count]) => `${name} no longer knows ${devices(count)}. Nando removes ${count === 1 ? 'it' : 'them'} next time.`),
+    ...unreachable,
+  ]
 }
 
 // A guard for a button whose work must not start twice: `start` runs only while the last run is

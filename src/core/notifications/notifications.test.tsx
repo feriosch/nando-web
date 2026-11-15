@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { fakeApi, fakePush, renderApp, type Answer, type Answers, type Sent } from '../../test/app'
+import { fakeApi, fakeConnection, fakePush, renderApp, type Answer, type Answers, type Sent } from '../../test/app'
 
 const vapidKey = { 'GET /api/push-subscriptions/vapid-public-key': { status: 200, body: { publicKey: 'BNcV' } } }
 
@@ -376,6 +376,8 @@ describe('Notifications Settings Section', () => {
             { pushService: 'web.push.apple.com', status: 403, reason: 'push service answered 403 Forbidden' },
             { pushService: 'fcm.googleapis.com', reason: "push service didn't answer within 10s" },
             { pushService: 'push.example.com', status: 500, reason: 'push service answered 500 Internal Server Error' },
+            { pushService: 'updates.push.services.mozilla.com', status: 502, reason: 'push service answered 502 Bad Gateway' },
+            { pushService: 'wns2-par02p.notify.windows.com', status: 503, reason: 'push service answered 503 Service Unavailable' },
           ],
         },
       })
@@ -388,7 +390,23 @@ describe('Notifications Settings Section', () => {
       expect(result).toHaveTextContent("Couldn't reach Apple's push service (403).")
       expect(result).toHaveTextContent("Couldn't reach Google's push service.")
       expect(result).toHaveTextContent("Couldn't reach push.example.com (500).")
+      expect(result).toHaveTextContent("Couldn't reach Mozilla's push service (502).")
+      expect(result).toHaveTextContent("Couldn't reach Microsoft's push service (503).")
       expect(result).not.toHaveTextContent('10s')
+    })
+
+    it('says once what several devices on the same push service had in common', async () => {
+      const user = userEvent.setup()
+      const forbidden = { pushService: 'web.push.apple.com', status: 403, reason: 'push service answered 403 Forbidden' }
+      const gone = { pushService: 'web.push.apple.com', status: 410, reason: "push service no longer knows it, and it couldn't be removed" }
+      const { section } = await subscribedDevice({ status: 200, body: { sent: 0, removed: 0, failed: [forbidden, gone, forbidden, gone] } })
+
+      await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
+
+      const result = await resultOf(section)
+      expect(within(result).getAllByText("Couldn't reach Apple's push service (403).")).toHaveLength(1)
+      expect(within(result).getAllByText(/no longer knows/)).toHaveLength(1)
+      expect(result).toHaveTextContent("Apple's push service no longer knows 2 devices. Nando removes them next time.")
     })
 
     it("says when the test Notification couldn't be sent, and sends it when asked to try again", async () => {
@@ -401,12 +419,30 @@ describe('Notifications Settings Section', () => {
       await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
 
       expect(await within(section).findByRole('alert')).toHaveTextContent("Couldn't send the test Notification.")
+      // The button itself sends again: there is no second one.
+      expect(within(section).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
 
       fails = false
-      await user.click(within(section).getByRole('button', { name: 'Try again' }))
+      await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
 
       expect(await resultOf(section)).toHaveTextContent('Sent to 1 device.')
       expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it("says it is offline when the test Notification couldn't be sent, and not that it sends by itself later", async () => {
+      const user = userEvent.setup()
+      const { section, sent } = await subscribedDevice({ status: 200, body: { sent: 1, removed: 0, failed: [] } })
+      const connection = fakeConnection({ online: true })
+      connection.goOffline()
+
+      await user.click(within(section).getByRole('button', { name: 'Send a test Notification' }))
+
+      const alert = await within(section).findByRole('alert')
+      expect(alert).toHaveTextContent("Couldn't send the test Notification. You're offline.")
+      expect(alert).not.toHaveTextContent('again')
+      connection.goOnline()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(sent.filter((request) => request.path === '/api/push-subscriptions/test')).toHaveLength(1)
     })
 
     it('says Sending… while it waits, and sends once when tapped twice', async () => {
