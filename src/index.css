@@ -111,6 +111,30 @@
   --level-n1: #f28e80;
 }
 
+/* Slate: Career. Office-calm: cool, bluish-gray paper, dark-gray ink and a professional blue. */
+.theme-career {
+  --bg: #f3f6f9;
+  --surface: #ffffff;
+  --ink: #1d2226;
+  --sub: #5e6670;
+  --line: #dde3ea;
+  --fill: #e8eef4;
+  --accent: #0a66c2;
+  --accent-ink: #ffffff;
+  --display-font: var(--body-font);
+}
+
+.dark .theme-career {
+  --bg: #0f1317;
+  --surface: #1b1f23;
+  --ink: #e9edf1;
+  --sub: #98a2ad;
+  --line: #2b3238;
+  --fill: #252b31;
+  --accent: #71b7fb;
+  --accent-ink: #0b1a2b;
+}
+
 /* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
 .on-board {
   --ink: var(--board-ink);
