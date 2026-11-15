@@ -34,8 +34,10 @@ export function stageName(stage: OpenStage): string {
   return stageNames[stage]
 }
 
-// A next Step for the Owner to read, such as "Final interview · Fri 27 Nov, 18:00".
-export function describeStep({ kind, date, time }: NextStep): string {
-  const day = formatDayAs(date, { weekday: 'short', day: 'numeric', month: 'short' })
+// A next Step for the Owner to read, such as "Final interview · Fri 27 Nov, 18:00", with the year
+// when it isn't the year `today` is in: "Fri 8 Jan 2027". Without `today`, it leaves the year out.
+export function describeStep({ kind, date, time }: NextStep, today: string | undefined): string {
+  const otherYear = today !== undefined && date.slice(0, 4) !== today.slice(0, 4)
+  const day = `${formatDayAs(date, { weekday: 'short' })} ${formatDayAs(date, { day: 'numeric', month: 'short', ...(otherYear && { year: 'numeric' }) })}`
   return `${kind} · ${time === null ? day : `${day}, ${time}`}`
 }

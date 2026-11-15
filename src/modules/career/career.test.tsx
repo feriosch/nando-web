@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeApi, noPush, renderApp, type Answer, type Answers } from '../../test/app'
 import { career } from '.'
 
@@ -36,6 +36,10 @@ async function careerCard() {
   const heading = await screen.findByRole('heading', { name: 'Career' })
   return heading.closest('article') as HTMLElement
 }
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('Career Home Card', () => {
   it('shows the top 3 Opportunities with their Company, role, Stage and next Step, each opening its page', async () => {
@@ -170,5 +174,19 @@ describe('Career Home Card', () => {
 
     expect(await within(card).findByRole('link', { name: '3 Recruiters waiting' })).toBeInTheDocument()
     expect(within(card).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it("dates a next Step in another year with its year", async () => {
+    // Monday 16 November 2026 in Tokyo.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-16T03:00:00Z'))
+    renderCareer('/', {
+      'GET /api/career/home-card': homeCard({
+        top: [opportunity({ id: 'o1', role: 'Backend Engineer', stage: 'in_process', nextStep: { kind: 'Final interview', date: '2027-01-08', time: null } })],
+      }),
+    })
+
+    const card = await careerCard()
+    expect(await within(card).findByRole('link', { name: /Backend Engineer/ })).toHaveTextContent('Final interview · Fri 8 Jan 2027')
   })
 })
