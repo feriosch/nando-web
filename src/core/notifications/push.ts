@@ -15,8 +15,12 @@ export type Push = {
   requestPermission(): Promise<NotificationPermission>
   // This copy's Push Subscription, or null if it has none.
   subscription(): Promise<PushSubscriptionJSON | null>
-  // Subscribes with the server's VAPID public key (base64url). Needs the permission granted.
+  // Subscribes with the server's VAPID public key (base64url). Needs the permission granted. Like
+  // the browser's, it hands back the Push Subscription this copy already holds, if any.
   subscribe(vapidPublicKey: string): Promise<PushSubscriptionJSON>
+  // Drops this copy's Push Subscription, if it has one, so the next `subscribe` makes a fresh one.
+  // The permission stays granted.
+  unsubscribe(): Promise<void>
 }
 
 export const browserPush: Push = {
@@ -33,6 +37,9 @@ export const browserPush: Push = {
       applicationServerKey: fromBase64url(vapidPublicKey),
     })
     return toJSON(subscription)
+  },
+  async unsubscribe() {
+    await (await (await registration()).pushManager.getSubscription())?.unsubscribe()
   },
 }
 

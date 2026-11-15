@@ -1,11 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, type ReactNode } from 'react'
+import { onlineManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef, useSyncExternalStore, type ReactNode } from 'react'
+import { ApiError, type ApiClient } from '../api'
 import { useApi, usePush } from '../services'
 import { LoadProblem } from '../shell/LoadProblem'
 import { Button } from '../ui/Button'
 import { pillClasses } from '../ui/pill'
 import { footerClasses, GroupedList, ListRow } from '../ui/List'
-import type { PushSubscriptionJSON } from './push'
+import type { Push, PushSubscriptionJSON } from './push'
 
 // This device's Notification permission and, while it is granted, its Push Subscription.
 type DeviceNotifications = { permission: NotificationPermission; subscription: PushSubscriptionJSON | null }
@@ -18,15 +19,15 @@ export function NotificationsSettingsSection() {
   const queryClient = useQueryClient()
   const supported = push.supported()
   // Read again whenever the Owner comes back to the app, since the permission can change in the
-  // device's settings. A Push Subscription is registered again each time: Core deletes one a push
-  // service stopped knowing, and registering the same one again is safe. Without the permission
-  // it can't deliver, so it counts as none.
+  // device's settings. A Push Subscription is registered again each time, which is safe: Core
+  // deletes one a push service stopped knowing, and then this device's is replaced by a fresh one.
+  // Without the permission it can't deliver, so it counts as none.
   const device = useQuery({
     queryKey: ['push-subscription'],
     queryFn: async (): Promise<DeviceNotifications> => {
       const permission = push.permission()
-      const subscription = permission === 'granted' ? await push.subscription() : null
-      if (subscription) await api.post('/api/push-subscriptions', subscription)
+      const held = permission === 'granted' ? await push.subscription() : null
+      const subscription = held && (await register(api, push, held))
       return { permission, subscription }
     },
     enabled: supported,
@@ -36,9 +37,7 @@ export function NotificationsSettingsSection() {
     mutationFn: async (asked: Promise<NotificationPermission>): Promise<DeviceNotifications> => {
       const permission = await asked
       if (permission !== 'granted') return { permission, subscription: null }
-      const { publicKey } = await api.get<{ publicKey: string }>('/api/push-subscriptions/vapid-public-key')
-      const subscription = await push.subscribe(publicKey)
-      await api.post('/api/push-subscriptions', subscription)
+      const subscription = await register(api, push, await subscribe(api, push))
       return { permission, subscription }
     },
     onSuccess: (enabled) => queryClient.setQueryData(['push-subscription'], enabled),
@@ -74,7 +73,8 @@ export function NotificationsSettingsSection() {
     return (
       <>
         <DeviceStatus on />
-        <TestNotification />
+        {/* A device the test removed may be this one: registering it again finds out, and replaces it. */}
+        <TestNotification onRemoved={() => queryClient.invalidateQueries({ queryKey: ['push-subscription'] })} />
       </>
     )
   }
@@ -97,6 +97,29 @@ export function NotificationsSettingsSection() {
       </button>
     </>
   )
+}
+
+// Registers `subscription` with Core, and answers the Push Subscription this device now has. Core
+// refuses one its push service no longer knows (410), which the browser still holds: it is then
+// unsubscribed and replaced by a fresh one, without asking for the permission again, since it stays
+// granted. Only once, so a fresh one Core refuses too is an error rather than a loop.
+async function register(api: ApiClient, push: Push, subscription: PushSubscriptionJSON): Promise<PushSubscriptionJSON> {
+  try {
+    await api.post('/api/push-subscriptions', subscription)
+    return subscription
+  } catch (error) {
+    if (!(error instanceof ApiError && error.status === 410)) throw error
+  }
+  await push.unsubscribe()
+  const fresh = await subscribe(api, push)
+  await api.post('/api/push-subscriptions', fresh)
+  return fresh
+}
+
+// Subscribes this device with Core's VAPID public key. Needs the permission granted.
+async function subscribe(api: ApiClient, push: Push): Promise<PushSubscriptionJSON> {
+  const { publicKey } = await api.get<{ publicKey: string }>('/api/push-subscriptions/vapid-public-key')
+  return push.subscribe(publicKey)
 }
 
 // Whether this device gets Notifications, as one row ("This iPhone · On"), and why under it.
@@ -126,12 +149,17 @@ type TestNotificationResult = {
   failed: { pushService: string; status?: number; reason: string }[]
 }
 
-// The button that sends a test Notification to every device that gets them, and what came of it under it.
-function TestNotification() {
+// The button that sends a test Notification to every device that gets them, and what came of it under
+// it. Calls `onRemoved` when Core removed a device a push service no longer knew.
+function TestNotification({ onRemoved }: { onRemoved: () => void }) {
   const api = useApi()
+  const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline())
   const sending = useOneAtATime()
   const send = useMutation({
     mutationFn: () => api.post<TestNotificationResult>('/api/push-subscriptions/test'),
+    onSuccess: (result) => {
+      if (result.removed > 0) onRemoved()
+    },
     onSettled: sending.done,
   })
 
@@ -153,25 +181,40 @@ function TestNotification() {
                 Removed {devices(send.data.removed)} that no longer {send.data.removed === 1 ? 'gets' : 'get'} Notifications.
               </p>
             )}
-            {send.data.failed.map((failure, i) => (
-              <p key={i} className="my-0">
-                {failureSentence(failure)}
+            {failureSentences(send.data.failed).map((sentence) => (
+              <p key={sentence} className="my-0">
+                {sentence}
               </p>
             ))}
           </>
         )}
       </div>
-      {send.isError && <LoadProblem message="Couldn't send the test Notification." retry={tapSend} />}
+      {/* Not a LoadProblem: a send is never made again by itself once back online, and the button
+          above sends again. */}
+      {send.isError && (
+        <p role="alert" className={`${footerClasses} text-ink`}>
+          Couldn't send the test Notification.{!online && " You're offline."}
+        </p>
+      )}
     </div>
   )
 }
 
-// What one failed push service means for the Owner. One that answered 404 or 410 was reached, but no
-// longer knows the device, which Core couldn't remove this time and removes at the next send.
-function failureSentence({ pushService, status }: TestNotificationResult['failed'][number]): string {
-  const name = pushServiceName(pushService)
-  if (status === 404 || status === 410) return `${name} no longer knows 1 device. Nando removes it next time.`
-  return `Couldn't reach ${name}${status ? ` (${status})` : ''}.`
+// What the failed push services mean for the Owner, one sentence for what several devices on the same
+// push service had in common. One that answered 404 or 410 was reached, but no longer knows the
+// device, which Core couldn't remove this time and removes at the next send.
+function failureSentences(failed: TestNotificationResult['failed']): string[] {
+  const forgotten = new Map<string, number>()
+  const unreachable = new Set<string>()
+  for (const { pushService, status } of failed) {
+    const name = pushServiceName(pushService)
+    if (status === 404 || status === 410) forgotten.set(name, (forgotten.get(name) ?? 0) + 1)
+    else unreachable.add(`Couldn't reach ${name}${status ? ` (${status})` : ''}.`)
+  }
+  return [
+    ...[...forgotten].map(([name, count]) => `${name} no longer knows ${devices(count)}. Nando removes ${count === 1 ? 'it' : 'them'} next time.`),
+    ...unreachable,
+  ]
 }
 
 // A guard for a button whose work must not start twice: `start` runs only while the last run is
