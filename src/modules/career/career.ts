@@ -140,68 +140,93 @@ export function langOf(text: string): 'ja' | undefined {
   return /[\u3000-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(text) ? 'ja' : undefined
 }
 
-// A Step on an Opportunity's page: `next` marks the next one. `time` is "HH:MM", or null.
-export type PageStep = { id: string; kind: string; date: string; time: string | null; notes: string; next: boolean }
+// How a closed Opportunity ended.
+export type Outcome = 'accepted' | 'declined' | 'withdrawn' | 'rejected' | 'faded'
+
+// The language an Opportunity's team works in.
+export type WorkingLanguage = 'ja' | 'en' | 'mixed'
+
+// One dated event in an Opportunity's process, as its page shows it: `next` marks the next one.
+// `time` is "HH:MM", or null.
+export type Step = { id: string; kind: string; date: string; time: string | null; notes: string; next: boolean }
 
 // An annual salary range in JPY.
 export type Salary = { min: number; max: number }
+
+// An Opportunity's pay: its salary as first stated and as offered, and whether bonus is included,
+// each null when unknown.
+export type Pay = { firstStated: Salary | null; offered: Salary | null; bonusIncluded: boolean | null }
+
+// An Opportunity's working conditions: where the work is done, how many days a week a hybrid role
+// is in the office, the office location ("" when unknown) and the working language.
+export type Conditions = {
+  remote: 'remote' | 'hybrid' | 'office' | null
+  officeDays: number | null
+  officeLocation: string
+  workingLanguage: WorkingLanguage | null
+}
 
 // What GET /api/career/opportunities/{id} answers: everything about an Opportunity, open or closed.
 export type OpportunityDetails = {
   id: string
   role: string
   stage: Stage
-  outcome: 'accepted' | 'declined' | 'withdrawn' | 'rejected' | 'faded' | null
+  outcome: Outcome | null
   interest: Interest
   fitNote: string
   details: string
-  pay: { firstStated: Salary | null; offered: Salary | null; bonusIncluded: boolean | null }
-  conditions: { remote: 'remote' | 'hybrid' | 'office' | null; officeDays: number | null; officeLocation: string; workingLanguage: 'ja' | 'en' | 'mixed' | null }
+  pay: Pay
+  conditions: Conditions
   perks: string[]
-  steps: PageStep[]
+  steps: Step[]
   recruiter: { id: string; name: string } | null
   company: { id: string; name: string; linkedInUrl: string; websiteUrl: string; brief: string }
 }
 
 const grouped = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
+// A salary range written with `amount`, low to high, joined by `dash`, or as one amount when both
+// ends read the same.
+function range({ min, max }: Salary, amount: (yen: number) => string, dash: string): string {
+  const [low, high] = [amount(Math.min(min, max)), amount(Math.max(min, max))]
+  return low === high ? low : `${low}${dash}${high}`
+}
+
 // An annual salary in 万円, such as "900–1,200万円", or "1,150万円" when it is one amount. An amount
 // that isn't a whole 万 keeps one decimal: "925.5万円".
-export function salaryInMan({ min, max }: Salary): string {
-  const man = (yen: number) => grouped.format(yen / 10_000)
-  return min === max ? `${man(min)}万円` : `${man(min)}–${man(max)}万円`
+export function salaryInMan(salary: Salary): string {
+  return `${range(salary, (yen) => grouped.format(yen / 10_000), '–')}万円`
 }
 
 // The same salary in yen, such as "¥9,000,000 – ¥12,000,000".
-export function salaryInYen({ min, max }: Salary): string {
-  const yen = (n: number) => `¥${grouped.format(n)}`
-  return min === max ? yen(min) : `${yen(min)} – ${yen(max)}`
+export function salaryInYen(salary: Salary): string {
+  return range(salary, (yen) => `¥${grouped.format(yen)}`, ' – ')
 }
 
 // Where the work is done, such as "Hybrid, 2 days a week in the office", or null when unknown.
-export function workName({ remote, officeDays }: OpportunityDetails['conditions']): string | null {
+export function workplaceName({ remote, officeDays }: Conditions): string | null {
   switch (remote) {
     case 'remote':
       return 'Remote'
     case 'office':
       return 'In the office'
     case 'hybrid':
-      return officeDays === null ? 'Hybrid' : `Hybrid, ${officeDays} ${officeDays === 1 ? 'day' : 'days'} a week in the office`
+      return !officeDays ? 'Hybrid' : `Hybrid, ${officeDays} ${officeDays === 1 ? 'day' : 'days'} a week in the office`
     case null:
       return null
   }
 }
 
-const workingLanguageNames = { ja: 'Japanese', en: 'English', mixed: 'Japanese and English' } as const
+const workingLanguageNames: Record<WorkingLanguage, string> = { ja: 'Japanese', en: 'English', mixed: 'Japanese and English' }
 
 // The working language for the Owner to read, such as "Japanese and English".
-export function workingLanguageName(language: 'ja' | 'en' | 'mixed'): string {
+export function workingLanguageName(language: WorkingLanguage): string {
   return workingLanguageNames[language]
 }
 
-const outcomeNames = { accepted: 'Accepted', declined: 'Declined', withdrawn: 'Withdrawn', rejected: 'Rejected', faded: 'Faded' } as const
+const outcomeNames: Record<Outcome, string> = { accepted: 'Accepted', declined: 'Declined', withdrawn: 'Withdrawn', rejected: 'Rejected', faded: 'Faded' }
 
-// Where an Opportunity stands, with how it ended when it is closed: "In Process", "Closed · Declined".
-export function standing({ stage, outcome }: Pick<OpportunityDetails, 'stage' | 'outcome'>): string {
+// The Stage, with how it ended when it is closed: "In Process", "Closed · Declined".
+export function stageWithOutcome({ stage, outcome }: Pick<OpportunityDetails, 'stage' | 'outcome'>): string {
   return stage === 'closed' && outcome !== null ? `${stageName(stage)} · ${outcomeNames[outcome]}` : stageName(stage)
 }

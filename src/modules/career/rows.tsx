@@ -33,6 +33,19 @@ export function OpportunityRowLink({ opportunity: o }: { opportunity: TopOpportu
   )
 }
 
+// Open Opportunities as a grouped list, named by the element `labelledBy`, each row opening its page.
+export function OpportunityList({ opportunities, labelledBy }: { opportunities: TopOpportunity[]; labelledBy: string }) {
+  return (
+    <GroupedList as="ul" labelledBy={labelledBy}>
+      {opportunities.map((o) => (
+        <li key={o.id} className="my-0">
+          <OpportunityRowLink opportunity={o} />
+        </li>
+      ))}
+    </GroupedList>
+  )
+}
+
 // Recruiters waiting for the Owner as a grouped list, named by the element `labelledBy`, each row
 // opening their page.
 export function WaitingRecruiterList({ recruiters, labelledBy }: { recruiters: WaitingRecruiter[]; labelledBy: string }) {

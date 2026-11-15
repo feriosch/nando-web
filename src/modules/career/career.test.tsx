@@ -597,6 +597,13 @@ const fullOpportunity = bareOpportunity({
   company: { id: 'c1', name: 'Kumo Pay', linkedInUrl: '', websiteUrl: 'https://kumopay.example.com', brief: 'Payments for small shops in Japan, about 200 people.' },
 })
 
+// The back link in the header of the screen titled `title`: its name and where it goes.
+async function backLink(title: string) {
+  const header = (await screen.findByRole('heading', { level: 1, name: title })).closest('header') as HTMLElement
+  const link = within(header).getByRole('link')
+  return { name: link.textContent, href: link.getAttribute('href') }
+}
+
 describe('Opportunity page', () => {
   it('shows its role, Company, Stage and Interest, and its Steps by date with the next one highlighted', async () => {
     atNoonMonday()
@@ -620,7 +627,7 @@ describe('Opportunity page', () => {
   it('shows its pay in 万円 with the yen under it, and its working conditions', async () => {
     renderCareer('/career/opportunities/o1', { 'GET /api/career/opportunities/o1': { status: 200, body: fullOpportunity } })
 
-    const pay = await screen.findByRole('region', { name: 'Pay and conditions' })
+    const pay = await screen.findByRole('region', { name: 'Pay and working conditions' })
     const rows = within(pay).getAllByRole('listitem').map((row) => row.textContent)
     expect(rows).toEqual([
       'First stated900–1,200万円¥9,000,000 – ¥12,000,000',
@@ -637,7 +644,7 @@ describe('Opportunity page', () => {
       'GET /api/career/opportunities/o1': { status: 200, body: bareOpportunity({ pay: { firstStated: { min: 9_255_000, max: 9_255_000 }, offered: null, bonusIncluded: false } }) },
     })
 
-    const pay = await screen.findByRole('region', { name: 'Pay and conditions' })
+    const pay = await screen.findByRole('region', { name: 'Pay and working conditions' })
     expect(within(pay).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['First stated925.5万円¥9,255,000', 'BonusNot included'])
   })
 
@@ -682,6 +689,59 @@ describe('Opportunity page', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this Opportunity.")
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('marks no Step as next on a closed one', async () => {
+    renderCareer('/career/opportunities/o1', {
+      'GET /api/career/opportunities/o1': { status: 200, body: { ...fullOpportunity, stage: 'closed', outcome: 'withdrawn' } },
+    })
+
+    const steps = within(await screen.findByRole('list', { name: 'Steps' })).getAllByRole('listitem')
+    expect(steps.filter((s) => s.hasAttribute('aria-current'))).toEqual([])
+    expect(screen.queryByText('Next')).not.toBeInTheDocument()
+  })
+
+  it('goes back to the screen it was opened from', async () => {
+    const user = userEvent.setup()
+    renderCareer('/career/opportunities', {
+      'GET /api/career/opportunities': { status: 200, body: [opportunity({ id: 'o1', role: 'Backend Engineer' })] },
+      'GET /api/career/opportunities/o1': { status: 200, body: bareOpportunity() },
+    })
+
+    await user.click(await screen.findByRole('link', { name: /Backend Engineer/ }))
+    expect(await backLink('Backend Engineer')).toEqual({ name: 'Open Opportunities', href: '/career/opportunities' })
+  })
+
+  it('goes back Home when opened from the Home Card', async () => {
+    const user = userEvent.setup()
+    renderCareer('/', {
+      'GET /api/career/home-card': homeCard({ top: [opportunity({ id: 'o1', role: 'Backend Engineer' })] }),
+      'GET /api/career/opportunities/o1': { status: 200, body: bareOpportunity() },
+    })
+
+    await user.click(await within(await careerCard()).findByRole('link', { name: /Backend Engineer/ }))
+    expect(await backLink('Backend Engineer')).toEqual({ name: 'Home', href: '/' })
+  })
+
+  it('reads a salary range given high to low, or that rounds to one amount, sensibly, and a hybrid role with no office days as hybrid', async () => {
+    renderCareer('/career/opportunities/o1', {
+      'GET /api/career/opportunities/o1': {
+        status: 200,
+        body: bareOpportunity({
+          pay: { firstStated: { min: 12_000_000, max: 9_000_000 }, offered: { min: 9_000_000, max: 9_000_400 }, bonusIncluded: null },
+          conditions: { remote: 'hybrid', officeDays: 0, officeLocation: '', workingLanguage: null },
+          fitNote: '   ',
+        }),
+      },
+    })
+
+    const pay = await screen.findByRole('region', { name: 'Pay and working conditions' })
+    expect(within(pay).getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+      'First stated900–1,200万円¥9,000,000 – ¥12,000,000',
+      'Offered900万円¥9,000,000 – ¥9,000,400',
+      'WorkHybrid',
+    ])
+    expect(screen.queryByRole('region', { name: 'Fit note' })).not.toBeInTheDocument()
   })
 })
 

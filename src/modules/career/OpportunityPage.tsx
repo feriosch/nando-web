@@ -1,28 +1,41 @@
 import { useQuery } from '@tanstack/react-query'
-import { useId, type ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { ApiError } from '../../core/api/client'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
-import { GroupedList, ListRow, RowLink, SectionHeader } from '../../core/ui/List'
+import { useCameFrom } from '../../core/ui/cameFrom'
+import { GroupedList, ListRow, RowLink } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
+import { Detail, Section, TextBlock } from '../../core/ui/Section'
 import {
   interestName,
   langOf,
   salaryInMan,
   salaryInYen,
-  standing,
+  stageWithOutcome,
   stepWhen,
   workingLanguageName,
-  workName,
+  workplaceName,
+  type Conditions,
   type OpportunityDetails,
-  type PageStep,
+  type Pay,
   type Salary,
+  type Step,
 } from './career'
 
-// An Opportunity's page, at /career/opportunities/:id: everything about it, open or closed.
+// Where an Opportunity's page goes back to: the open Opportunities or Home when it was opened from
+// there, and the Career screen otherwise, such as from a Notification.
+function useBack(): { to: string; label: string } {
+  const cameFrom = useCameFrom()
+  if (cameFrom === '/career/opportunities') return { to: cameFrom, label: 'Open Opportunities' }
+  if (cameFrom === '/') return { to: '/', label: 'Home' }
+  return { to: '/career', label: 'Career' }
+}
+
+// An Opportunity's page, at /career/opportunities/:id: everything about it, open or closed. Only what
+// is known is shown.
 export function OpportunityPage() {
   const { id } = useParams()
   const api = useApi()
@@ -30,7 +43,7 @@ export function OpportunityPage() {
     queryKey: ['career', 'opportunities', id],
     queryFn: () => api.get<OpportunityDetails>(`/api/career/opportunities/${id}`),
   })
-  const back = { to: '/career', label: 'Career' }
+  const back = useBack()
 
   if (!page.data) {
     return (
@@ -54,17 +67,25 @@ export function OpportunityPage() {
         subtitle={<span lang={langOf(o.company.name)}>{o.company.name}</span>}
       />
       <p className="mx-0 my-1 flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-accent px-2.5 py-0.5 text-[13px] font-semibold text-accent-ink">{standing(o)}</span>
+        <span className="rounded-full bg-accent px-2.5 py-0.5 text-[13px] font-semibold text-accent-ink">{stageWithOutcome(o)}</span>
         <span className="text-[13px] text-sub">{interestName(o.interest)}</span>
       </p>
-      {o.steps.length > 0 && <Steps steps={o.steps} />}
-      <PayAndConditions opportunity={o} />
-      {o.perks.length > 0 && <Perks perks={o.perks} />}
-      {o.fitNote && <TextSection title="Fit note" text={o.fitNote} />}
-      {o.details && <TextSection title="Details" text={o.details} />}
+      {/* A closed one has no next Step. */}
+      {o.steps.length > 0 && <Steps steps={o.steps} closed={o.stage === 'closed'} />}
+      <PayAndConditions pay={o.pay} conditions={o.conditions} />
+      {o.perks.length > 0 && (
+        <Section title="Perks" list>
+          {o.perks.map((perk, i) => (
+            <ListRow key={i} as="li">
+              <span lang={langOf(perk)}>{perk}</span>
+            </ListRow>
+          ))}
+        </Section>
+      )}
+      <Text title="Fit note" text={o.fitNote} />
+      <Text title="Details" text={o.details} />
       {o.recruiter && (
-        <>
-          <SectionHeader>Recruiter</SectionHeader>
+        <Section title="Recruiter">
           <GroupedList>
             <RowLink to={`/career/recruiters/${o.recruiter.id}`}>
               <span lang={langOf(o.recruiter.name)} className="text-[17px]">
@@ -72,79 +93,87 @@ export function OpportunityPage() {
               </span>
             </RowLink>
           </GroupedList>
-        </>
+        </Section>
       )}
-      {o.company.brief && <TextSection title="Company Brief" text={o.company.brief} />}
+      <Text title="Company Brief" text={o.company.brief} />
     </>
   )
 }
 
-// The Steps by date: the next one highlighted, past ones dimmed.
-function Steps({ steps }: { steps: PageStep[] }) {
-  const headingId = useId()
+// The Steps by date: the next one highlighted, unless the Opportunity is closed, and past ones
+// dimmed.
+function Steps({ steps, closed }: { steps: Step[]; closed: boolean }) {
   const { today } = useToday()
   return (
-    <>
-      <SectionHeader id={headingId}>Steps</SectionHeader>
-      <GroupedList as="ul" labelledBy={headingId}>
-        {steps.map((step) => {
-          const past = today !== undefined && step.date < today
-          return (
-            <li
-              key={step.id}
-              aria-current={step.next ? 'step' : undefined}
-              className={`my-0 flex flex-col gap-0.5 px-4 py-3 ${past ? 'opacity-50' : ''} ${step.next ? 'border-l-[3px] border-accent' : ''}`}
-            >
-              {step.next && <span className="text-[12px] font-semibold tracking-wide text-accent uppercase">Next</span>}
-              <span lang={langOf(step.kind)} className="text-[17px] font-semibold">
-                {step.kind}
+    <Section title="Steps" list>
+      {steps.map((step) => {
+        const next = step.next && !closed
+        const past = !next && today !== undefined && step.date < today
+        return (
+          <li
+            key={step.id}
+            aria-current={next ? 'step' : undefined}
+            className={`my-0 flex flex-col gap-0.5 px-4 py-3 ${past ? 'opacity-50' : ''} ${next ? 'border-l-[3px] border-accent' : ''}`}
+          >
+            {next && <span className="text-[12px] font-semibold tracking-wide text-accent uppercase">Next</span>}
+            <span lang={langOf(step.kind)} className="text-[17px] font-semibold">
+              {step.kind}
+            </span>
+            <span className="text-[15px] text-sub">{stepWhen(step.date, step.time, today)}</span>
+            {step.notes && (
+              <span lang={langOf(step.notes)} className="text-[15px] whitespace-pre-line">
+                {step.notes}
               </span>
-              <span className="text-[15px] text-sub">{stepWhen(step.date, step.time, today)}</span>
-              {step.notes && (
-                <span lang={langOf(step.notes)} className="text-[15px] whitespace-pre-line">
-                  {step.notes}
-                </span>
-              )}
-            </li>
-          )
-        })}
-      </GroupedList>
-    </>
+            )}
+          </li>
+        )
+      })}
+    </Section>
   )
 }
 
 // Pay and working conditions: each salary in 万円 with the yen under it, the bonus, where the work
 // is done, the office and the working language. Only what is known is shown, and nothing when none
 // of it is.
-function PayAndConditions({ opportunity: { pay, conditions } }: { opportunity: OpportunityDetails }) {
-  const headingId = useId()
-  const work = workName(conditions)
+function PayAndConditions({ pay, conditions }: { pay: Pay; conditions: Conditions }) {
+  const workplace = workplaceName(conditions)
   const rows = [
-    pay.firstStated && <Row key="first" label="First stated" value={<SalaryValue salary={pay.firstStated} />} />,
-    pay.offered && <Row key="offered" label="Offered" value={<SalaryValue salary={pay.offered} />} />,
-    pay.bonusIncluded !== null && <Row key="bonus" label="Bonus" value={pay.bonusIncluded ? 'Included' : 'Not included'} />,
-    work && <Row key="work" label="Work" value={work} />,
-    conditions.officeLocation && (
-      <Row key="office" label="Office" value={<span lang={langOf(conditions.officeLocation)}>{conditions.officeLocation}</span>} />
+    pay.firstStated && (
+      <Detail key="first" label="First stated">
+        <SalaryValue salary={pay.firstStated} />
+      </Detail>
     ),
-    conditions.workingLanguage && <Row key="language" label="Working language" value={workingLanguageName(conditions.workingLanguage)} />,
+    pay.offered && (
+      <Detail key="offered" label="Offered">
+        <SalaryValue salary={pay.offered} />
+      </Detail>
+    ),
+    pay.bonusIncluded !== null && (
+      <Detail key="bonus" label="Bonus">
+        {pay.bonusIncluded ? 'Included' : 'Not included'}
+      </Detail>
+    ),
+    workplace && (
+      <Detail key="work" label="Work">
+        {workplace}
+      </Detail>
+    ),
+    conditions.officeLocation.trim() && (
+      <Detail key="office" label="Office" lang={langOf(conditions.officeLocation)}>
+        {conditions.officeLocation}
+      </Detail>
+    ),
+    conditions.workingLanguage && (
+      <Detail key="language" label="Working language">
+        {workingLanguageName(conditions.workingLanguage)}
+      </Detail>
+    ),
   ].filter(Boolean)
   if (rows.length === 0) return null
   return (
-    <section aria-labelledby={headingId}>
-      <SectionHeader id={headingId}>Pay and conditions</SectionHeader>
-      <GroupedList as="ul">{rows}</GroupedList>
-    </section>
-  )
-}
-
-// A label on the left and its value on the right.
-function Row({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <ListRow as="li">
-      <span className="shrink-0">{label}</span>
-      <span className="text-right text-sub">{value}</span>
-    </ListRow>
+    <Section title="Pay and working conditions" list>
+      {rows}
+    </Section>
   )
 }
 
@@ -158,34 +187,12 @@ function SalaryValue({ salary }: { salary: Salary }) {
   )
 }
 
-// The Perks, as a list.
-function Perks({ perks }: { perks: string[] }) {
-  const headingId = useId()
+// A titled block of free text, such as the fit note or the Company Brief, left out when it is blank.
+function Text({ title, text }: { title: string; text: string }) {
+  if (!text.trim()) return null
   return (
-    <>
-      <SectionHeader id={headingId}>Perks</SectionHeader>
-      <GroupedList as="ul" labelledBy={headingId}>
-        {perks.map((perk) => (
-          <ListRow key={perk} as="li">
-            <span lang={langOf(perk)}>{perk}</span>
-          </ListRow>
-        ))}
-      </GroupedList>
-    </>
-  )
-}
-
-// A titled block of free text, such as the fit note or the Company Brief, its lines kept.
-function TextSection({ title, text }: { title: string; text: string }) {
-  const headingId = useId()
-  return (
-    <section aria-labelledby={headingId}>
-      <SectionHeader id={headingId}>{title}</SectionHeader>
-      <div className="my-2 rounded-[14px] bg-surface px-4 py-3">
-        <p lang={langOf(text)} className="my-0 text-[17px] leading-relaxed whitespace-pre-line">
-          {text}
-        </p>
-      </div>
-    </section>
+    <Section title={title}>
+      <TextBlock lang={langOf(text)}>{text}</TextBlock>
+    </Section>
   )
 }
