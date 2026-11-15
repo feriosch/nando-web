@@ -9,6 +9,7 @@ import { browserPasskeys } from './core/identity/passkeys'
 import { browserLeave } from './core/leave'
 import { browserPush } from './core/notifications/push'
 import { browserShare } from './core/share/share'
+import { browserClipboard } from './core/clipboard'
 import { createRoutes } from './core/shell/routes'
 // Zen Maru Gothic, the display font of some Module themes, self-hosted.
 import '@fontsource/zen-maru-gothic/500.css'
@@ -24,7 +25,7 @@ const router = createBrowserRouter(createRoutes(registry))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <CoreProvider api={api} passkeys={browserPasskeys} push={browserPush} share={browserShare} leave={browserLeave}>
+    <CoreProvider api={api} passkeys={browserPasskeys} push={browserPush} share={browserShare} clipboard={browserClipboard} leave={browserLeave}>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>

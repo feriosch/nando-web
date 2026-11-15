@@ -11,7 +11,7 @@ import { pillClasses } from '../../core/ui/pill'
 import { Sheet } from '../../core/ui/Sheet'
 import { useLastShown } from '../../core/ui/useLastShown'
 import { useAnswerWordRequest, useDismissWordRequest, useRetryWordRequest, useWordRequests, type WordRequest } from './wordRequests'
-import { rowLinkClasses } from './rows'
+import { rowLinkClasses } from '../../core/ui/List'
 
 // The Pending strip at the top of Japanese search: the Owner's Word Requests, newest first, each as
 // it stands. Shown only when there are some. A list that couldn't load says so, with Try again (a

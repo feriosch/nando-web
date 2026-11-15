@@ -2,12 +2,9 @@ import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { lucideProps } from '../../core/ui/icons'
+import { rowLinkClasses } from '../../core/ui/List'
 import { Chip } from './chips'
 import { groupLevel, groupName, type KanjiRow, type WordRow } from './japanese'
-
-// A grouped-list row as one link, to the page it opens.
-export const rowLinkClasses =
-  'flex min-h-[52px] w-full items-center gap-3 px-4 py-2.5 text-left text-ink no-underline active:bg-fill focus-visible:-outline-offset-2'
 
 // A Word as a list row opening its Word page: spelling and reading, its Spanish meaning under them,
 // and its Group on the right, coloured by its level for Basic and the JLPT Groups.

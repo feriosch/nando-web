@@ -3,7 +3,8 @@ export type Variant = 'accent' | 'quiet'
 export type Size = 'regular' | 'large'
 
 // The pill's look, for the rare native <button> that must handle the click itself, such as one
-// asking for a permission that Safari grants only from within a tap's click.
+// asking for a permission that Safari grants only from within a tap's click, and for a link out of
+// Nando that looks like a button, such as Open in LinkedIn.
 export function pillClasses(variant: Variant = 'quiet', size: Size = 'regular') {
   const colours = variant === 'accent' ? 'bg-accent text-accent-ink' : 'bg-fill text-ink'
   const dimensions = size === 'large' ? 'h-[50px] w-full text-[17px]' : 'min-h-11 text-[16px]'

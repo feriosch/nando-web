@@ -1,18 +1,20 @@
 import { createContext, useContext } from 'react'
 import type { ApiClient } from './api/client'
+import type { Clipboard } from './clipboard'
 import type { Passkeys } from './identity/passkeys'
 import type { Leave } from './leave'
 import type { Push } from './notifications/push'
 import type { Share } from './share/share'
 
 // What Core hands to every screen, Core's and every Module's: the API client, the device's
-// Passkeys, its Notification permission and Push Subscription, its share sheet, and leaving Nando
-// for another site. <CoreProvider> provides them.
+// Passkeys, its Notification permission and Push Subscription, its share sheet, its clipboard, and
+// leaving Nando for another site. <CoreProvider> provides them.
 export type Services = {
   api: ApiClient
   passkeys: Passkeys
   push: Push
   share: Share
+  clipboard: Clipboard
   leave: Leave
 }
 
@@ -45,4 +47,8 @@ export function useShare(): Share {
 // Leaving Nando for another site, such as back to a Connector after the consent page.
 export function useLeave(): Leave {
   return useServices().leave
+}
+
+export function useClipboard(): Clipboard {
+  return useServices().clipboard
 }
