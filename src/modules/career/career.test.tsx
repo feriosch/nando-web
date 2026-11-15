@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeApi, fakeClipboard, noClipboard, renderAppWith, type Answer, type Answers } from '../../test/app'
@@ -232,6 +232,17 @@ describe('Career screen', () => {
     expect(sato).toHaveTextContent('3 hours ago')
   })
 
+  it('marks Japanese in a waiting row as Japanese, and only that', async () => {
+    renderCareer('/career', {
+      'GET /api/career': careerScreen({ waiting: [waiting({ id: 'r1', name: 'Tanaka Yui', firstLine: 'ご連絡ありがとうございます。' })] }),
+    })
+
+    const row = within(await screen.findByRole('list', { name: 'Waiting for you' })).getByRole('link')
+    expect(within(row).getByText('ご連絡ありがとうございます。')).toHaveAttribute('lang', 'ja')
+    expect(within(row).getByText('Hays Japan')).not.toHaveAttribute('lang')
+    expect(within(row).getByText('Tanaka Yui')).not.toHaveAttribute('lang')
+  })
+
   it('says when nobody is waiting', async () => {
     renderCareer('/career', { 'GET /api/career': careerScreen() })
 
@@ -284,7 +295,7 @@ function recruiterPage(conversations: Conversation[]) {
   }
 }
 
-const tanakasThread = conversation({
+const tanakasConversation = conversation({
   id: 't1',
   messages: [
     { id: 'm3', from: 'other', sentAt: '2026-11-14T02:00:00Z', text: 'Sure, here is the job description.' },
@@ -313,16 +324,29 @@ describe('Loading problems', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it("says when a Recruiter couldn't be loaded", async () => {
-    renderCareer('/career/recruiters/r9', { 'GET /api/career/recruiters/r9': { status: 404, body: "there's no such Recruiter" } })
+  it("says when a Recruiter couldn't be loaded, and loads them again when asked", async () => {
+    const user = userEvent.setup()
+    let answer: Answer = { status: 500 }
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': () => answer })
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this Recruiter.")
+    answer = recruiterPage([])
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tanaka Yui' })).toBeInTheDocument()
+  })
+
+  it('says when there is no such Recruiter, with nothing to try again', async () => {
+    renderCareer('/career/recruiters/r9', { 'GET /api/career/recruiters/r9': { status: 404, body: "there's no such Recruiter" } })
+
+    expect(await screen.findByText("This Recruiter isn't in Nando.")).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 })
 
 describe('Recruiter page', () => {
   it("shows each Conversation's last messages, the Recruiter's and the Owner's told apart, and its Suggested Reply", async () => {
-    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasThread]) })
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]) })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Tanaka Yui' })).toBeInTheDocument()
     expect(screen.getByText('Hays Japan')).toBeInTheDocument()
@@ -344,7 +368,7 @@ describe('Recruiter page', () => {
   it('copies the Suggested Reply, and says so', async () => {
     const user = userEvent.setup()
     const { clipboard, copied } = fakeClipboard()
-    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasThread]) }, clipboard)
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]) }, clipboard)
 
     const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
     expect(within(reply).queryByText('Copied')).not.toBeInTheDocument()
@@ -356,7 +380,7 @@ describe('Recruiter page', () => {
 
   it("says when the Suggested Reply couldn't be copied", async () => {
     const user = userEvent.setup()
-    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasThread]) }, fakeClipboard({ fails: true }).clipboard)
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]) }, fakeClipboard({ fails: true }).clipboard)
 
     const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
     await user.click(within(reply).getByRole('button', { name: 'Copy' }))
@@ -365,14 +389,14 @@ describe('Recruiter page', () => {
   })
 
   it('opens the Conversation in LinkedIn', async () => {
-    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasThread]) })
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]) })
 
     const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
     expect(within(reply).getByRole('link', { name: 'Open in LinkedIn' })).toHaveAttribute('href', 'https://www.linkedin.com/messaging/thread/t1/')
   })
 
   it('shows the notes about the Owner\'s last message: what they wrote, what is natural, and why', async () => {
-    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasThread]) })
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]) })
 
     const about = await screen.findByRole('region', { name: 'About your last message' })
     const [note] = within(about).getAllByRole('listitem')
@@ -382,7 +406,7 @@ describe('Recruiter page', () => {
   })
 
   it('leaves the notes out when there are none', async () => {
-    const noNotes = { ...tanakasThread, suggestedReply: { ...tanakasThread.suggestedReply!, notes: [] } }
+    const noNotes = { ...tanakasConversation, suggestedReply: { ...tanakasConversation.suggestedReply!, notes: [] } }
     renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([noNotes]) })
 
     await screen.findByRole('region', { name: 'Suggested Reply' })
@@ -402,6 +426,54 @@ describe('Recruiter page', () => {
     expect(within(followUp).getByText('Follow-up')).toBeInTheDocument()
     expect(late).toHaveAccessibleName('Suggested Reply, Late Reply')
     expect(within(late).getByText('Late Reply')).toBeInTheDocument()
+  })
+})
+
+describe('Recruiter page with several Conversations', () => {
+  it('shows each Conversation apart, with its own messages and Suggested Reply', async () => {
+    const osaka = conversation({
+      id: 't2',
+      messages: [{ id: 'o1', from: 'other', sentAt: '2026-11-15T05:00:00Z', text: 'Another role, in Osaka.' }],
+      suggestedReply: { text: "Thank you, but I'd rather stay in Tokyo.", language: 'en', kind: 'answer', notes: [] },
+    })
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([osaka, tanakasConversation]) })
+
+    const first = await screen.findByRole('region', { name: 'Conversation 1 of 2' })
+    const second = screen.getByRole('region', { name: 'Conversation 2 of 2' })
+    expect(within(first).getByRole('list', { name: 'Messages' })).toHaveTextContent('Another role, in Osaka.')
+    expect(within(first).getByRole('region', { name: 'Suggested Reply' })).toHaveTextContent("I'd rather stay in Tokyo.")
+    expect(within(second).getByRole('list', { name: 'Messages' })).toHaveTextContent('カジュアル面談')
+    expect(within(second).getByRole('link', { name: 'Open in LinkedIn' })).toHaveAttribute('href', 'https://www.linkedin.com/messaging/thread/t1/')
+  })
+
+  it('leaves out the messages of a Conversation that has none', async () => {
+    const empty = conversation({ id: 't3', suggestedReply: { text: 'Hello!', language: 'en', kind: 'late', notes: [] } })
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([empty]) })
+
+    await screen.findByRole('region', { name: /Suggested Reply/ })
+    expect(screen.queryByRole('list', { name: 'Messages' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Copied', () => {
+  it('stays a moment after the last tap on Copy', async () => {
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]) })
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+    // Timers faked once the page is loaded, so finding it above still polls.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const copy = within(reply).getByRole('button', { name: 'Copy' })
+    // A plain click, as user-event's own delays wait on the faked timers.
+    const tap = () => act(async () => void fireEvent.click(copy))
+
+    await tap()
+    expect(within(reply).getByRole('status')).toHaveTextContent('Copied')
+    await act(() => vi.advanceTimersByTimeAsync(1500))
+    await tap()
+    await act(() => vi.advanceTimersByTimeAsync(1500))
+    expect(within(reply).getByRole('status')).toHaveTextContent('Copied')
+
+    await act(() => vi.advanceTimersByTimeAsync(600))
+    expect(within(reply).getByRole('status')).toHaveTextContent('')
   })
 })
 
@@ -438,4 +510,3 @@ describe('Late Replies', () => {
     expect(await screen.findByText('No Late Replies.')).toBeInTheDocument()
   })
 })
-

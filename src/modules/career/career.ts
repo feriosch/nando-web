@@ -48,9 +48,10 @@ export function opportunityLabel(o: TopOpportunity, step: string | null): string
   return `${o.role} at ${o.company.name}, ${stageName(o.stage)}${step ? `, next: ${step}` : ''}`
 }
 
-// A Recruiter with a Suggested Reply, as the Career screen and Late Replies list them.
-// `lastMessageAt` is when the Recruiter's last message came.
-export type RecruiterReply = {
+// A Recruiter waiting for the Owner's answer, follow-up or Late Reply, as the Career screen and Late
+// Replies list them. `lastMessageAt` is when the Recruiter's last message came; `firstLine` is the
+// first line of the Suggested Reply.
+export type WaitingRecruiter = {
   id: string
   name: string
   organisation: string
@@ -59,8 +60,8 @@ export type RecruiterReply = {
 }
 
 // What GET /api/career answers.
-export type CareerScreen = {
-  waiting: RecruiterReply[]
+export type CareerOverview = {
+  waiting: WaitingRecruiter[]
   top: TopOpportunity[]
   open: number
   lateReplies: number
@@ -109,7 +110,7 @@ export type RecruiterConversation = {
 }
 
 // What GET /api/career/recruiters/{id} answers: the Recruiter and their Conversations, newest first.
-export type RecruiterPage = {
+export type RecruiterWithConversations = {
   id: string
   name: string
   profileUrl: string
@@ -118,7 +119,8 @@ export type RecruiterPage = {
   conversations: RecruiterConversation[]
 }
 
-// "ja" when `text` has Japanese in it (kana or kanji), so iOS picks Japanese glyphs for it.
+// "ja" when `text` has Japanese in it (kana, kanji, Japanese punctuation or full-width and
+// half-width forms), so iOS picks Japanese glyphs for it.
 export function langOf(text: string): 'ja' | undefined {
-  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text) ? 'ja' : undefined
+  return /[\u3000-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(text) ? 'ja' : undefined
 }

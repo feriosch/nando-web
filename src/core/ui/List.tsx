@@ -1,4 +1,7 @@
+import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
+import { lucideProps } from './icons'
 
 // A section header above a grouped list: 13px, uppercase, in the secondary colour. A Module's
 // Settings Section has it in the Module's accent, after the Module's `icon`. `as="h3"` for a group
@@ -75,3 +78,14 @@ export function ListRow({
 // A grouped-list row as one link, to the page it opens.
 export const rowLinkClasses =
   'flex min-h-[52px] w-full items-center gap-3 px-4 py-2.5 text-left text-ink no-underline active:bg-fill focus-visible:-outline-offset-2'
+
+// A grouped-list row as one link to the screen it opens, with a chevron on the right. `label` names
+// it when its text alone reads poorly aloud.
+export function RowLink({ to, label, children }: { to: string; label?: string; children: ReactNode }) {
+  return (
+    <Link to={to} viewTransition aria-label={label} className={rowLinkClasses}>
+      <span className="min-w-0 flex-1">{children}</span>
+      <ChevronRight {...lucideProps} className="-mr-1.5 size-5 shrink-0 text-sub" />
+    </Link>
+  )
+}

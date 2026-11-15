@@ -11,6 +11,7 @@ import type { Leave } from '../core/leave'
 import type { Module, Registry } from '../core/module'
 import type { Push, PushSubscriptionJSON } from '../core/notifications/push'
 import type { Clipboard } from '../core/clipboard'
+import type { Services } from '../core/services'
 import type { Share } from '../core/share/share'
 import { createRoutes } from '../core/shell/routes'
 
@@ -169,6 +170,9 @@ export const noClipboard = fakeClipboard().clipboard
 // Screens that don't leave Nando: leaving goes nowhere.
 const stay: Leave = () => {}
 
+// Core's services as a test gives them: the fake API, and any of the others, faked.
+type GivenServices = Pick<Services, 'api'> & Partial<Omit<Services, 'api'>>
+
 // `app` wrapped as main.tsx wraps it: Core's services, and a new query cache that doesn't retry.
 export function withProviders(
   app: ReactNode,
@@ -179,7 +183,7 @@ export function withProviders(
     share = noShare,
     clipboard = noClipboard,
     leave = stay,
-  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share; clipboard?: Clipboard; leave?: Leave },
+  }: GivenServices,
 ) {
   const queryClient = createQueryClient({ retry: false })
   return (
@@ -207,15 +211,7 @@ export function renderAppWith(
   {
     modules = [],
     ...services
-  }: {
-    api: ReturnType<typeof fakeApi>['api']
-    passkeys?: Passkeys
-    push?: Push
-    share?: Share
-    clipboard?: Clipboard
-    leave?: Leave
-    modules?: Module[]
-  },
+  }: GivenServices & { modules?: Module[] },
 ) {
   const registry: Registry = { core, modules }
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })
