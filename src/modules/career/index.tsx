@@ -3,6 +3,8 @@ import { CareerScreen } from './CareerScreen'
 import { CareerCard } from './HomeCard'
 import { BriefcaseIcon } from './icon'
 import { LateReplies } from './LateReplies'
+import { OpenOpportunities } from './OpenOpportunities'
+import { OpportunityPage } from './OpportunityPage'
 import { RecruiterPage } from './RecruiterPage'
 
 export const career: Module = {
@@ -16,6 +18,8 @@ export const career: Module = {
     { index: true, element: <CareerScreen /> },
     { path: 'recruiters/:id', element: <RecruiterPage /> },
     { path: 'late', element: <LateReplies /> },
+    { path: 'opportunities', element: <OpenOpportunities /> },
+    { path: 'opportunities/:id', element: <OpportunityPage /> },
   ],
   homeCards: [{ id: 'career', Component: CareerCard }],
   settingsSections: [],

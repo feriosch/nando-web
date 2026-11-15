@@ -6,7 +6,7 @@ import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import type { KanjiPageFrom } from './Draw'
 import type { Component, Kanji } from './japanese'
 import { KanjiRowLink, KanjiTile, WordRowLink } from './rows'
-import { Detail, Section, TextBlock } from './Section'
+import { Detail, Section, TextBlock } from '../../core/ui/Section'
 
 // A Kanji page, at /japanese/kanji/:id: the character, large, its meaning, readings, Heisig numbers
 // and story, its Components (a stored Kanji opens its page) and the Words spelled with it.
@@ -53,7 +53,7 @@ export function KanjiPage() {
       </Section>
       {k.story && (
         <Section title="Story">
-          <TextBlock>{k.story}</TextBlock>
+          <TextBlock lang="es">{k.story}</TextBlock>
         </Section>
       )}
       {k.components.length > 0 && (

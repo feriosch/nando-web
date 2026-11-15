@@ -6,7 +6,7 @@ import { GroupedList, RowLink, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import type { CareerOverview } from './career'
-import { OpportunityRowLink, WaitingRecruiterList } from './rows'
+import { OpportunityList, WaitingRecruiterList } from './rows'
 
 // The Career screen, at /career: the Recruiters waiting for the Owner, each opening their page, the
 // top Opportunities, each opening its page, and links to every open Opportunity and the Late Replies.
@@ -31,13 +31,7 @@ export function CareerScreen() {
           {overview.data.top.length > 0 && (
             <>
               <SectionHeader id={topId}>Top Opportunities</SectionHeader>
-              <GroupedList as="ul" labelledBy={topId}>
-                {overview.data.top.map((o) => (
-                  <li key={o.id} className="my-0">
-                    <OpportunityRowLink opportunity={o} />
-                  </li>
-                ))}
-              </GroupedList>
+              <OpportunityList opportunities={overview.data.top} labelledBy={topId} />
             </>
           )}
           <div className="mt-7">

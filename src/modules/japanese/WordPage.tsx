@@ -10,7 +10,7 @@ import { Chip, Chips } from './chips'
 import { typeOf, words, type Hint, type Word, type WordLink, type WordLinkKind } from './japanese'
 import { GroupedList, ListRow, rowLinkClasses } from '../../core/ui/List'
 import { KanjiRowLink, WordLines } from './rows'
-import { Section, TextBlock } from './Section'
+import { Section, TextBlock } from '../../core/ui/Section'
 
 // Word Links are shown by kind, in this order.
 const kinds: { kind: WordLinkKind; title: string }[] = [
@@ -74,7 +74,7 @@ export function WordPage() {
       </GroupedList>
       {w.notes && (
         <Section title="Notes">
-          <TextBlock>{w.notes}</TextBlock>
+          <TextBlock lang="es">{w.notes}</TextBlock>
         </Section>
       )}
       {w.sentences.length > 0 && (

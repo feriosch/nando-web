@@ -7,7 +7,7 @@ import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import type { KanjiPageFrom } from './Draw'
 import type { KanjiLookup as Lookup } from './japanese'
-import { Detail, Section } from './Section'
+import { Detail, Section } from '../../core/ui/Section'
 
 // A Kanji Lookup, at /japanese/lookup/:kanji: what Nando finds out about a kanji the Owner hasn't
 // stored (a dimmed Candidate on Draw), laid out like a Kanji page, with English meanings.
