@@ -2,6 +2,8 @@ import type { Module } from '../../core/module'
 import { CareerScreen } from './CareerScreen'
 import { CareerCard } from './HomeCard'
 import { BriefcaseIcon } from './icon'
+import { LateReplies } from './LateReplies'
+import { RecruiterPage } from './RecruiterPage'
 
 export const career: Module = {
   id: 'career',
@@ -10,7 +12,11 @@ export const career: Module = {
   // Slate (src/index.css).
   theme: 'theme-career',
   icon: BriefcaseIcon,
-  routes: [{ index: true, element: <CareerScreen /> }],
+  routes: [
+    { index: true, element: <CareerScreen /> },
+    { path: 'recruiters/:id', element: <RecruiterPage /> },
+    { path: 'late', element: <LateReplies /> },
+  ],
   homeCards: [{ id: 'career', Component: CareerCard }],
   settingsSections: [],
 }

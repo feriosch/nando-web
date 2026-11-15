@@ -10,6 +10,7 @@ import type { Passkeys } from '../core/identity/passkeys'
 import type { Leave } from '../core/leave'
 import type { Module, Registry } from '../core/module'
 import type { Push, PushSubscriptionJSON } from '../core/notifications/push'
+import type { Clipboard } from '../core/clipboard'
 import type { Share } from '../core/share/share'
 import { createRoutes } from '../core/shell/routes'
 
@@ -149,6 +150,22 @@ export function fakeShare({
 // A device whose share sheet screens that don't test it leave alone.
 export const noShare = fakeShare().share
 
+// This device's clipboard, faked: every text copied is recorded. `fails` makes each copy fail, as
+// Safari's does when the page isn't focused.
+export function fakeClipboard({ fails = false }: { fails?: boolean } = {}) {
+  const copied: string[] = []
+  const clipboard: Clipboard = {
+    copy: async (text) => {
+      if (fails) throw new DOMException('Document is not focused.', 'NotAllowedError')
+      copied.push(text)
+    },
+  }
+  return { clipboard, copied }
+}
+
+// A device whose clipboard screens that don't test it leave alone.
+export const noClipboard = fakeClipboard().clipboard
+
 // Screens that don't leave Nando: leaving goes nowhere.
 const stay: Leave = () => {}
 
@@ -160,12 +177,13 @@ export function withProviders(
     passkeys = noPasskeys,
     push = noPush,
     share = noShare,
+    clipboard = noClipboard,
     leave = stay,
-  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share; leave?: Leave },
+  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share; clipboard?: Clipboard; leave?: Leave },
 ) {
   const queryClient = createQueryClient({ retry: false })
   return (
-    <CoreProvider api={api} passkeys={passkeys} push={push} share={share} leave={leave}>
+    <CoreProvider api={api} passkeys={passkeys} push={push} share={share} clipboard={clipboard} leave={leave}>
       <QueryClientProvider client={queryClient}>{app}</QueryClientProvider>
     </CoreProvider>
   )
@@ -189,7 +207,15 @@ export function renderAppWith(
   {
     modules = [],
     ...services
-  }: { api: ReturnType<typeof fakeApi>['api']; passkeys?: Passkeys; push?: Push; share?: Share; leave?: Leave; modules?: Module[] },
+  }: {
+    api: ReturnType<typeof fakeApi>['api']
+    passkeys?: Passkeys
+    push?: Push
+    share?: Share
+    clipboard?: Clipboard
+    leave?: Leave
+    modules?: Module[]
+  },
 ) {
   const registry: Registry = { core, modules }
   const router = createMemoryRouter(createRoutes(registry), { initialEntries: [path] })

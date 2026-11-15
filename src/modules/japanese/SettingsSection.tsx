@@ -7,7 +7,7 @@ import { lucideProps } from '../../core/ui/icons'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { pillClasses } from '../../core/ui/pill'
 import { saveFooter } from '../../core/ui/saveFooter'
-import { rowLinkClasses } from './rows'
+import { rowLinkClasses } from '../../core/ui/List'
 
 // Where the JLPT deck comes from: every Word studied for the JLPT, for AnkiMobile's import.
 const deckPath = '/api/japanese/anki/jlpt.csv'

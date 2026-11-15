@@ -71,3 +71,7 @@ export function ListRow({
 }) {
   return <Row className={`flex min-h-[52px] items-center justify-between gap-3 px-4 py-2 ${className}`}>{children}</Row>
 }
+
+// A grouped-list row as one link, to the page it opens.
+export const rowLinkClasses =
+  'flex min-h-[52px] w-full items-center gap-3 px-4 py-2.5 text-left text-ink no-underline active:bg-fill focus-visible:-outline-offset-2'

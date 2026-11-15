@@ -5,8 +5,9 @@ import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
 import { CardHeader, CardLink, cardClasses } from '../../core/ui/HomeCard'
 import { Switch } from '../../core/ui/Switch'
-import { describeStep, stageName, type CareerHomeCard, type TopOpportunity } from './career'
+import { describeStep, opportunityLabel, type CareerHomeCard, type TopOpportunity } from './career'
 import { BriefcaseIcon } from './icon'
+import { OpportunityLines } from './rows'
 
 const homeCardKey = ['career', 'home-card']
 
@@ -95,28 +96,18 @@ function LoadedCard({ card: { looking, waiting, top } }: { card: CareerHomeCard 
   )
 }
 
-// One of the top Opportunities: its role, Company, Stage and next Step, opening its page. Above the
-// card's link; the gaps between them stay on it.
+// One of the top Opportunities, opening its page. Above the card's link; the gaps between them stay
+// on it.
 function OpportunityLink({ opportunity: o, today }: { opportunity: TopOpportunity; today: string | undefined }) {
   const step = o.nextStep && describeStep(o.nextStep, today)
   return (
     <Link
       to={`/career/opportunities/${o.id}`}
       viewTransition
-      aria-label={`${o.role} at ${o.company.name}, ${stageName(o.stage)}${step ? `, next: ${step}` : ''}`}
+      aria-label={opportunityLabel(o, step)}
       className="relative z-10 flex min-h-11 flex-col gap-0.5 py-2.5 no-underline outline-none focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-accent active:opacity-70"
     >
-      <span className="flex items-baseline gap-2">
-        {/* A Japanese Company's role and name are often in Japanese. */}
-        <span lang="ja" className="min-w-0 flex-1 truncate text-[17px] font-semibold text-ink">
-          {o.role}
-        </span>
-        <span className="shrink-0 text-[13px] font-medium text-accent">{stageName(o.stage)}</span>
-      </span>
-      <span lang="ja" className="truncate text-[15px] text-sub">
-        {o.company.name}
-      </span>
-      {step && <span className="truncate text-[13px] text-sub">{step}</span>}
+      <OpportunityLines opportunity={o} step={step} />
     </Link>
   )
 }

@@ -41,3 +41,84 @@ export function describeStep({ kind, date, time }: NextStep, today: string | und
   const day = `${formatDayAs(date, { weekday: 'short' })} ${formatDayAs(date, { day: 'numeric', month: 'short', ...(otherYear && { year: 'numeric' }) })}`
   return `${kind} · ${time === null ? day : `${day}, ${time}`}`
 }
+
+// What a link to the Opportunity is called, read as one phrase: "Backend Engineer at Kumo Pay,
+// In Process, next: Final interview · Fri 27 Nov, 18:00".
+export function opportunityLabel(o: TopOpportunity, step: string | null): string {
+  return `${o.role} at ${o.company.name}, ${stageName(o.stage)}${step ? `, next: ${step}` : ''}`
+}
+
+// A Recruiter with a Suggested Reply, as the Career screen and Late Replies list them.
+// `lastMessageAt` is when the Recruiter's last message came.
+export type RecruiterReply = {
+  id: string
+  name: string
+  organisation: string
+  lastMessageAt: string
+  firstLine: string
+}
+
+// What GET /api/career answers.
+export type CareerScreen = {
+  waiting: RecruiterReply[]
+  top: TopOpportunity[]
+  open: number
+  lateReplies: number
+}
+
+const units: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['year', 365 * 24 * 60],
+  ['month', 30 * 24 * 60],
+  ['week', 7 * 24 * 60],
+  ['day', 24 * 60],
+  ['hour', 60],
+  ['minute', 1],
+]
+
+// How long ago `at` was, from `now`, such as "3 hours ago", "yesterday" or "2 weeks ago".
+export function ago(at: string, now: Date): string {
+  const minutes = Math.floor((now.getTime() - new Date(at).getTime()) / 60_000)
+  const format = new Intl.RelativeTimeFormat('en-GB', { numeric: 'auto' })
+  for (const [unit, size] of units) {
+    if (minutes >= size) return format.format(-Math.floor(minutes / size), unit)
+  }
+  return 'just now'
+}
+
+// One message in a Conversation: the Owner's (`owner`) or the Recruiter's (`other`).
+export type Message = { id: string; from: 'owner' | 'other'; sentAt: string; text: string }
+
+// A mistake in the Owner's last message: what they wrote, what is natural, and why.
+export type LanguageNote = { wrote: string; natural: string; why: string }
+
+// Claude's draft of the Owner's next message, which only the Owner ever sends.
+export type SuggestedReply = {
+  text: string
+  language: 'ja' | 'en'
+  kind: 'answer' | 'follow_up' | 'late'
+  notes: LanguageNote[]
+}
+
+// A Conversation as its Recruiter's page shows it: its LinkedIn URL, its last 5 messages, oldest
+// first, and its Suggested Reply.
+export type RecruiterConversation = {
+  id: string
+  url: string
+  messages: Message[]
+  suggestedReply: SuggestedReply | null
+}
+
+// What GET /api/career/recruiters/{id} answers: the Recruiter and their Conversations, newest first.
+export type RecruiterPage = {
+  id: string
+  name: string
+  profileUrl: string
+  kind: 'agency' | 'in_house'
+  organisation: string
+  conversations: RecruiterConversation[]
+}
+
+// "ja" when `text` has Japanese in it (kana or kanji), so iOS picks Japanese glyphs for it.
+export function langOf(text: string): 'ja' | undefined {
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text) ? 'ja' : undefined
+}
