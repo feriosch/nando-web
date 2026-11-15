@@ -32,7 +32,7 @@ A **theme** is a palette plus a display font, applied by a class on a container 
 
 Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the walnut board: the Day view's summary and the Home Card), `bar-fill` and `warn-bar` (over the Daily Limit). On the board, `on-board` has `ink`, `sub` and `fill` read the board's own, so blocks such as `LoadProblem` and `CardHeader` stay legible there. Japanese adds `level-basic`, `level-n3`, `level-n2` and `level-n1` (green, blue, purple, red: easiest to hardest), the colours of the Basic and JLPT Groups' chips. Body text is always `font-sans`, the system font.
 
-Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font) and **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Maru Gothic display font, Zen Kaku Gothic New for Japanese display text).
+Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font), **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Maru Gothic display font, Zen Kaku Gothic New for Japanese display text) and **Slate** (`theme-career`, office-calm: cool bluish-gray paper, dark-gray ink and a professional blue, minimal, the system font for display text).
 
 ## A Module's theme and icon
 
@@ -41,7 +41,7 @@ Every Module brings its own theme. Its `Module` object (`src/core/module.ts`) de
 - `theme`: its class, defined in `src/index.css` with the same token names for light and under `.dark` for dark. Fonts come from Fontsource, imported in `src/main.tsx`; the service worker keeps font files for offline.
 - `icon`: one custom 24px icon in the lucide style, drawn with `Icon` from `src/core/ui/Icon.tsx` (stroke 1.8, round caps). Calories' bowl is `src/modules/calories/icon.tsx`.
 
-Core never names a Module's theme; the shell reads it from the `Module`. On the Settings screen, a Module's Settings Section takes its theme as a **tint**: its header in the Module's accent after its icon, and its `GroupedList`s on the Module's surface with a hairline border (they draw it inside any `data-tint` ancestor). The screen around it stays Paper. Planned palettes for future Modules, as references only: **Slate**.
+Core never names a Module's theme; the shell reads it from the `Module`. On the Settings screen, a Module's Settings Section takes its theme as a **tint**: its header in the Module's accent after its icon, and its `GroupedList`s on the Module's surface with a hairline border (they draw it inside any `data-tint` ancestor). The screen around it stays Paper.
 
 ## Building blocks
 
