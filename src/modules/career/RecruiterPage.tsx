@@ -8,8 +8,17 @@ import { Button } from '../../core/ui/Button'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { pillClasses } from '../../core/ui/pill'
+import { useCameFrom } from '../../core/ui/cameFrom'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { langOf, type LanguageNote, type Message, type RecruiterConversation, type RecruiterWithConversations, type SuggestedReply } from './career'
+
+// Where a Recruiter's page goes back to: Late Replies when it was opened from there, and the Career
+// screen otherwise, such as from its waiting list or a Notification.
+function useBack(): { to: string; label: string } {
+  const cameFrom = useCameFrom()
+  if (cameFrom === '/career/late') return { to: cameFrom, label: 'Late Replies' }
+  return { to: '/career', label: 'Career' }
+}
 
 // A Recruiter's page, at /career/recruiters/:id: for each of their Conversations, its last messages
 // and its Suggested Reply.
@@ -17,7 +26,7 @@ export function RecruiterPage() {
   const { id } = useParams()
   const api = useApi()
   const page = useQuery({ queryKey: ['career', 'recruiters', id], queryFn: () => api.get<RecruiterWithConversations>(`/api/career/recruiters/${id}`) })
-  const back = { to: '/career', label: 'Career' }
+  const back = useBack()
 
   if (!page.data) {
     return (
