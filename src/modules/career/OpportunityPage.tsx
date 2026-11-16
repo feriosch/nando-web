@@ -12,6 +12,7 @@ import { Detail, Section, TextBlock } from '../../core/ui/Section'
 import {
   interestName,
   langOf,
+  opportunityQuery,
   salaryInMan,
   salaryInYen,
   stageWithOutcome,
@@ -19,7 +20,6 @@ import {
   workingLanguageName,
   workplaceName,
   type Conditions,
-  type OpportunityDetails,
   type Pay,
   type Salary,
   type Step,
@@ -30,10 +30,7 @@ import {
 export function OpportunityPage() {
   const { id } = useParams()
   const api = useApi()
-  const page = useQuery({
-    queryKey: ['career', 'opportunities', id],
-    queryFn: () => api.get<OpportunityDetails>(`/api/career/opportunities/${id}`),
-  })
+  const page = useQuery(opportunityQuery(api, id))
   // Back to the open Opportunities or Home when it was opened from there, and to the Career screen
   // otherwise, such as from a Notification.
   const back = useBackLink({ '/career/opportunities': 'Open Opportunities', '/': 'Home' }, { to: '/career', label: 'Career' })

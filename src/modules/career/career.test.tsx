@@ -726,6 +726,36 @@ describe('Opportunity page', () => {
     expect(screen.queryByText('Next')).not.toBeInTheDocument()
   })
 
+  it('is where its Recruiter, opened from it, goes back to, named by its role', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCareer('/career/opportunities/o1', {
+      'GET /api/career/opportunities/o1': { status: 200, body: fullOpportunity },
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+    })
+
+    await user.click(await screen.findByRole('link', { name: /Tanaka Yui/ }))
+    expect(await backLink('Tanaka Yui')).toEqual({ name: 'Backend Engineer', href: '/career/opportunities/o1' })
+    // The role comes from the Opportunity page already loaded, not from asking again.
+    expect(sent.filter((r) => r.path === '/api/career/opportunities/o1')).toHaveLength(1)
+  })
+
+  it('names itself in Japanese, back from its Recruiter, when its role is Japanese', async () => {
+    const user = userEvent.setup()
+    const { router } = renderCareer('/career/opportunities/o1', {
+      'GET /api/career/opportunities/o1': { status: 200, body: { ...fullOpportunity, role: 'バックエンドエンジニア' } },
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+    })
+
+    await user.click(await screen.findByRole('link', { name: /Tanaka Yui/ }))
+    const header = (await screen.findByRole('heading', { level: 1, name: 'Tanaka Yui' })).closest('header') as HTMLElement
+    const back = within(header).getByRole('link')
+    expect(within(back).getByText('バックエンドエンジニア')).toHaveAttribute('lang', 'ja')
+
+    await user.click(back)
+    expect(router.state.location.pathname).toBe('/career/opportunities/o1')
+    expect(await screen.findByRole('heading', { level: 1, name: 'バックエンドエンジニア' })).toBeInTheDocument()
+  })
+
   it('goes back to the screen it was opened from', async () => {
     const user = userEvent.setup()
     renderCareer('/career/opportunities', {
