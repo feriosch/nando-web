@@ -230,3 +230,9 @@ const outcomeNames: Record<Outcome, string> = { accepted: 'Accepted', declined: 
 export function stageWithOutcome({ stage, outcome }: Pick<OpportunityDetails, 'stage' | 'outcome'>): string {
   return stage === 'closed' && outcome !== null ? `${stageName(stage)} · ${outcomeNames[outcome]}` : stageName(stage)
 }
+
+// Where an Opportunity's page keeps what GET /api/career/opportunities/{id} answered, so another
+// screen can read it.
+export function opportunityKey(id: string | undefined) {
+  return ['career', 'opportunities', id] as const
+}

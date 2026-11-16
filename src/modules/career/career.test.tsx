@@ -515,6 +515,19 @@ describe('Late Replies', () => {
     expect(await backLink('Tanaka Yui')).toEqual({ name: 'Late Replies', href: '/career/late' })
   })
 
+  it('is not where a Recruiter opened from an Opportunity goes back to: that Opportunity is, named by its role', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCareer('/career/opportunities/o1', {
+      'GET /api/career/opportunities/o1': { status: 200, body: fullOpportunity },
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+    })
+
+    await user.click(await screen.findByRole('link', { name: /Tanaka Yui/ }))
+    expect(await backLink('Tanaka Yui')).toEqual({ name: 'Backend Engineer', href: '/career/opportunities/o1' })
+    // The role comes from the Opportunity page already loaded, not from asking again.
+    expect(sent.filter((r) => r.path === '/api/career/opportunities/o1')).toHaveLength(1)
+  })
+
   it('is still where a Recruiter goes back to when their page opens again, already loaded', async () => {
     const user = userEvent.setup()
     const { router } = renderCareer('/career/late', {

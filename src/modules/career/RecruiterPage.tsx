@@ -8,9 +8,9 @@ import { Button } from '../../core/ui/Button'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { pillClasses } from '../../core/ui/pill'
-import { useBackLink } from '../../core/ui/cameFrom'
+import { useBackLink, useCameFrom } from '../../core/ui/cameFrom'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
-import { langOf, type LanguageNote, type Message, type RecruiterConversation, type RecruiterWithConversations, type SuggestedReply } from './career'
+import { langOf, opportunityKey, type LanguageNote, type OpportunityDetails, type Message, type RecruiterConversation, type RecruiterWithConversations, type SuggestedReply } from './career'
 
 // A Recruiter's page, at /career/recruiters/:id: for each of their Conversations, its last messages
 // and its Suggested Reply.
@@ -18,9 +18,20 @@ export function RecruiterPage() {
   const { id } = useParams()
   const api = useApi()
   const page = useQuery({ queryKey: ['career', 'recruiters', id], queryFn: () => api.get<RecruiterWithConversations>(`/api/career/recruiters/${id}`) })
-  // Back to Late Replies when it was opened from there, and to the Career screen otherwise, such as
-  // from its waiting list or a Notification.
-  const back = useBackLink({ '/career/late': 'Late Replies' }, { to: '/career', label: 'Career' })
+  // Back to Late Replies or the Opportunity page it was opened from, named by the Opportunity's role
+  // (already loaded there, so only read here), and to the Career screen otherwise, such as from its
+  // waiting list or a Notification.
+  const cameFrom = useCameFrom()
+  const opportunityId = cameFrom?.match(/^\/career\/opportunities\/([^/?]+)/)?.[1]
+  const opportunity = useQuery({
+    queryKey: opportunityKey(opportunityId),
+    queryFn: () => api.get<OpportunityDetails>(`/api/career/opportunities/${opportunityId}`),
+    enabled: false,
+  })
+  const back = useBackLink(
+    { '/career/late': 'Late Replies', ...(cameFrom && opportunityId && { [cameFrom]: opportunity.data?.role ?? 'Opportunity' }) },
+    { to: '/career', label: 'Career' },
+  )
 
   if (!page.data) {
     return (

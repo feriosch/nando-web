@@ -12,6 +12,7 @@ import { Detail, Section, TextBlock } from '../../core/ui/Section'
 import {
   interestName,
   langOf,
+  opportunityKey,
   salaryInMan,
   salaryInYen,
   stageWithOutcome,
@@ -31,7 +32,7 @@ export function OpportunityPage() {
   const { id } = useParams()
   const api = useApi()
   const page = useQuery({
-    queryKey: ['career', 'opportunities', id],
+    queryKey: opportunityKey(id),
     queryFn: () => api.get<OpportunityDetails>(`/api/career/opportunities/${id}`),
   })
   // Back to the open Opportunities or Home when it was opened from there, and to the Career screen
