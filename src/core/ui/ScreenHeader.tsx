@@ -19,7 +19,8 @@ export function ScreenHeader({
   title?: ReactNode
   overline?: ReactNode
   subtitle?: ReactNode
-  back?: { to: string; label: string }
+  // `lang` is the label's language when it isn't the app's, such as "ja" for a Japanese title.
+  back?: { to: string; label: string; lang?: string }
   leading?: ReactNode
   actions?: ReactNode
 }) {
@@ -44,7 +45,7 @@ export function ScreenHeader({
             className="-ml-2 flex min-h-11 items-center pr-2 text-[17px] text-accent no-underline"
           >
             <ChevronLeft {...lucideProps} />
-            {back.label}
+            <span lang={back.lang}>{back.label}</span>
           </Link>
         ) : (
           (leading ?? <span />)

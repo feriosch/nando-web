@@ -1,3 +1,5 @@
+import { queryOptions } from '@tanstack/react-query'
+import type { ApiClient } from '../../core/api/client'
 import { formatDayAs } from '../../core/days'
 
 // The types below mirror nando-server's internal/career/API.md.
@@ -231,8 +233,11 @@ export function stageWithOutcome({ stage, outcome }: Pick<OpportunityDetails, 's
   return stage === 'closed' && outcome !== null ? `${stageName(stage)} · ${outcomeNames[outcome]}` : stageName(stage)
 }
 
-// Where an Opportunity's page keeps what GET /api/career/opportunities/{id} answered, so another
-// screen can read it.
-export function opportunityKey(id: string | undefined) {
-  return ['career', 'opportunities', id] as const
+// Everything about the Opportunity `id` (GET /api/career/opportunities/{id}), as its page loads it
+// and keeps it, so another screen can read what that page already loaded.
+export function opportunityQuery(api: ApiClient, id: string | undefined) {
+  return queryOptions({
+    queryKey: ['career', 'opportunities', id],
+    queryFn: () => api.get<OpportunityDetails>(`/api/career/opportunities/${id}`),
+  })
 }
