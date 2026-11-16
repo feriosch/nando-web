@@ -16,9 +16,6 @@ import type { Recognizer } from './recognizer'
 // Candidate's Kanji, or another tab, finds it as it was.
 const lastDrawingKey = ['japanese', 'last-drawing']
 
-// Where a Kanji page was opened from, as its link's state, so its back link returns there.
-export type KanjiPageFrom = { from: 'draw' }
-
 // Draw, at /japanese/draw: a kanji drawn by finger, and the Candidates it may be.
 export function Draw({ recognizer }: { recognizer: Recognizer }) {
   const queryClient = useQueryClient()
@@ -107,7 +104,6 @@ function CandidateTile({ kanji, stored }: { kanji: string; stored: CandidateKanj
     return (
       <Link
         to={`/japanese/lookup/${kanji}`}
-        state={{ from: 'draw' } satisfies KanjiPageFrom}
         viewTransition
         aria-label={`${kanji}, not stored`}
         className={`${tileClasses} text-sub no-underline opacity-50 active:opacity-30`}>
@@ -120,7 +116,6 @@ function CandidateTile({ kanji, stored }: { kanji: string; stored: CandidateKanj
   return (
     <Link
       to={`/japanese/kanji/${stored.id}`}
-      state={{ from: 'draw' } satisfies KanjiPageFrom}
       viewTransition
       aria-label={`${kanji} ${stored.spanish} ${stored.v1}`}
       className={`${tileClasses} text-ink no-underline active:opacity-60`}>

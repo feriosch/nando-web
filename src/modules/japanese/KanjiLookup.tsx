@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Navigate, useLocation, useParams } from 'react-router'
+import { Navigate, useParams } from 'react-router'
 import { ApiError } from '../../core/api/client'
 import { useApi } from '../../core/services'
+import { useBackLink } from '../../core/ui/cameFrom'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
-import type { KanjiPageFrom } from './Draw'
 import type { KanjiLookup as Lookup } from './japanese'
 import { Detail, Section } from '../../core/ui/Section'
 
@@ -22,15 +22,13 @@ export function KanjiLookup() {
     // online (src/core/queries.ts).
     retry: false,
   })
-  // Opened from a Drawing's Candidates, it goes back to the Drawing; otherwise, to Search.
-  const { state } = useLocation()
-  const fromDraw = (state as KanjiPageFrom | null)?.from === 'draw'
-  const back = fromDraw ? { to: '/japanese/draw', label: 'Draw' } : { to: '/japanese', label: 'Search' }
+  // Back to Search, or to the screen it was opened from, such as a Drawing's Candidates.
+  const back = useBackLink({ to: '/japanese', label: 'Search' })
 
   // Stored after all (added since the Candidates were checked): its Kanji page instead, which goes
   // back to the same place.
   const storedId = lookup.error instanceof ApiError && lookup.error.status === 409 ? storedKanjiId(lookup.error) : null
-  if (storedId) return <Navigate to={`/japanese/kanji/${storedId}`} replace state={state} />
+  if (storedId) return <Navigate to={`/japanese/kanji/${storedId}`} replace />
 
   if (!lookup.data) {
     const status = lookup.error instanceof ApiError ? lookup.error.status : null

@@ -101,7 +101,8 @@ describe('Search', () => {
     await screen.findByRole('heading', { level: 1, name: '待ち望む' })
     page.scrollTo(400)
 
-    await user.click(screen.getByRole('link', { name: 'Search' }))
+    // Opened afresh, from the tab bar: this Word's back link goes back to the Word it came from.
+    await user.click(screen.getByRole('link', { name: 'Japanese' }))
 
     expect(await screen.findByRole('searchbox', { name: 'Search' })).toBeInTheDocument()
     expect(page.y).toBe(0)
@@ -229,6 +230,12 @@ function rowsOf(name: string) {
   return within(screen.getByRole('list', { name })).getAllByRole('listitem').map((row) => row.textContent)
 }
 
+// The back link in the header of the screen titled `title`.
+async function backLink(title: string) {
+  const header = (await screen.findByRole('heading', { level: 1, name: title })).closest('header') as HTMLElement
+  return within(header).getByRole('link')
+}
+
 describe('Word page', () => {
   it('shows everything about the Word: its Word Links by kind, Hints and Kanji', async () => {
     renderJapanese('/japanese/words/w3', { 'GET /api/japanese/words/w3': { status: 200, body: kitai } })
@@ -293,6 +300,21 @@ describe('Word page', () => {
     await act(() => router.navigate(-1))
     expect(await screen.findByRole('heading', { level: 1, name: '期待' })).toBeInTheDocument()
     expect(page.y).toBe(1200)
+  })
+
+  it('goes back to the Word it was opened from, named by its spelling', async () => {
+    const user = userEvent.setup()
+    renderJapanese('/japanese/words/w3', {
+      'GET /api/japanese/words/w3': { status: 200, body: kitai },
+      'GET /api/japanese/words/w4': { status: 200, body: wordPage(machinozomu) },
+    })
+
+    await user.click(within(await screen.findByRole('list', { name: 'Synonyms' })).getByRole('link', { name: /待ち望む/ }))
+
+    const back = await backLink('待ち望む')
+    expect(back).toHaveAccessibleName('期待')
+    expect(back).toHaveAttribute('href', '/japanese/words/w3')
+    expect(within(back).getByText('期待')).toHaveAttribute('lang', 'ja')
   })
 
   it('opens a Kanji in its spelling', async () => {
@@ -366,6 +388,28 @@ describe('Kanji page', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: '毎' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/japanese/kanji/k5')
+  })
+
+  it('goes back to the Word it was opened from', async () => {
+    const user = userEvent.setup()
+    renderJapanese('/japanese/words/w3', {
+      'GET /api/japanese/words/w3': { status: 200, body: kitai },
+      'GET /api/japanese/kanji/k3': { status: 200, body: kanjiPage(matsuKanji, { words: [kitaiRow, machinozomu] }) },
+    })
+
+    await user.click(within(await screen.findByRole('list', { name: 'Kanji' })).getByRole('link', { name: /待/ }))
+
+    const back = await backLink('待')
+    expect(back).toHaveAccessibleName('期待')
+    expect(back).toHaveAttribute('href', '/japanese/words/w3')
+  })
+
+  it('goes back to Search when opened directly', async () => {
+    renderJapanese('/japanese/kanji/k3', { 'GET /api/japanese/kanji/k3': { status: 200, body: kanjiPage(matsuKanji) } })
+
+    const back = await backLink('待')
+    expect(back).toHaveAccessibleName('Search')
+    expect(back).toHaveAttribute('href', '/japanese')
   })
 
   it('opens a Word spelled with it', async () => {

@@ -1,42 +1,76 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useLayoutEffect, useState, type RefObject } from 'react'
 import { useLocation, useNavigationType } from 'react-router'
 
-// Where each opened screen was opened from (its path and query), by its history entry
-// (location.key), so a back link to exactly that screen can go back to it, scrolled as it was,
-// rather than open it afresh. The shell provides it (src/core/shell/Layout.tsx).
-export const CameFromContext = createContext<ReadonlyMap<string, string> | null>(null)
+// The screen an opened screen was opened from: its path and query, and its history entry.
+type Origin = { at: string; key: string }
+
+// A screen's title as plain text, with its language when it isn't the app's (such as "ja").
+export type ScreenTitle = { text: string; lang?: string }
+
+// What the shell records as the Owner moves between screens, by history entry (location.key): where
+// each opened screen was opened from, and each screen's title. So a back link to exactly that screen
+// can go back to it, scrolled as it was, rather than open it afresh, and name it. The shell provides
+// it (src/core/shell/Layout.tsx).
+export type Journey = { cameFrom: ReadonlyMap<string, Origin>; titles: Map<string, ScreenTitle> }
+
+export const JourneyContext = createContext<Journey | null>(null)
 
 // Records, for every screen opened from another (a push), where it was opened from. A screen that
-// replaces itself (a redirect) keeps where the one it replaced came from.
+// replaces itself (a redirect) keeps where the one it replaced came from. Screens record their own
+// titles (`useRecordTitle`).
 //
-// It's recorded as the shell renders the new screen, before the screen itself renders, so the
-// screen knows on its first render where it came from: a screen whose data is already cached, and
-// so renders once, would otherwise keep the back link it had before it was recorded.
-export function useRecordCameFrom(): ReadonlyMap<string, string> {
-  const [cameFrom] = useState(() => new Map<string, string>())
+// Where it came from is recorded as the shell renders the new screen, before the screen itself
+// renders, so the screen knows on its first render where it came from: a screen whose data is
+// already cached, and so renders once, would otherwise keep the back link it had before it was
+// recorded.
+export function useRecordJourney(): Journey {
+  const [journey] = useState<Journey>(() => ({ cameFrom: new Map(), titles: new Map() }))
+  const cameFrom = journey.cameFrom as Map<string, Origin>
   const location = useLocation()
   const type = useNavigationType()
-  const [last, setLast] = useState<{ key: string; at: string } | null>(null)
+  const [last, setLast] = useState<Origin | null>(null)
   if (last?.key !== location.key) {
     if (last && !cameFrom.has(location.key)) {
-      const from = type === 'PUSH' ? last.at : type === 'REPLACE' ? cameFrom.get(last.key) : undefined
+      const from = type === 'PUSH' ? last : type === 'REPLACE' ? cameFrom.get(last.key) : undefined
       if (from !== undefined) cameFrom.set(location.key, from)
     }
     setLast({ key: location.key, at: location.pathname + location.search })
   }
-  return cameFrom
+  return journey
+}
+
+// Records the title of the screen on view, as its header `title` shows it: its text, and the
+// language of the element holding it, if any. A screen whose title is still loading records none.
+export function useRecordTitle(title: RefObject<HTMLElement | null>) {
+  const journey = useContext(JourneyContext)
+  const { key } = useLocation()
+  useLayoutEffect(() => {
+    if (!journey) return
+    const text = title.current?.textContent?.trim()
+    if (!text) {
+      journey.titles.delete(key)
+      return
+    }
+    const lang = title.current?.getAttribute('lang') ?? title.current?.querySelector('[lang]')?.getAttribute('lang') ?? undefined
+    journey.titles.set(key, { text, lang })
+  })
 }
 
 // Where the screen on view was opened from (its path and query), if it was opened from another.
 export function useCameFrom(): string | undefined {
-  const cameFrom = useContext(CameFromContext)
-  return cameFrom?.get(useLocation().key)
+  return useContext(JourneyContext)?.cameFrom.get(useLocation().key)?.at
 }
 
-// The back link of a screen opened from several: to the screen it was opened from when that's one
-// of `origins` (each path with its screen's name), and to `fallback` otherwise.
-export function useBackLink(origins: Readonly<Record<string, string>>, fallback: { to: string; label: string }): { to: string; label: string } {
-  const cameFrom = useCameFrom()
-  const label = cameFrom === undefined ? undefined : origins[cameFrom]
-  return cameFrom !== undefined && label !== undefined ? { to: cameFrom, label } : fallback
+// A back link: where it goes, what it says, and in what language when that isn't the app's.
+export type BackLink = { to: string; label: string; lang?: string }
+
+// The back link of a screen: `usual` when the screen was opened from there, or opened directly (such
+// as from a Notification); otherwise back to the screen it was opened from, named by that screen's
+// title, or "Back" if it had none.
+export function useBackLink(usual: BackLink): BackLink {
+  const journey = useContext(JourneyContext)
+  const origin = journey?.cameFrom.get(useLocation().key)
+  if (!journey || !origin || origin.at === usual.to) return usual
+  const title = journey.titles.get(origin.key)
+  return title ? { to: origin.at, label: title.text, lang: title.lang } : { to: origin.at, label: 'Back' }
 }
