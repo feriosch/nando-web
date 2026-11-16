@@ -515,6 +515,20 @@ describe('Late Replies', () => {
     expect(await backLink('Tanaka Yui')).toEqual({ name: 'Late Replies', href: '/career/late' })
   })
 
+  it('is still where a Recruiter goes back to when their page opens again, already loaded', async () => {
+    const user = userEvent.setup()
+    const { router } = renderCareer('/career/late', {
+      'GET /api/career/late-replies': { status: 200, body: [waiting({ id: 'r1', name: 'Tanaka Yui' })] },
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+    })
+
+    await user.click(await screen.findByRole('link', { name: /Tanaka Yui/ }))
+    await user.click(within((await screen.findByRole('heading', { level: 1, name: 'Tanaka Yui' })).closest('header') as HTMLElement).getByRole('link'))
+    expect(router.state.location.pathname).toBe('/career/late')
+    await user.click(await screen.findByRole('link', { name: /Tanaka Yui/ }))
+    expect(await backLink('Tanaka Yui')).toEqual({ name: 'Late Replies', href: '/career/late' })
+  })
+
   it('says when there are none', async () => {
     renderCareer('/career/late', { 'GET /api/career/late-replies': { status: 200, body: [] } })
 

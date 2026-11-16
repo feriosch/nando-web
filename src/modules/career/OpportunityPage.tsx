@@ -4,7 +4,7 @@ import { ApiError } from '../../core/api/client'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
-import { useCameFrom } from '../../core/ui/cameFrom'
+import { useBackLink } from '../../core/ui/cameFrom'
 import { GroupedList, ListRow, RowLink } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
@@ -25,15 +25,6 @@ import {
   type Step,
 } from './career'
 
-// Where an Opportunity's page goes back to: the open Opportunities or Home when it was opened from
-// there, and the Career screen otherwise, such as from a Notification.
-function useBack(): { to: string; label: string } {
-  const cameFrom = useCameFrom()
-  if (cameFrom === '/career/opportunities') return { to: cameFrom, label: 'Open Opportunities' }
-  if (cameFrom === '/') return { to: '/', label: 'Home' }
-  return { to: '/career', label: 'Career' }
-}
-
 // An Opportunity's page, at /career/opportunities/:id: everything about it, open or closed. Only what
 // is known is shown.
 export function OpportunityPage() {
@@ -43,7 +34,9 @@ export function OpportunityPage() {
     queryKey: ['career', 'opportunities', id],
     queryFn: () => api.get<OpportunityDetails>(`/api/career/opportunities/${id}`),
   })
-  const back = useBack()
+  // Back to the open Opportunities or Home when it was opened from there, and to the Career screen
+  // otherwise, such as from a Notification.
+  const back = useBackLink({ '/career/opportunities': 'Open Opportunities', '/': 'Home' }, { to: '/career', label: 'Career' })
 
   if (!page.data) {
     return (
