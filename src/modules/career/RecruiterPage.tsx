@@ -8,6 +8,7 @@ import { Button } from '../../core/ui/Button'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { pillClasses } from '../../core/ui/pill'
+import { useBackLink } from '../../core/ui/cameFrom'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { langOf, type LanguageNote, type Message, type RecruiterConversation, type RecruiterWithConversations, type SuggestedReply } from './career'
 
@@ -17,7 +18,9 @@ export function RecruiterPage() {
   const { id } = useParams()
   const api = useApi()
   const page = useQuery({ queryKey: ['career', 'recruiters', id], queryFn: () => api.get<RecruiterWithConversations>(`/api/career/recruiters/${id}`) })
-  const back = { to: '/career', label: 'Career' }
+  // Back to Late Replies when it was opened from there, and to the Career screen otherwise, such as
+  // from its waiting list or a Notification.
+  const back = useBackLink({ '/career/late': 'Late Replies' }, { to: '/career', label: 'Career' })
 
   if (!page.data) {
     return (
