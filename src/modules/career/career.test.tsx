@@ -558,6 +558,27 @@ describe("Mark as Replied that fails", () => {
   })
 })
 
+describe('Mark as Replied after a Sync', () => {
+  it('reads the page again when the Suggested Reply is no longer there to mark', async () => {
+    const user = userEvent.setup()
+    let conversations = [tanakasConversation]
+    renderCareer('/career/recruiters/r1', {
+      'GET /api/career/recruiters/r1': () => recruiterPage(conversations),
+      // A Sync has since seen the Owner's reply and removed the Suggested Reply.
+      'POST /api/career/conversations/t1/replied': () => {
+        conversations = [{ ...tanakasConversation, suggestedReply: null }]
+        return { status: 409, body: 'the Conversation has no Suggested Reply' }
+      },
+    })
+
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+    await user.click(within(reply).getByRole('button', { name: 'Mark as Replied' }))
+
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Suggested Reply' })).not.toBeInTheDocument())
+    expect(screen.getByRole('list', { name: 'Messages' })).toBeInTheDocument()
+  })
+})
+
 describe('Undo', () => {
   it('unmarks the Suggested Reply, which comes back with its buttons', async () => {
     const user = userEvent.setup()
