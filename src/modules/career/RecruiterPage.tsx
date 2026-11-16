@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { ApiError } from '../../core/api/client'
@@ -17,7 +17,7 @@ import { langOf, type LanguageNote, type Message, type RecruiterConversation, ty
 export function RecruiterPage() {
   const { id } = useParams()
   const api = useApi()
-  const page = useQuery({ queryKey: ['career', 'recruiters', id], queryFn: () => api.get<RecruiterWithConversations>(`/api/career/recruiters/${id}`) })
+  const page = useQuery({ queryKey: recruiterKey(id), queryFn: () => api.get<RecruiterWithConversations>(`/api/career/recruiters/${id}`) })
   // Back to the Career screen, or to the screen it was opened from, such as Late Replies or an
   // Opportunity, named by its role.
   const back = useBackLink({ to: '/career', label: 'Career' })
@@ -40,16 +40,21 @@ export function RecruiterPage() {
     <>
       <ScreenHeader back={back} title={<span lang={langOf(r.name)}>{r.name}</span>} subtitle={<span lang={langOf(r.organisation)}>{r.organisation}</span>} />
       {r.conversations.length === 1 ? (
-        <ConversationView recruiter={r.name} conversation={r.conversations[0]} />
+        <ConversationView pageKey={recruiterKey(id)} recruiter={r.name} conversation={r.conversations[0]} />
       ) : (
         r.conversations.map((c, i) => (
           <NumberedConversation key={c.id} name={`Conversation ${i + 1} of ${r.conversations.length}`}>
-            <ConversationView recruiter={r.name} conversation={c} />
+            <ConversationView pageKey={recruiterKey(id)} recruiter={r.name} conversation={c} />
           </NumberedConversation>
         ))
       )}
     </>
   )
+}
+
+// The Recruiter page's query key, which its Suggested Replies update once marked or unmarked.
+function recruiterKey(id: string | undefined) {
+  return ['career', 'recruiters', id]
 }
 
 // One of a Recruiter's several Conversations, set apart under its own heading, newest first.
@@ -66,7 +71,7 @@ function NumberedConversation({ name, children }: { name: string; children: Reac
 }
 
 // A Conversation: its last messages, if it has any, and its Suggested Reply with the notes.
-function ConversationView({ recruiter, conversation: c }: { recruiter: string; conversation: RecruiterConversation }) {
+function ConversationView({ pageKey, recruiter, conversation: c }: { pageKey: QueryKey; recruiter: string; conversation: RecruiterConversation }) {
   const messagesId = useId()
   return (
     <>
@@ -80,7 +85,7 @@ function ConversationView({ recruiter, conversation: c }: { recruiter: string; c
           </ul>
         </>
       )}
-      {c.suggestedReply && <ReplyView reply={c.suggestedReply} url={c.url} />}
+      {c.suggestedReply && <ReplyView pageKey={pageKey} conversationId={c.id} reply={c.suggestedReply} url={c.url} />}
       {c.suggestedReply && c.suggestedReply.notes.length > 0 && <NotesView notes={c.suggestedReply.notes} />}
     </>
   )
@@ -107,10 +112,29 @@ function MessageBubble({ recruiter, message: m }: { recruiter: string; message: 
 // How a Suggested Reply other than an answer is labelled.
 const kindLabels: Record<SuggestedReply['kind'], string | null> = { answer: null, follow_up: 'Follow-up', late: 'Late Reply' }
 
-// The Suggested Reply, in its language, labelled when it is a follow-up or a Late Reply, with Copy, which says "Copied" for a moment, and Open in
-// LinkedIn, the Conversation's URL, which the iPhone opens in the LinkedIn app.
-function ReplyView({ reply, url }: { reply: SuggestedReply; url: string }) {
+// The Suggested Reply, in its language, labelled when it is a follow-up or a Late Reply, with Copy, which says "Copied" for a moment, Open in
+// LinkedIn, the Conversation's URL, which the iPhone opens in the LinkedIn app, and Mark as Replied.
+// Once marked, it says so in their place, with Undo.
+function ReplyView({ pageKey, conversationId, reply, url }: { pageKey: QueryKey; conversationId: string; reply: SuggestedReply; url: string }) {
   const headingId = useId()
+  const api = useApi()
+  const queryClient = useQueryClient()
+  // Marks it replied (true) or, for Undo, unmarks it (false).
+  const setReplied = useMutation({
+    mutationFn: (replied: boolean) => {
+      const path = `/api/career/conversations/${conversationId}/replied`
+      return replied ? api.post(path) : api.delete(path)
+    },
+    // Shown at once.
+    onSuccess: (_answer, replied) => {
+      const markedRepliedAt = replied ? new Date().toISOString() : null
+      queryClient.setQueryData<RecruiterWithConversations>(pageKey, (shown) => shown && withMark(shown, conversationId, markedRepliedAt))
+    },
+    // Then read again with the rest of Career, whichever way it went: the Home Card, the Career
+    // screen and Late Replies leave a marked one out, and a failure may mean a Sync has changed the
+    // Conversation since the page loaded.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['career'] }),
+  })
   const clipboard = useClipboard()
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle')
   // Counts the copies, so a tap while "Copied" shows keeps it for another moment.
@@ -132,40 +156,69 @@ function ReplyView({ reply, url }: { reply: SuggestedReply; url: string }) {
           </>
         )}
       </SectionHeader>
-      <div className="my-2 rounded-[14px] bg-surface px-4 py-3">
-        <p lang={reply.language} className="my-0 text-[17px] leading-relaxed whitespace-pre-line select-text">
-          {reply.text}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button
-            variant="accent"
-            onPress={() =>
-              clipboard.copy(reply.text).then(
-                () => {
-                  setCopy('copied')
-                  setCopies((n) => n + 1)
-                },
-                () => setCopy('failed'),
-              )
-            }
-          >
-            Copy
+      {reply.markedRepliedAt ? (
+        <div className="my-2 flex items-center justify-between gap-3 rounded-[14px] bg-surface px-4 py-3">
+          <span className="text-[17px] text-sub">Marked as replied</span>
+          <Button variant="quiet" isDisabled={setReplied.isPending} onPress={() => setReplied.mutate(false)}>
+            Undo
           </Button>
-          <a href={url} target="_blank" rel="noreferrer" className={`${pillClasses('quiet', 'regular')} no-underline active:opacity-70`}>
-            Open in LinkedIn
-          </a>
-          <span role="status" className="text-[15px] text-sub">
-            {copy === 'copied' && 'Copied'}
-          </span>
         </div>
-        {copy === 'failed' && (
-          <p role="alert" className="mt-2 mb-0 text-[13px] text-sub">
-            Couldn't copy. Select the text and copy it instead.
+      ) : (
+        <div className="my-2 rounded-[14px] bg-surface px-4 py-3">
+          <p lang={reply.language} className="my-0 text-[17px] leading-relaxed whitespace-pre-line select-text">
+            {reply.text}
           </p>
-        )}
-      </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              variant="accent"
+              onPress={() =>
+                clipboard.copy(reply.text).then(
+                  () => {
+                    setCopy('copied')
+                    setCopies((n) => n + 1)
+                  },
+                  () => setCopy('failed'),
+                )
+              }
+            >
+              Copy
+            </Button>
+            <a href={url} target="_blank" rel="noreferrer" className={`${pillClasses('quiet', 'regular')} no-underline active:opacity-70`}>
+              Open in LinkedIn
+            </a>
+            <Button variant="quiet" isDisabled={setReplied.isPending} onPress={() => setReplied.mutate(true)}>
+              Mark as Replied
+            </Button>
+            <span role="status" className="text-[15px] text-sub">
+              {copy === 'copied' && 'Copied'}
+            </span>
+          </div>
+          {copy === 'failed' && (
+            <p role="alert" className="mt-2 mb-0 text-[13px] text-sub">
+              Couldn't copy. Select the text and copy it instead.
+            </p>
+          )}
+        </div>
+      )}
+      {/* Only while it still shows what the failed mark or Undo was meant to change. */}
+      {setReplied.isError && setReplied.variables === !reply.markedRepliedAt && (
+        <p role="alert" className="mt-2 mb-0 px-4 text-[13px] text-sub">
+          {setReplied.variables ? "Couldn't mark it as replied. Try again." : "Couldn't undo. Try again."}
+        </p>
+      )}
     </section>
   )
+}
+
+// The Recruiter's page with the Suggested Reply of Conversation `conversationId` marked replied at
+// `markedRepliedAt`, or unmarked when it is null.
+function withMark(page: RecruiterWithConversations, conversationId: string, markedRepliedAt: string | null): RecruiterWithConversations {
+  return {
+    ...page,
+    conversations: page.conversations.map((c) =>
+      c.id === conversationId && c.suggestedReply ? { ...c, suggestedReply: { ...c.suggestedReply, markedRepliedAt } } : c,
+    ),
+  }
 }
 
 // About your last message: Claude's notes on the Owner's last message, each with what they wrote,
