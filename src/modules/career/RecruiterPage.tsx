@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { ApiError } from '../../core/api/client'
@@ -8,9 +8,9 @@ import { Button } from '../../core/ui/Button'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { pillClasses } from '../../core/ui/pill'
-import { useBackLink, useCameFrom } from '../../core/ui/cameFrom'
+import { useBackLink } from '../../core/ui/cameFrom'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
-import { langOf, opportunityQuery, type LanguageNote, type Message, type RecruiterConversation, type RecruiterWithConversations, type SuggestedReply } from './career'
+import { langOf, type LanguageNote, type Message, type RecruiterConversation, type RecruiterWithConversations, type SuggestedReply } from './career'
 
 // A Recruiter's page, at /career/recruiters/:id: for each of their Conversations, its last messages
 // and its Suggested Reply.
@@ -18,22 +18,9 @@ export function RecruiterPage() {
   const { id } = useParams()
   const api = useApi()
   const page = useQuery({ queryKey: ['career', 'recruiters', id], queryFn: () => api.get<RecruiterWithConversations>(`/api/career/recruiters/${id}`) })
-  // Back to Late Replies or the Opportunity page it was opened from, named by the Opportunity's role
-  // (already loaded there, so only read here), and to the Career screen otherwise, such as from its
-  // waiting list or a Notification.
-  const cameFrom = useCameFrom()
-  // Decoded as the router decodes the Opportunity page's own id.
-  const encodedId = cameFrom?.match(/^\/career\/opportunities\/([^/?]+)/)?.[1]
-  const opportunityId = encodedId && decodeURIComponent(encodedId)
-  // Never fetched: only read when it was opened from an Opportunity, and nothing otherwise.
-  const opportunity = useQueries({
-    queries: (opportunityId ? [opportunityId] : []).map((oid) => ({ ...opportunityQuery(api, oid), enabled: false })),
-  }).at(0)
-  const backLink = useBackLink(
-    { '/career/late': 'Late Replies', ...(cameFrom && opportunityId && { [cameFrom]: opportunity?.data?.role ?? 'Opportunity' }) },
-    { to: '/career', label: 'Career' },
-  )
-  const back = { ...backLink, lang: langOf(backLink.label) }
+  // Back to the Career screen, or to the screen it was opened from, such as Late Replies or an
+  // Opportunity, named by its role.
+  const back = useBackLink({ to: '/career', label: 'Career' })
 
   if (!page.data) {
     return (

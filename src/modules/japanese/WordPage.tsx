@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { useApi } from '../../core/services'
+import { useBackLink } from '../../core/ui/cameFrom'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { lucideProps } from '../../core/ui/icons'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
@@ -28,7 +29,8 @@ export function WordPage() {
     queryKey: ['japanese', 'words', id],
     queryFn: () => api.get<Word>(`/api/japanese/words/${id}`),
   })
-  const back = { to: '/japanese', label: 'Search' }
+  // Back to Search, or to the screen it was opened from, such as another Word.
+  const back = useBackLink({ to: '/japanese', label: 'Search' })
 
   if (!word.data) {
     return (

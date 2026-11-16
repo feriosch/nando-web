@@ -234,7 +234,7 @@ export function stageWithOutcome({ stage, outcome }: Pick<OpportunityDetails, 's
 }
 
 // Everything about the Opportunity `id` (GET /api/career/opportunities/{id}), as its page loads it
-// and keeps it, so another screen can read what that page already loaded.
+// and keeps it.
 export function opportunityQuery(api: ApiClient, id: string | undefined) {
   return queryOptions({
     queryKey: ['career', 'opportunities', id],

@@ -31,9 +31,8 @@ export function OpportunityPage() {
   const { id } = useParams()
   const api = useApi()
   const page = useQuery(opportunityQuery(api, id))
-  // Back to the open Opportunities or Home when it was opened from there, and to the Career screen
-  // otherwise, such as from a Notification.
-  const back = useBackLink({ '/career/opportunities': 'Open Opportunities', '/': 'Home' }, { to: '/career', label: 'Career' })
+  // Back to the Career screen, or to the screen it was opened from, such as the open Opportunities.
+  const back = useBackLink({ to: '/career', label: 'Career' })
 
   if (!page.data) {
     return (

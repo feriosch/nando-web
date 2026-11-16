@@ -3,7 +3,7 @@ import { Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-route
 import { syncThemeColor } from '../appearance/appearance'
 import type { Module } from '../module'
 import { useApi } from '../services'
-import { CameFromContext, useRecordCameFrom } from '../ui/cameFrom'
+import { JourneyContext, useRecordJourney } from '../ui/cameFrom'
 import { TabBar } from './TabBar'
 import { coreTheme, themeAt } from './theme'
 
@@ -12,7 +12,7 @@ export function Layout({ modules }: { modules: Module[] }) {
   const api = useApi()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const cameFrom = useRecordCameFrom()
+  const journey = useRecordJourney()
 
   // Any 401 from the API means the Session is gone: back to sign-in.
   useEffect(() => api.onUnauthorized(() => navigate('/sign-in', { replace: true })), [api, navigate])
@@ -21,9 +21,9 @@ export function Layout({ modules }: { modules: Module[] }) {
     // Room at the bottom for the tab bar, which sits over the end of the screen.
     <ScreenFrame theme={themeAt(pathname, modules)} bottom="pb-[calc(76px+env(safe-area-inset-bottom))]">
       <main>
-        <CameFromContext.Provider value={cameFrom}>
+        <JourneyContext.Provider value={journey}>
           <Outlet />
-        </CameFromContext.Provider>
+        </JourneyContext.Provider>
       </main>
       <TabBar modules={modules} />
       {/* As on an iPhone: a screen opens at its top, and going back returns to where it was. */}

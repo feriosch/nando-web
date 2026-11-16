@@ -47,7 +47,7 @@ Core never names a Module's theme; the shell reads it from the `Module`. On the 
 
 All in `src/core/ui/`:
 
-- `ScreenHeader`: 44px top bar (`back` link or a `leading` text button on the left, `actions` text buttons on the right), 34px bold display-font title, optional `overline` over it (a Word's reading) and `subtitle` under it. `HeaderLink` is a top-bar text button that opens another screen.
+- `ScreenHeader`: 44px top bar (`back` link or a `leading` text button on the left, `actions` text buttons on the right), 34px bold display-font title, optional `overline` over it (a Word's reading) and `subtitle` under it. `HeaderLink` is a top-bar text button that opens another screen. Build `back` with `useBackLink({ to, label })` (`cameFrom.ts`) from the screen's usual back link: opened from anywhere else, it goes back there, named by that screen's title, so never list origins by hand.
 - `SectionHeader`: 13px uppercase in `sub`; an `h2`. `tone="accent"` and an `icon` for a Module's Settings Section; `as="h3"` for a group within a Settings Section (such as Japanese's Anki), right under the section's header.
 - `GroupedList` + `ListRow`: surface, 14px corners, 0.5px separators, rows at least 52px, optional `footer`. The 16px side margins are the screen's own padding (the shell's `<main>`). Inside a `Sheet`, which is on the surface itself, its rows are on `bg`.
 - `FieldRow` (`FieldRow.tsx`): a text field as a `ListRow`, its label on the left and the field right-aligned, filling the rest. A form's fields are a `GroupedList` of these; `lang="ja"` on one that takes Japanese.
