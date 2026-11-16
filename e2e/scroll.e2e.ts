@@ -74,8 +74,9 @@ test('opens a linked Word at its title, and goes back to where the Owner was', a
   await page.getByRole('link', { name: /期待/ }).click()
   await expect(title(page, '期待')).toBeVisible()
 
-  // Down at the bottom of 期待, and on to 待ち望む.
-  const link = page.getByRole('link', { name: /待ち望む/ })
+  // Down at the bottom of 期待, and on to 待ち望む through its Word Link. (Opened from 待ち望む, 期待's
+  // back link is named 待ち望む too.)
+  const link = page.getByRole('list', { name: 'Synonyms' }).getByRole('link', { name: /待ち望む/ })
   await link.scrollIntoViewIfNeeded()
   const where = await scrollY(page)
   expect(where).toBeGreaterThan(300)
