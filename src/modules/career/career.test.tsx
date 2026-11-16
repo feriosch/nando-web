@@ -280,7 +280,8 @@ describe('Career screen', () => {
 
 type Message = { id: string; from: 'owner' | 'other'; sentAt: string; text: string }
 type LanguageNote = { wrote: string; natural: string; why: string }
-type Reply = { text: string; language: 'ja' | 'en'; kind: 'answer' | 'follow_up' | 'late'; notes: LanguageNote[] }
+// `markedRepliedAt` is when the Owner marked it replied; left out here when it is null.
+type Reply = { text: string; language: 'ja' | 'en'; kind: 'answer' | 'follow_up' | 'late'; notes: LanguageNote[]; markedRepliedAt?: string | null }
 type Conversation = { id: string; url: string; messages: Message[]; suggestedReply: Reply | null }
 
 function conversation(fields: Partial<Conversation> & Pick<Conversation, 'id'>): Conversation {
@@ -452,6 +453,136 @@ describe('Recruiter page with several Conversations', () => {
 
     await screen.findByRole('region', { name: /Suggested Reply/ })
     expect(screen.queryByRole('list', { name: 'Messages' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Mark as Replied', () => {
+  it('sends the mark, and shows "Marked as replied" in place of the reply and its buttons, keeping the notes', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCareer('/career/recruiters/r1', {
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+      'POST /api/career/conversations/t1/replied': { status: 204 },
+    })
+
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+    await user.click(within(reply).getByRole('button', { name: 'Mark as Replied' }))
+
+    expect(sent).toContainEqual({ method: 'POST', path: '/api/career/conversations/t1/replied', body: undefined })
+    expect(await within(reply).findByText('Marked as replied')).toBeInTheDocument()
+    expect(within(reply).getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(within(reply).queryByText(/木曜日の夜はいかがでしょうか。/)).not.toBeInTheDocument()
+    for (const name of ['Copy', 'Mark as Replied']) {
+      expect(within(reply).queryByRole('button', { name })).not.toBeInTheDocument()
+    }
+    expect(within(reply).queryByRole('link', { name: 'Open in LinkedIn' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'About your last message' })).toBeInTheDocument()
+  })
+
+  it('undoes the mark: it sends the Undo, and the reply is back with its buttons', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCareer('/career/recruiters/r1', {
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+      'POST /api/career/conversations/t1/replied': { status: 204 },
+      'DELETE /api/career/conversations/t1/replied': { status: 204 },
+    })
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+    await user.click(within(reply).getByRole('button', { name: 'Mark as Replied' }))
+
+    await user.click(await within(reply).findByRole('button', { name: 'Undo' }))
+
+    expect(sent).toContainEqual({ method: 'DELETE', path: '/api/career/conversations/t1/replied', body: undefined })
+    expect(await within(reply).findByText(/木曜日の夜はいかがでしょうか。/)).toBeInTheDocument()
+    expect(within(reply).queryByText('Marked as replied')).not.toBeInTheDocument()
+    expect(within(reply).getByRole('button', { name: 'Copy' })).toBeInTheDocument()
+    expect(within(reply).getByRole('button', { name: 'Mark as Replied' })).toBeInTheDocument()
+    expect(within(reply).getByRole('link', { name: 'Open in LinkedIn' })).toBeInTheDocument()
+  })
+
+  it('leaves the reply as it was when the mark fails, and says so', async () => {
+    const user = userEvent.setup()
+    renderCareer('/career/recruiters/r1', {
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+      'POST /api/career/conversations/t1/replied': { status: 500 },
+    })
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+
+    await user.click(within(reply).getByRole('button', { name: 'Mark as Replied' }))
+
+    expect(await within(reply).findByRole('alert')).toHaveTextContent("Couldn't mark it as replied. Try again.")
+    expect(within(reply).getByText(/木曜日の夜はいかがでしょうか。/)).toBeInTheDocument()
+    expect(within(reply).getByRole('button', { name: 'Mark as Replied' })).toBeInTheDocument()
+    expect(within(reply).queryByText('Marked as replied')).not.toBeInTheDocument()
+  })
+
+  it('stays marked when Undo fails, and says so', async () => {
+    const user = userEvent.setup()
+    const marked = { ...tanakasConversation, suggestedReply: { ...tanakasConversation.suggestedReply!, markedRepliedAt: '2026-11-16T12:00:00Z' } }
+    renderCareer('/career/recruiters/r1', {
+      'GET /api/career/recruiters/r1': recruiterPage([marked]),
+      'DELETE /api/career/conversations/t1/replied': { status: 500 },
+    })
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+
+    await user.click(within(reply).getByRole('button', { name: 'Undo' }))
+
+    expect(await within(reply).findByRole('alert')).toHaveTextContent("Couldn't undo. Try again.")
+    expect(within(reply).getByText('Marked as replied')).toBeInTheDocument()
+  })
+
+  it('shows a reply the Owner marked earlier as marked, with Undo', async () => {
+    const marked = { ...tanakasConversation, suggestedReply: { ...tanakasConversation.suggestedReply!, markedRepliedAt: '2026-11-16T12:00:00Z' } }
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([marked]) })
+
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+    expect(within(reply).getByText('Marked as replied')).toBeInTheDocument()
+    expect(within(reply).getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(within(reply).queryByText(/木曜日の夜はいかがでしょうか。/)).not.toBeInTheDocument()
+    expect(within(reply).queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'About your last message' })).toBeInTheDocument()
+  })
+
+  it('marks only the Conversation it is in', async () => {
+    const user = userEvent.setup()
+    const osaka = conversation({
+      id: 't2',
+      messages: [{ id: 'o1', from: 'other', sentAt: '2026-11-15T05:00:00Z', text: 'Another role, in Osaka.' }],
+      suggestedReply: { text: "Thank you, but I'd rather stay in Tokyo.", language: 'en', kind: 'answer', notes: [] },
+    })
+    const { sent } = renderCareer('/career/recruiters/r1', {
+      'GET /api/career/recruiters/r1': recruiterPage([osaka, tanakasConversation]),
+      'POST /api/career/conversations/t2/replied': { status: 204 },
+    })
+    const first = await screen.findByRole('region', { name: 'Conversation 1 of 2' })
+    const second = screen.getByRole('region', { name: 'Conversation 2 of 2' })
+
+    await user.click(within(first).getByRole('button', { name: 'Mark as Replied' }))
+
+    expect(await within(first).findByText('Marked as replied')).toBeInTheDocument()
+    expect(sent.filter((r) => r.method === 'POST').map((r) => r.path)).toEqual(['/api/career/conversations/t2/replied'])
+    expect(within(second).getByText(/木曜日の夜はいかがでしょうか。/)).toBeInTheDocument()
+    expect(within(second).getByRole('button', { name: 'Mark as Replied' })).toBeInTheDocument()
+    expect(within(second).queryByText('Marked as replied')).not.toBeInTheDocument()
+  })
+
+  it('takes the Recruiter off the Career screen once marked', async () => {
+    const user = userEvent.setup()
+    let marked = false
+    renderCareer('/career', {
+      'GET /api/career': () => careerScreen({ waiting: marked ? [] : [waiting({ id: 'r1', name: 'Tanaka Yui' })] }),
+      'GET /api/career/recruiters/r1': recruiterPage([tanakasConversation]),
+      'POST /api/career/conversations/t1/replied': () => {
+        marked = true
+        return { status: 204 }
+      },
+    })
+    await user.click(within(await screen.findByRole('list', { name: 'Waiting for you' })).getByRole('link', { name: /Tanaka Yui/ }))
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+    await user.click(within(reply).getByRole('button', { name: 'Mark as Replied' }))
+    await within(reply).findByText('Marked as replied')
+
+    await user.click(within((await screen.findByRole('heading', { level: 1, name: 'Tanaka Yui' })).closest('header') as HTMLElement).getByRole('link'))
+
+    expect(await screen.findByText('Nobody is waiting.')).toBeInTheDocument()
   })
 })
 

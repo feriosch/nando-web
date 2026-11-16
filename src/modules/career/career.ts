@@ -109,12 +109,14 @@ export type Message = { id: string; from: 'owner' | 'other'; sentAt: string; tex
 // A mistake in the Owner's last message: what they wrote, what is natural, and why.
 export type LanguageNote = { wrote: string; natural: string; why: string }
 
-// Claude's draft of the Owner's next message, which only the Owner ever sends.
+// Claude's draft of the Owner's next message, which only the Owner ever sends. `markedRepliedAt` is
+// when the Owner marked it replied, having sent it in LinkedIn, or null.
 export type SuggestedReply = {
   text: string
   language: 'ja' | 'en'
   kind: 'answer' | 'follow_up' | 'late'
   notes: LanguageNote[]
+  markedRepliedAt: string | null
 }
 
 // A Conversation as its Recruiter's page shows it: its LinkedIn URL, its last 5 messages, oldest
