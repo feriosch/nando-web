@@ -58,15 +58,3 @@ export type Meal = {
   pinned: boolean
   archived: boolean
 }
-
-// How POST /api/calories/days/{day}/entries takes an Entry: from a Meal, or as a one-off.
-export type NewEntry =
-  | { mealId: string; servings: number }
-  | { name: string; kcalPerServing: number; servings: number; saveAsMeal: boolean }
-
-// A whole number from `min` to `max` as typed, or null.
-export function parseWhole(typed: string, min: number, max: number): number | null {
-  if (!/^\d+$/.test(typed.trim())) return null
-  const n = Number(typed.trim())
-  return n >= min && n <= max ? n : null
-}

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { addDays, formatDayAs, formatLongDay, isDay } from '../../core/days'
 import { useApi } from '../../core/services'
@@ -7,15 +7,9 @@ import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { HeaderLink, ScreenHeader } from '../../core/ui/ScreenHeader'
-import { Sheet } from '../../core/ui/Sheet'
-import { useLastShown } from '../../core/ui/useLastShown'
 import { Board } from './Board'
-import { formatDay, kcal, type DayView, type Entry } from './calories'
-import { EntryEditor, OneOffForm } from './EntrySheets'
-import { useGuard } from './guard'
-import { QuickList } from './QuickList'
-import { useQuickMeals } from './quickMeals'
-import { rowButtonClasses, rowClasses, Tile } from './rows'
+import { formatDay, kcal, type DayView, type Entry, type Meal } from './calories'
+import { rowClasses, Tile } from './rows'
 
 // The Day view: a Day's Entries and how it stands against its Daily Limit.
 export function Day() {
@@ -25,8 +19,6 @@ export function Day() {
   const [searchParams, setSearchParams] = useSearchParams()
   const asked = searchParams.get('day')
   const day = asked && isDay(asked) ? asked : today
-  const editableFrom = today && addDays(today, -7)
-  const editable = day !== undefined && today !== undefined && day >= editableFrom! && day <= today
   const view = useQuery({
     queryKey: ['calories', 'day', day],
     queryFn: () => api.get<DayView>(`/api/calories/days/${day}`),
@@ -54,17 +46,15 @@ export function Day() {
           }}
         />
       )}
-      {view.data &&
-        (editable ? (
-          <EditableDay key={view.data.day} view={view.data} />
-        ) : (
-          <ReadOnlyDay
-            view={view.data}
-            note={today && (view.data.day > today ? 'This Day hasn’t started yet.' : 'This Day can no longer be changed.')}
-          />
-        ))}
+      {view.data && <ReadOnlyDay view={view.data} note={noteOn(view.data, today)} />}
     </>
   )
+}
+
+// What a Day with no Entries says in their place. The web app only reads: the Calories Assistant logs.
+function noteOn(view: DayView, today: string | undefined): string | undefined {
+  if (view.entries.length > 0) return undefined
+  return today && view.day > today ? 'This Day hasn’t started yet.' : 'Log what you eat with the Calories Assistant in Telegram.'
 }
 
 // Today is "Today" over its long date; yesterday its short date over "Yesterday"; any other Day its
@@ -123,33 +113,10 @@ function ReadOnlyDay({ view, note }: { view: DayView; note?: string }) {
   )
 }
 
-// A Day in the Editable Window: tapping an Entry opens it to change or delete, and the quick list
-// and "Something else" log more. Every log or change is checked against the Daily Limit first.
-function EditableDay({ view }: { view: DayView }) {
-  const guard = useGuard(view.day)
-  const [editing, setEditing] = useState<Entry | null>(null)
-  const shownEntry = useLastShown(editing)
-  const [loggingOther, setLoggingOther] = useState(false)
-  return (
-    <>
-      <Board view={view} />
-      <Entries entries={view.entries} edit={setEditing} />
-      <QuickList day={view.day} guard={guard} logOther={() => setLoggingOther(true)} />
-      <Sheet isOpen={editing !== null} onOpenChange={(open) => !open && setEditing(null)} title="Edit Entry">
-        {shownEntry && <EntryEditor key={shownEntry.id} entry={shownEntry} guard={guard} done={() => setEditing(null)} />}
-      </Sheet>
-      <Sheet isOpen={loggingOther} onOpenChange={setLoggingOther} title="Something else">
-        <OneOffForm day={view.day} guard={guard} done={() => setLoggingOther(false)} />
-      </Sheet>
-      {guard.sheets}
-    </>
-  )
-}
-
-// The Day's Entries, each opening the Entry editor when `edit` is given. `footer` says something
-// about them all, and shows on its own when there are none.
-function Entries({ entries, edit, footer }: { entries: Entry[]; edit?: (entry: Entry) => void; footer?: ReactNode }) {
-  const meals = useQuickMeals()
+// The Day's Entries. `footer` says something about them all, and shows on its own when there are none.
+function Entries({ entries, footer }: { entries: Entry[]; footer?: ReactNode }) {
+  const api = useApi()
+  const meals = useQuery({ queryKey: ['calories', 'meals', 'in-use'], queryFn: () => api.get<Meal[]>('/api/calories/meals') })
   // An Entry logged from a Meal shows the Meal's emoji.
   const emojiOf = (entry: Entry) => meals.data?.find((meal) => meal.id === entry.mealId)?.emoji ?? undefined
 
@@ -160,15 +127,9 @@ function Entries({ entries, edit, footer }: { entries: Entry[]; edit?: (entry: E
       <GroupedList as="ul" labelledBy="calories-entries" footer={footer}>
         {entries.map((entry) => (
           <li key={entry.id}>
-            {edit ? (
-              <button type="button" aria-haspopup="dialog" onClick={() => edit(entry)} className={rowButtonClasses}>
-                <EntryLine entry={entry} emoji={emojiOf(entry)} />
-              </button>
-            ) : (
-              <div className={rowClasses}>
-                <EntryLine entry={entry} emoji={emojiOf(entry)} />
-              </div>
-            )}
+            <div className={rowClasses}>
+              <EntryLine entry={entry} emoji={emojiOf(entry)} />
+            </div>
           </li>
         ))}
       </GroupedList>
