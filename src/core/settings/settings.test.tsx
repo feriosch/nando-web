@@ -4,7 +4,12 @@ import { describe, expect, it } from 'vitest'
 import { fakeApi, renderApp } from '../../test/app'
 
 // What GET /api/settings answers until the Owner first saves them.
-const defaults = { timeZone: 'UTC', heightCm: null, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
+const defaults = {
+  timeZone: 'UTC',
+  heightCm: null,
+  weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' },
+  mailDigest: { enabled: false, time: '08:00' },
+}
 
 // Core's Settings Section on the Settings screen, found by its heading.
 async function coreSection() {
@@ -46,9 +51,52 @@ describe('Core Settings Section', () => {
           timeZone: 'Asia/Tokyo',
           heightCm: 175,
           weighInReminder: { enabled: true, weekday: 'sunday', time: '07:30' },
+          mailDigest: { enabled: false, time: '08:00' },
         },
       },
     ])
+  })
+
+  it('turns the Mail Digest on and saves its time', async () => {
+    const user = userEvent.setup()
+    const { api, sent } = fakeApi({
+      'GET /api/settings': { status: 200, body: defaults },
+      'PUT /api/settings': { status: 204 },
+    })
+    renderApp('/settings', api)
+
+    const section = await coreSection()
+    const digest = await within(section).findByRole('switch', { name: 'Mail Digest' })
+    expect(digest).not.toBeChecked()
+    // Its time shows only while it is on.
+    expect(within(section).queryByLabelText('Every day at')).not.toBeInTheDocument()
+
+    await user.click(digest)
+    expect(within(section).getByLabelText('Every day at')).toHaveValue('08:00')
+    await user.selectOptions(within(section).getByLabelText('Every day at'), '07:00')
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+
+    expect(await within(section).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([
+      { method: 'PUT', path: '/api/settings', body: { ...defaults, mailDigest: { enabled: true, time: '07:00' } } },
+    ])
+  })
+
+  it("leaves the Mail Digest out when the server doesn't have one yet", async () => {
+    const user = userEvent.setup()
+    const { mailDigest: _, ...withoutDigest } = defaults
+    const { api, sent } = fakeApi({
+      'GET /api/settings': { status: 200, body: withoutDigest },
+      'PUT /api/settings': { status: 204 },
+    })
+    renderApp('/settings', api)
+
+    const section = await coreSection()
+    await user.click(await within(section).findByRole('button', { name: 'Save' }))
+
+    expect(await within(section).findByText('Saved.')).toBeInTheDocument()
+    expect(within(section).queryByRole('switch', { name: 'Mail Digest' })).not.toBeInTheDocument()
+    expect(sent.filter((request) => request.method === 'PUT')).toEqual([{ method: 'PUT', path: '/api/settings', body: withoutDigest }])
   })
 
   it.each(['0', '301', '175.5', 'tall'])("doesn't save a height of %s, and says what a height must be", async (typed) => {

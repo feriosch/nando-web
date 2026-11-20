@@ -10,7 +10,7 @@ import { GroupedList, ListRow } from '../ui/List'
 import { Picker, PickerRow } from '../ui/Picker'
 import { saveFooter } from '../ui/saveFooter'
 import { Switch } from '../ui/Switch'
-import { reminderTimeOptions, type CoreSettings, type Weekday } from './settings'
+import { reminderTimeOptions, type CoreSettings, type MailDigest, type Weekday } from './settings'
 
 const weekdays: { value: Weekday; label: string }[] = [
   { value: 'monday', label: 'Monday' },
@@ -25,8 +25,8 @@ const weekdays: { value: Weekday; label: string }[] = [
 // Every IANA time zone this browser knows, read once.
 const allTimeZones = Intl.supportedValuesOf('timeZone')
 
-// Core's Settings Section, "General": Appearance, then the Owner Time Zone, height and the Weigh-in
-// reminder, which save together.
+// Core's Settings Section, "General": Appearance, then the Owner Time Zone, height, the Weigh-in
+// reminder and the Mail Digest, which save together.
 export function CoreSettingsSection() {
   const api = useApi()
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
@@ -49,6 +49,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
   const [timeZone, setTimeZone] = useState(saved.timeZone)
   const [height, setHeight] = useState(saved.heightCm === null ? '' : String(saved.heightCm))
   const [reminder, setReminder] = useState(saved.weighInReminder)
+  const [digest, setDigest] = useState<MailDigest | undefined>(saved.mailDigest)
   const [problem, setProblem] = useState<string | null>(null)
   const heightId = useId()
   const save = useMutation({
@@ -75,7 +76,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
       return
     }
     setProblem(null)
-    save.mutate({ timeZone, heightCm, weighInReminder: reminder })
+    save.mutate({ timeZone, heightCm, weighInReminder: reminder, ...(digest && { mailDigest: digest }) })
   }
 
   return (
@@ -129,6 +130,22 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
               />
             </span>
           </ListRow>
+        )}
+        {digest && (
+          <ListRow className="text-[17px]">
+            <Switch isSelected={digest.enabled} onChange={(enabled) => setDigest({ ...digest, enabled })}>
+              Mail Digest
+            </Switch>
+          </ListRow>
+        )}
+        {digest?.enabled && (
+          <PickerRow
+            label="Every day at"
+            value={digest.time}
+            options={reminderTimeOptions}
+            onChange={(time) => setDigest({ ...digest, time })}
+            display={<span className="tabular-nums">{digest.time}</span>}
+          />
         )}
       </GroupedList>
       <div className="mt-3 flex justify-end">
