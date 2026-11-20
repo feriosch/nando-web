@@ -201,6 +201,14 @@ describe('Read-only', () => {
     expect(screen.getByText('Log what you eat with the Calories Assistant in Telegram.')).toBeInTheDocument()
   })
 
+  it("doesn't send the Owner to the Calories Assistant for an empty Day it can no longer log on", async () => {
+    renderCalories('/calories?day=2026-11-01', { 'GET /api/calories/days/2026-11-01': { status: 200, body: dayView('2026-11-01', []) } })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sun 1 Nov' })).toBeInTheDocument()
+    expect(await screen.findByText('Not logged')).toBeInTheDocument()
+    expect(screen.queryByText(/Calories Assistant/)).not.toBeInTheDocument()
+  })
+
   it('shows today without a way to log, change or delete, and only reads', async () => {
     const { sent } = renderCalories('/calories', {
       'GET /api/calories/days/2026-11-09': {

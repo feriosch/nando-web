@@ -6,6 +6,7 @@ import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { useToday } from '../../core/today'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
+import { EmptyNote } from '../../core/ui/Notice'
 import { HeaderLink, ScreenHeader } from '../../core/ui/ScreenHeader'
 import { Board } from './Board'
 import { formatDay, kcal, type DayView, type Entry, type Meal } from './calories'
@@ -51,10 +52,13 @@ export function Day() {
   )
 }
 
-// What a Day with no Entries says in their place. The web app only reads: the Calories Assistant logs.
+// What a Day with no Entries says in their place. The web app only reads: the Calories Assistant logs,
+// but only on today and the 7 Days before it, so an older Day says nothing more.
 function noteOn(view: DayView, today: string | undefined): string | undefined {
-  if (view.entries.length > 0) return undefined
-  return today && view.day > today ? 'This Day hasn’t started yet.' : 'Log what you eat with the Calories Assistant in Telegram.'
+  if (view.entries.length > 0 || !today) return undefined
+  if (view.day > today) return 'This Day hasn’t started yet.'
+  if (view.day < addDays(today, -7)) return undefined
+  return 'Log what you eat with the Calories Assistant in Telegram.'
 }
 
 // Today is "Today" over its long date; yesterday its short date over "Yesterday"; any other Day its
@@ -120,7 +124,7 @@ function Entries({ entries, footer }: { entries: Entry[]; footer?: ReactNode }) 
   // An Entry logged from a Meal shows the Meal's emoji.
   const emojiOf = (entry: Entry) => meals.data?.find((meal) => meal.id === entry.mealId)?.emoji ?? undefined
 
-  if (entries.length === 0) return footer ? <p className="mx-4 my-4 text-[13px] text-sub">{footer}</p> : null
+  if (entries.length === 0) return footer ? <EmptyNote>{footer}</EmptyNote> : null
   return (
     <>
       <SectionHeader id="calories-entries">Entries</SectionHeader>
