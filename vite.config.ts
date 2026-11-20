@@ -54,8 +54,8 @@ export default defineConfig({
     litertWasm(),
     react(),
     tailwindcss(),
-    // Our own service worker (src/sw.ts) shows Notifications, with the precache list injected at
-    // build. nginx serves sw.js and manifest.webmanifest uncached. Font files are not precached:
+    // Our own service worker (src/sw.ts) keeps the precache, injected at build, and the runtime
+    // caches (fonts, Draw's kanji model, LiteRT.js). nginx serves sw.js and manifest.webmanifest uncached. Font files are not precached:
     // Zen Maru Gothic comes in many small unicode-range files, and the service worker keeps each one
     // the first time a screen uses it.
     VitePWA({
