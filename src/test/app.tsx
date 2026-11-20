@@ -9,7 +9,7 @@ import { createQueryClient } from '../core/queries'
 import type { Passkeys } from '../core/identity/passkeys'
 import type { Leave } from '../core/leave'
 import type { Module, Registry } from '../core/module'
-import type { Push, PushSubscriptionJSON } from '../core/notifications/push'
+import type { Push } from '../core/push'
 import type { Clipboard } from '../core/clipboard'
 import type { Services } from '../core/services'
 import type { Share } from '../core/share/share'
@@ -70,55 +70,23 @@ const noPasskeys: Passkeys = {
   create: () => Promise.reject(new Error('no Passkeys in these tests')),
 }
 
-// This device's Notification permission and Push Subscription, faked: `subscribe` hands back
-// `subscribed` once the permission is granted, or, as a browser does, the Push Subscription this
-// device already holds. Records each permission request, the VAPID key each subscribe was given, and
-// how often the Push Subscription was unsubscribed.
-export function fakePush({
-  supported = true,
-  permission = 'default',
-  subscription = null,
-  answerPermission = 'granted',
-  subscribed = { endpoint: 'https://web.push.apple.com/QGxt', expirationTime: null, keys: { p256dh: 'BOrK', auth: 'Ys5w' } },
-}: {
-  supported?: boolean
-  permission?: NotificationPermission
-  subscription?: PushSubscriptionJSON | null
-  // What the Owner answers when asked for the permission.
-  answerPermission?: NotificationPermission
-  subscribed?: PushSubscriptionJSON
-} = {}) {
-  const calls = { permissionRequests: 0, subscribedWith: [] as string[], unsubscribed: 0 }
-  let current = subscription
+// This device's old Push Subscription, faked: `subscription` says whether it still holds one, and
+// `failing` makes dropping it fail, as without a service worker. Records how often one was dropped.
+export function fakePush({ subscription = false, failing = false }: { subscription?: boolean; failing?: boolean } = {}) {
+  const calls = { unsubscribed: 0 }
+  let holds = subscription
   const push: Push = {
-    supported: () => supported,
-    permission: () => permission,
-    requestPermission: async () => {
-      calls.permissionRequests++
-      if (permission === 'default') permission = answerPermission
-      return permission
-    },
-    subscription: async () => current,
-    subscribe: async (vapidPublicKey) => {
-      calls.subscribedWith.push(vapidPublicKey)
-      if (permission !== 'granted') throw new DOMException('Permission not granted.', 'NotAllowedError')
-      current ??= subscribed
-      return current
-    },
     unsubscribe: async () => {
-      if (current) calls.unsubscribed++
-      current = null
+      if (failing) throw new Error('No service worker is registered.')
+      if (holds) calls.unsubscribed++
+      holds = false
     },
   }
-  // The Owner changes the permission in the device's settings, outside Nando.
-  const setPermission = (changed: NotificationPermission) => {
-    permission = changed
-  }
-  return { push, calls, setPermission }
+  return { push, calls }
 }
 
-// A browser that can't receive Notifications, so screens that don't test them leave them alone.
-export const noPush = fakePush({ supported: false }).push
+// A device that holds no Push Subscription.
+export const noPush = fakePush().push
 
 // This device's share sheet, faked: every file shared or downloaded is recorded. `canShareFiles` is
 // false on a desktop, which gets a download instead. `answers` says how each share sheet ends, in

@@ -5,7 +5,6 @@ import { ExpirationPlugin } from 'workbox-expiration'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst, NetworkFirst } from 'workbox-strategies'
 import type { WorkboxPlugin } from 'workbox-core'
-import { registerNotificationHandlers } from './core/sw/notifications'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -63,5 +62,3 @@ function onlyThisLiteRtVersion(): WorkboxPlugin {
 // A new build takes over at once instead of waiting for every window to close.
 void self.skipWaiting()
 clientsClaim()
-
-registerNotificationHandlers(self)
