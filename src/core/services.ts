@@ -3,11 +3,11 @@ import type { ApiClient } from './api/client'
 import type { Clipboard } from './clipboard'
 import type { Passkeys } from './identity/passkeys'
 import type { Leave } from './leave'
-import type { Push } from './notifications/push'
+import type { Push } from './push'
 import type { Share } from './share/share'
 
 // What Core hands to every screen, Core's and every Module's: the API client, the device's
-// Passkeys, its Notification permission and Push Subscription, its share sheet, its clipboard, and
+// Passkeys, its old Push Subscription (only to drop it), its share sheet, its clipboard, and
 // leaving Nando for another site. <CoreProvider> provides them.
 export type Services = {
   api: ApiClient
@@ -34,10 +34,6 @@ export function useApi(): ApiClient {
 
 export function usePasskeys(): Passkeys {
   return useServices().passkeys
-}
-
-export function usePush(): Push {
-  return useServices().push
 }
 
 export function useShare(): Share {

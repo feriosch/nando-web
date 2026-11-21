@@ -57,7 +57,7 @@ async function fakeApi(page: Page) {
       if (word) return route.fulfill({ json: word })
       const day = /^\/api\/calories\/days\/(\d{4}-\d{2}-\d{2})$/.exec(pathname)?.[1]
       if (day) return route.fulfill({ json: longDay(day) })
-      if (pathname === '/api/calories/meals/quick') return route.fulfill({ json: [] })
+      if (pathname === '/api/calories/meals') return route.fulfill({ json: [] })
       if (pathname === '/api/japanese/search') return route.fulfill({ json: { words: found, kanji: [] } })
       return route.fulfill({ status: 501 })
     },

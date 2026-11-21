@@ -17,6 +17,3 @@ export const rowClasses = 'flex min-h-[52px] w-full items-center gap-3 px-4 py-2
 
 // The same row as one link, to the screen it opens.
 export const rowLinkClasses = `${rowClasses} text-ink no-underline active:bg-fill focus-visible:-outline-offset-2`
-
-// The same row as one button: tapping anywhere on it opens what it's for.
-export const rowButtonClasses = `${rowClasses} m-0 rounded-none bg-transparent font-normal text-ink active:bg-fill focus-visible:-outline-offset-2`
