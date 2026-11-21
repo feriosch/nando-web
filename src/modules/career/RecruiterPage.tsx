@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { Mail as MailIcon } from 'lucide-react'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { ApiError } from '../../core/api/client'
@@ -6,6 +7,7 @@ import { useApi, useClipboard } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { Button } from '../../core/ui/Button'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
+import { lucideProps } from '../../core/ui/icons'
 import { EmptyNote } from '../../core/ui/Notice'
 import { pillClasses } from '../../core/ui/pill'
 import { useBackLink } from '../../core/ui/cameFrom'
@@ -75,6 +77,14 @@ function ConversationView({ pageKey, recruiter, conversation: c }: { pageKey: Qu
   const messagesId = useId()
   return (
     <>
+      {c.channel === 'gmail' && (
+        <p className="mx-4 mt-3 mb-0 flex items-center gap-2 text-[15px] text-sub">
+          <span role="img" aria-label="Gmail" className="flex shrink-0">
+            <MailIcon {...lucideProps} size={18} />
+          </span>
+          {c.subject && <span lang={langOf(c.subject)} className="min-w-0 truncate">{c.subject}</span>}
+        </p>
+      )}
       {c.messages.length > 0 && (
         <>
           <SectionHeader id={messagesId}>Messages</SectionHeader>
@@ -85,7 +95,9 @@ function ConversationView({ pageKey, recruiter, conversation: c }: { pageKey: Qu
           </ul>
         </>
       )}
-      {c.suggestedReply && <ReplyView pageKey={pageKey} conversationId={c.id} reply={c.suggestedReply} url={c.url} />}
+      {c.suggestedReply && (
+        <ReplyView pageKey={pageKey} conversationId={c.id} reply={c.suggestedReply} url={c.url} openIn={c.channel === 'gmail' ? 'Gmail' : 'LinkedIn'} />
+      )}
       {c.suggestedReply && c.suggestedReply.notes.length > 0 && <NotesView notes={c.suggestedReply.notes} />}
     </>
   )
@@ -113,9 +125,21 @@ function MessageBubble({ recruiter, message: m }: { recruiter: string; message: 
 const kindLabels: Record<SuggestedReply['kind'], string | null> = { answer: null, follow_up: 'Follow-up', late: 'Late Reply' }
 
 // The Suggested Reply, in its language, labelled when it is a follow-up or a Late Reply, with Copy, which says "Copied" for a moment, Open in
-// LinkedIn, the Conversation's URL, which the iPhone opens in the LinkedIn app, and Mark as Replied.
+// LinkedIn or Open in Gmail, the Conversation's URL, which the iPhone opens in that app, and Mark as Replied.
 // Once marked, it says so in their place, with Undo.
-function ReplyView({ pageKey, conversationId, reply, url }: { pageKey: QueryKey; conversationId: string; reply: SuggestedReply; url: string }) {
+function ReplyView({
+  pageKey,
+  conversationId,
+  reply,
+  url,
+  openIn,
+}: {
+  pageKey: QueryKey
+  conversationId: string
+  reply: SuggestedReply
+  url: string
+  openIn: 'LinkedIn' | 'Gmail'
+}) {
   const headingId = useId()
   const api = useApi()
   const queryClient = useQueryClient()
@@ -184,7 +208,7 @@ function ReplyView({ pageKey, conversationId, reply, url }: { pageKey: QueryKey;
               Copy
             </Button>
             <a href={url} target="_blank" rel="noreferrer" className={`${pillClasses('quiet', 'regular')} no-underline active:opacity-70`}>
-              Open in LinkedIn
+              Open in {openIn}
             </a>
             <Button variant="quiet" isDisabled={setReplied.isPending} onPress={() => setReplied.mutate(true)}>
               Mark as Replied

@@ -119,10 +119,13 @@ export type SuggestedReply = {
   markedRepliedAt: string | null
 }
 
-// A Conversation as its Recruiter's page shows it: its LinkedIn URL, its last 5 messages, oldest
-// first, and its Suggested Reply.
+// A Conversation as its Recruiter's page shows it: where it is (LinkedIn, or a Gmail thread with its
+// subject), its URL there, its last 5 messages, oldest first, and its Suggested Reply. A server from
+// before Gmail sends no channel: it is LinkedIn.
 export type RecruiterConversation = {
   id: string
+  channel?: 'linkedin' | 'gmail'
+  subject?: string
   url: string
   messages: Message[]
   suggestedReply: SuggestedReply | null
@@ -243,3 +246,11 @@ export function opportunityQuery(api: ApiClient, id: string | undefined) {
     queryFn: () => api.get<OpportunityDetails>(`/api/career/opportunities/${id}`),
   })
 }
+
+// The Gmail Career Sync: when Nando asks the Career Assistant to file the mail the Owner labeled
+// Career in Gmail, every day at `time` ("HH:MM" on the hour or half hour).
+export type GmailCareerSync = { enabled: boolean; time: string }
+
+// The Career settings, as GET /api/career/settings answers them and PUT takes them. A server from
+// before the Gmail Career Sync leaves it out.
+export type CareerSettings = { looking: boolean; gmailCareerSync?: GmailCareerSync }
