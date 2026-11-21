@@ -6,6 +6,7 @@ import { LateReplies } from './LateReplies'
 import { OpenOpportunities } from './OpenOpportunities'
 import { OpportunityPage } from './OpportunityPage'
 import { RecruiterPage } from './RecruiterPage'
+import { CareerSettingsSection } from './SettingsSection'
 
 export const career: Module = {
   id: 'career',
@@ -22,5 +23,5 @@ export const career: Module = {
     { path: 'opportunities/:id', element: <OpportunityPage /> },
   ],
   homeCards: [{ id: 'career', Component: CareerCard }],
-  settingsSections: [],
+  settingsSections: [{ id: 'career', title: 'Career', Component: CareerSettingsSection }],
 }

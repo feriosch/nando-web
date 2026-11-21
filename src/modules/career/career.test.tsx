@@ -282,7 +282,7 @@ type Message = { id: string; from: 'owner' | 'other'; sentAt: string; text: stri
 type LanguageNote = { wrote: string; natural: string; why: string }
 // `markedRepliedAt` is null unless given.
 type Reply = { text: string; language: 'ja' | 'en'; kind: 'answer' | 'follow_up' | 'late'; notes: LanguageNote[]; markedRepliedAt?: string | null }
-type Conversation = { id: string; url: string; messages: Message[]; suggestedReply: Reply | null }
+type Conversation = { id: string; channel?: 'linkedin' | 'gmail'; subject?: string; url: string; messages: Message[]; suggestedReply: Reply | null }
 
 function conversation(fields: Partial<Conversation> & Pick<Conversation, 'id'>): Conversation {
   return { url: `https://www.linkedin.com/messaging/thread/${fields.id}/`, messages: [], suggestedReply: null, ...fields }
@@ -412,6 +412,23 @@ describe('Recruiter page', () => {
 
     const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
     expect(within(reply).getByRole('link', { name: 'Open in LinkedIn' })).toHaveAttribute('href', 'https://www.linkedin.com/messaging/thread/t1/')
+  })
+
+  it('opens a Gmail Conversation in Gmail, under its subject', async () => {
+    const gmail = conversation({
+      ...tanakasConversation,
+      id: 'g1',
+      channel: 'gmail',
+      subject: 'Backend role at a fintech',
+      url: 'https://mail.google.com/mail/u/0/#all/18c2f0a1b2c3d4e5',
+    })
+    renderCareer('/career/recruiters/r1', { 'GET /api/career/recruiters/r1': recruiterPage([gmail]) })
+
+    const reply = await screen.findByRole('region', { name: 'Suggested Reply' })
+    expect(within(reply).getByRole('link', { name: 'Open in Gmail' })).toHaveAttribute('href', 'https://mail.google.com/mail/u/0/#all/18c2f0a1b2c3d4e5')
+    expect(within(reply).queryByRole('link', { name: 'Open in LinkedIn' })).not.toBeInTheDocument()
+    expect(screen.getByText('Backend role at a fintech')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Gmail' })).toBeInTheDocument()
   })
 
   it('shows the notes about the Owner\'s last message: what they wrote, what is natural, and why', async () => {
@@ -942,3 +959,76 @@ describe('Opportunity page', () => {
   })
 })
 
+
+// The Career Settings Section on the Settings screen, found by its heading.
+async function careerSection() {
+  return await screen.findByRole('region', { name: 'Career' })
+}
+
+describe('Career Settings Section', () => {
+  it('turns the Gmail Career Sync on and saves its time with Looking', async () => {
+    const user = userEvent.setup()
+    const { sent } = renderCareer('/settings', {
+      'GET /api/career/settings': { status: 200, body: { looking: true, gmailCareerSync: { enabled: false, time: '08:00' } } },
+      'PUT /api/career/settings': { status: 204 },
+    })
+
+    const section = await careerSection()
+    const sync = await within(section).findByRole('switch', { name: 'Gmail Career Sync' })
+    expect(sync).not.toBeChecked()
+    expect(within(section).queryByLabelText('Every day at')).not.toBeInTheDocument()
+
+    await user.click(sync)
+    await user.selectOptions(within(section).getByLabelText('Every day at'), '07:00')
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+
+    expect(await within(section).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((r) => r.method === 'PUT' && r.path === '/api/career/settings')).toEqual([
+      { method: 'PUT', path: '/api/career/settings', body: { looking: true, gmailCareerSync: { enabled: true, time: '07:00' } } },
+    ])
+  })
+
+  it("offers no switch when the server has no Gmail Career Sync yet", async () => {
+    const { sent } = renderCareer('/settings', { 'GET /api/career/settings': { status: 200, body: { looking: false } } })
+
+    const section = await careerSection()
+    await waitFor(() => expect(sent.some((r) => r.path === '/api/career/settings')).toBe(true))
+    expect(within(section).queryByRole('switch', { name: 'Gmail Career Sync' })).not.toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Career Settings Section, saving', () => {
+  it("sends the Looking the server has when Save is tapped, not the one it had when Settings opened", async () => {
+    const user = userEvent.setup()
+    let looking = true
+    const { sent } = renderCareer('/settings', {
+      'GET /api/career/settings': () => ({ status: 200, body: { looking, gmailCareerSync: { enabled: false, time: '08:00' } } }),
+      'PUT /api/career/settings': { status: 204 },
+    })
+    const section = await careerSection()
+    await user.click(await within(section).findByRole('switch', { name: 'Gmail Career Sync' }))
+
+    // Changed on the Home Card, on another device, meanwhile.
+    looking = false
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+
+    expect(await within(section).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((r) => r.method === 'PUT').map((r) => r.body)).toEqual([{ looking: false, gmailCareerSync: { enabled: true, time: '08:00' } }])
+  })
+
+  it('stops saying "Saved." once the form changes again', async () => {
+    const user = userEvent.setup()
+    renderCareer('/settings', {
+      'GET /api/career/settings': { status: 200, body: { looking: true, gmailCareerSync: { enabled: true, time: '08:00' } } },
+      'PUT /api/career/settings': { status: 204 },
+    })
+    const section = await careerSection()
+    await user.click(await within(section).findByRole('button', { name: 'Save' }))
+    await within(section).findByText('Saved.')
+
+    await user.selectOptions(within(section).getByLabelText('Every day at'), '09:00')
+
+    expect(within(section).queryByText('Saved.')).not.toBeInTheDocument()
+  })
+})
