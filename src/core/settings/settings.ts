@@ -7,7 +7,12 @@ export type CoreSettings = {
   heightCm: number | null
   // `time` is "HH:MM" on the hour or half hour, in the Owner Time Zone.
   weighInReminder: { enabled: boolean; weekday: Weekday; time: string }
+  // The daily Notification that asks the Core Assistant for the Mail Digest, at `time` ("HH:MM" on
+  // the hour or half hour). A server from before it leaves it out, and is then sent none.
+  mailDigest?: MailDigest
 }
+
+export type MailDigest = { enabled: boolean; time: string }
 
 // "00:00" to "23:30": a Notification goes out on the hour or half hour, when the scheduler ticks,
 // so these are the only times a reminder can be set for (Core's or a Module's).
