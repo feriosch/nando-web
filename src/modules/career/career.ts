@@ -110,7 +110,7 @@ export type Message = { id: string; from: 'owner' | 'other'; sentAt: string; tex
 export type LanguageNote = { wrote: string; natural: string; why: string }
 
 // Claude's draft of the Owner's next message, which only the Owner ever sends. `markedRepliedAt` is
-// when the Owner marked it replied, having sent it in LinkedIn, or null.
+// when the Owner marked it replied, having sent it in LinkedIn or Gmail, or null.
 export type SuggestedReply = {
   text: string
   language: 'ja' | 'en'

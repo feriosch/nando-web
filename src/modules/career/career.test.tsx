@@ -997,3 +997,38 @@ describe('Career Settings Section', () => {
     expect(within(section).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })
 })
+
+describe('Career Settings Section, saving', () => {
+  it("sends the Looking the server has when Save is tapped, not the one it had when Settings opened", async () => {
+    const user = userEvent.setup()
+    let looking = true
+    const { sent } = renderCareer('/settings', {
+      'GET /api/career/settings': () => ({ status: 200, body: { looking, gmailCareerSync: { enabled: false, time: '08:00' } } }),
+      'PUT /api/career/settings': { status: 204 },
+    })
+    const section = await careerSection()
+    await user.click(await within(section).findByRole('switch', { name: 'Gmail Career Sync' }))
+
+    // Changed on the Home Card, on another device, meanwhile.
+    looking = false
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+
+    expect(await within(section).findByText('Saved.')).toBeInTheDocument()
+    expect(sent.filter((r) => r.method === 'PUT').map((r) => r.body)).toEqual([{ looking: false, gmailCareerSync: { enabled: true, time: '08:00' } }])
+  })
+
+  it('stops saying "Saved." once the form changes again', async () => {
+    const user = userEvent.setup()
+    renderCareer('/settings', {
+      'GET /api/career/settings': { status: 200, body: { looking: true, gmailCareerSync: { enabled: true, time: '08:00' } } },
+      'PUT /api/career/settings': { status: 204 },
+    })
+    const section = await careerSection()
+    await user.click(await within(section).findByRole('button', { name: 'Save' }))
+    await within(section).findByText('Saved.')
+
+    await user.selectOptions(within(section).getByLabelText('Every day at'), '09:00')
+
+    expect(within(section).queryByText('Saved.')).not.toBeInTheDocument()
+  })
+})

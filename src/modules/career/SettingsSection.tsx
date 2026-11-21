@@ -18,36 +18,47 @@ import type { CareerSettings, GmailCareerSync } from './career'
 export function CareerSettingsSection() {
   const api = useApi()
   const settings = useQuery({ queryKey: ['career', 'settings'], queryFn: () => api.get<CareerSettings>('/api/career/settings') })
-  // Save sends Looking back too, so the form waits for settings loaded since the section opened: a
-  // cached copy could undo a change made on another device, or on the Home Card.
+  // The form waits for settings loaded since the section opened, so it starts from what the server
+  // has, not a cached copy.
   const loaded = useLoadedSinceMount(settings)
   return (
     <>
       {settings.isError && <LoadProblem message="Couldn't load the Career settings." retry={() => settings.refetch()} />}
-      {loaded && settings.data?.gmailCareerSync && <GmailCareerSyncForm saved={settings.data} sync={settings.data.gmailCareerSync} />}
+      {loaded && settings.data?.gmailCareerSync && <GmailCareerSyncForm sync={settings.data.gmailCareerSync} />}
     </>
   )
 }
 
-function GmailCareerSyncForm({ saved, sync: savedSync }: { saved: CareerSettings; sync: GmailCareerSync }) {
+function GmailCareerSyncForm({ sync: savedSync }: { sync: GmailCareerSync }) {
   const api = useApi()
   const queryClient = useQueryClient()
   const [sync, setSync] = useState(savedSync)
   const save = useMutation({
-    mutationFn: (settings: CareerSettings) => api.put('/api/career/settings', settings),
+    // The PUT carries Looking too, so it's read again first: the Home Card may have changed it, here
+    // or on another device, since the section opened.
+    mutationFn: async (gmailCareerSync: GmailCareerSync) => {
+      const { looking } = await api.get<CareerSettings>('/api/career/settings')
+      return api.put('/api/career/settings', { looking, gmailCareerSync } satisfies CareerSettings)
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['career'] }),
   })
 
+  // A change after a save takes away its "Saved.", which no longer describes the form.
+  function edit(next: GmailCareerSync) {
+    save.reset()
+    setSync(next)
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault()
-    save.mutate({ looking: saved.looking, gmailCareerSync: sync })
+    save.mutate(sync)
   }
 
   return (
     <form onSubmit={submit} className="my-0">
       <GroupedList footer={saveFooter(save.isSuccess && 'Saved.', save.isError ? describe(save.error) : null)}>
         <ListRow className="text-[17px]">
-          <Switch isSelected={sync.enabled} onChange={(enabled) => setSync({ ...sync, enabled })}>
+          <Switch isSelected={sync.enabled} onChange={(enabled) => edit({ ...sync, enabled })}>
             Gmail Career Sync
           </Switch>
         </ListRow>
@@ -56,7 +67,7 @@ function GmailCareerSyncForm({ saved, sync: savedSync }: { saved: CareerSettings
             label="Every day at"
             value={sync.time}
             options={reminderTimeOptions}
-            onChange={(time) => setSync({ ...sync, time })}
+            onChange={(time) => edit({ ...sync, time })}
             display={<span className="tabular-nums">{sync.time}</span>}
           />
         )}
