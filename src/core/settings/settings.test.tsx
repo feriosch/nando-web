@@ -8,7 +8,7 @@ const defaults = {
   timeZone: 'UTC',
   heightCm: null,
   weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' },
-  mailDigest: { enabled: false, time: '08:00' },
+  gmailDigest: { enabled: false, time: '08:00' },
 }
 
 // Core's Settings Section on the Settings screen, found by its heading.
@@ -51,13 +51,13 @@ describe('Core Settings Section', () => {
           timeZone: 'Asia/Tokyo',
           heightCm: 175,
           weighInReminder: { enabled: true, weekday: 'sunday', time: '07:30' },
-          mailDigest: { enabled: false, time: '08:00' },
+          gmailDigest: { enabled: false, time: '08:00' },
         },
       },
     ])
   })
 
-  it('turns the Mail Digest on and saves its time', async () => {
+  it('turns the Gmail Digest on and saves its time', async () => {
     const user = userEvent.setup()
     const { api, sent } = fakeApi({
       'GET /api/settings': { status: 200, body: defaults },
@@ -66,7 +66,7 @@ describe('Core Settings Section', () => {
     renderApp('/settings', api)
 
     const section = await coreSection()
-    const digest = await within(section).findByRole('switch', { name: 'Mail Digest' })
+    const digest = await within(section).findByRole('switch', { name: 'Gmail Digest' })
     expect(digest).not.toBeChecked()
     // Its time shows only while it is on.
     expect(within(section).queryByLabelText('Every day at')).not.toBeInTheDocument()
@@ -78,13 +78,13 @@ describe('Core Settings Section', () => {
 
     expect(await within(section).findByText('Saved.')).toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'PUT')).toEqual([
-      { method: 'PUT', path: '/api/settings', body: { ...defaults, mailDigest: { enabled: true, time: '07:00' } } },
+      { method: 'PUT', path: '/api/settings', body: { ...defaults, gmailDigest: { enabled: true, time: '07:00' } } },
     ])
   })
 
-  it("leaves the Mail Digest out when the server doesn't have one yet", async () => {
+  it("leaves the Gmail Digest out when the server doesn't have one yet", async () => {
     const user = userEvent.setup()
-    const { mailDigest: _, ...withoutDigest } = defaults
+    const { gmailDigest: _, ...withoutDigest } = defaults
     const { api, sent } = fakeApi({
       'GET /api/settings': { status: 200, body: withoutDigest },
       'PUT /api/settings': { status: 204 },
@@ -95,7 +95,7 @@ describe('Core Settings Section', () => {
     await user.click(await within(section).findByRole('button', { name: 'Save' }))
 
     expect(await within(section).findByText('Saved.')).toBeInTheDocument()
-    expect(within(section).queryByRole('switch', { name: 'Mail Digest' })).not.toBeInTheDocument()
+    expect(within(section).queryByRole('switch', { name: 'Gmail Digest' })).not.toBeInTheDocument()
     expect(sent.filter((request) => request.method === 'PUT')).toEqual([{ method: 'PUT', path: '/api/settings', body: withoutDigest }])
   })
 

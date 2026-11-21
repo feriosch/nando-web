@@ -10,7 +10,7 @@ import { GroupedList, ListRow } from '../ui/List'
 import { Picker, PickerRow } from '../ui/Picker'
 import { saveFooter } from '../ui/saveFooter'
 import { Switch } from '../ui/Switch'
-import { reminderTimeOptions, type CoreSettings, type MailDigest, type Weekday } from './settings'
+import { reminderTimeOptions, type CoreSettings, type GmailDigest, type Weekday } from './settings'
 
 const weekdays: { value: Weekday; label: string }[] = [
   { value: 'monday', label: 'Monday' },
@@ -26,7 +26,7 @@ const weekdays: { value: Weekday; label: string }[] = [
 const allTimeZones = Intl.supportedValuesOf('timeZone')
 
 // Core's Settings Section, "General": Appearance, then the Owner Time Zone, height, the Weigh-in
-// reminder and the Mail Digest, which save together.
+// reminder and the Gmail Digest, which save together.
 export function CoreSettingsSection() {
   const api = useApi()
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
@@ -49,7 +49,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
   const [timeZone, setTimeZone] = useState(saved.timeZone)
   const [height, setHeight] = useState(saved.heightCm === null ? '' : String(saved.heightCm))
   const [reminder, setReminder] = useState(saved.weighInReminder)
-  const [digest, setDigest] = useState<MailDigest | undefined>(saved.mailDigest)
+  const [digest, setDigest] = useState<GmailDigest | undefined>(saved.gmailDigest)
   const [problem, setProblem] = useState<string | null>(null)
   const heightId = useId()
   const save = useMutation({
@@ -76,7 +76,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
       return
     }
     setProblem(null)
-    save.mutate({ timeZone, heightCm, weighInReminder: reminder, ...(digest && { mailDigest: digest }) })
+    save.mutate({ timeZone, heightCm, weighInReminder: reminder, ...(digest && { gmailDigest: digest }) })
   }
 
   return (
@@ -134,7 +134,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
         {digest && (
           <ListRow className="text-[17px]">
             <Switch isSelected={digest.enabled} onChange={(enabled) => setDigest({ ...digest, enabled })}>
-              Mail Digest
+              Gmail Digest
             </Switch>
           </ListRow>
         )}
