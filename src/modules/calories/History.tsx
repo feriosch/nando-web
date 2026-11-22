@@ -1,7 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router'
-import { formatWeekShort, weekBefore } from '../../core/body/weeks'
 import { addDays, mondayOf } from '../../core/days'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
@@ -11,7 +10,7 @@ import { lucideProps } from '../../core/ui/icons'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { Bar } from './Board'
-import { consumedAgainstLimit, formatDay, usedOf, type DaySummary } from './calories'
+import { consumedAgainstLimit, formatDay, usedOf, weekName, type DaySummary } from './calories'
 import { rowLinkClasses } from './rows'
 
 // How many Days the list shows at first, and how many more each "Show older" adds.
@@ -103,15 +102,6 @@ function Week({ monday, today, days }: { monday: string; today: string; days: Da
       </GroupedList>
     </>
   )
-}
-
-// The week starting on `monday` as the Owner thinks of it from `today`, with its year only when it
-// isn't this year's.
-function weekName(monday: string, today: string): string {
-  const thisWeek = mondayOf(today)
-  if (monday === thisWeek) return 'This week'
-  if (monday === weekBefore(thisWeek)) return 'Last week'
-  return `Week of ${formatWeekShort(monday, today)}`
 }
 
 // Such as "Mon 9 Nov: 1,620 / 2,000 kcal" over a bar of how much of the Daily Limit it used, or

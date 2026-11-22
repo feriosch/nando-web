@@ -7,7 +7,6 @@ import fixtures from '../public/models/kanji/drawings.json' with { type: 'json' 
 export const settings: CoreSettings = {
   timeZone: 'Asia/Tokyo',
   heightCm: null,
-  weighInReminder: { enabled: false, weekday: 'sunday', time: '08:00' },
 }
 
 // Draws a fixture's strokes on the drawing area with the mouse, fitted inside it with a margin.

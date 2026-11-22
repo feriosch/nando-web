@@ -1,4 +1,5 @@
-import { formatDayAs } from '../../core/days'
+import { formatDayAs, mondayOf } from '../../core/days'
+import { formatWeekShort, weekBefore } from '../../core/weeks'
 
 // How a Day stands against its Daily Limit, as the Calories API describes every Day. An Unlogged Day
 // has `consumedCalories`, `remaining` and `overLimit` null: it is not recorded, never 0 kcal.
@@ -58,3 +59,26 @@ export type Meal = {
   pinned: boolean
   archived: boolean
 }
+
+// The week starting on `monday` as the Owner thinks of it from `today`, with its year only when it
+// isn't this year's: "This week", "Last week" or "Week of 26 Oct".
+export function weekName(monday: string, today: string): string {
+  const thisWeek = mondayOf(today)
+  if (monday === thisWeek) return 'This week'
+  if (monday === weekBefore(thisWeek)) return 'Last week'
+  return `Week of ${formatWeekShort(monday, today)}`
+}
+
+// A Weigh-in: the Owner's weight for the week starting on Monday `week` (YYYY-MM-DD), in kg.
+export type WeighIn = { week: string; kg: number }
+
+// What GET /api/calories/weight-card answers for the Weight Home Card. `bmi` is null until the
+// Owner's height is set in Core's settings, and `change` when the week before has no Weigh-in.
+export type WeightCard = {
+  latest: WeighIn | null
+  bmi: number | null
+  change: number | null
+}
+
+// Where the web app sends the Owner to log a Weigh-in: it only reads them.
+export const logWeighInsNote = 'Tell the Calories Assistant your weight in Telegram.'

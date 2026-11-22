@@ -28,8 +28,7 @@ export function TabBar({ modules }: { modules: Module[] }) {
     ...(more.length > 0 ? [{ to: '/more', label: 'More', icon: MoreIcon, current: onMore }] : []),
     { to: '/settings', label: 'Settings', icon: SettingsIcon, current: isWithin(pathname, '/settings') },
   ]
-  // Home is current on Home and on Core's screens opened from it (such as Weigh-ins): every screen
-  // no other tab claims.
+  // Home is current on Home and on every screen no other tab claims.
   const tabs: Tab[] = [{ to: '/', label: 'Home', icon: HomeIcon, current: !others.some((tab) => tab.current) }, ...others]
 
   return (

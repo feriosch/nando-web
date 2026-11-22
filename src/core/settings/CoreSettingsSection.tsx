@@ -7,26 +7,16 @@ import { LoadProblem } from '../shell/LoadProblem'
 import { AppearanceControl } from '../appearance/AppearanceControl'
 import { Button } from '../ui/Button'
 import { GroupedList, ListRow } from '../ui/List'
-import { Picker, PickerRow } from '../ui/Picker'
+import { PickerRow } from '../ui/Picker'
 import { saveFooter } from '../ui/saveFooter'
 import { Switch } from '../ui/Switch'
-import { reminderTimeOptions, type CoreSettings, type GmailDigest, type Weekday } from './settings'
-
-const weekdays: { value: Weekday; label: string }[] = [
-  { value: 'monday', label: 'Monday' },
-  { value: 'tuesday', label: 'Tuesday' },
-  { value: 'wednesday', label: 'Wednesday' },
-  { value: 'thursday', label: 'Thursday' },
-  { value: 'friday', label: 'Friday' },
-  { value: 'saturday', label: 'Saturday' },
-  { value: 'sunday', label: 'Sunday' },
-]
+import { reminderTimeOptions, type CoreSettings, type GmailDigest } from './settings'
 
 // Every IANA time zone this browser knows, read once.
 const allTimeZones = Intl.supportedValuesOf('timeZone')
 
-// Core's Settings Section, "General": Appearance, then the Owner Time Zone, height, the Weigh-in
-// reminder and the Gmail Digest, which save together.
+// Core's Settings Section, "General": Appearance, then the Owner Time Zone, height and the Gmail
+// Digest, which save together. The Weigh-in reminder is Calories', set by its Assistant (ADR 0012).
 export function CoreSettingsSection() {
   const api = useApi()
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get<CoreSettings>('/api/settings') })
@@ -48,17 +38,13 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
   const queryClient = useQueryClient()
   const [timeZone, setTimeZone] = useState(saved.timeZone)
   const [height, setHeight] = useState(saved.heightCm === null ? '' : String(saved.heightCm))
-  const [reminder, setReminder] = useState(saved.weighInReminder)
   const [digest, setDigest] = useState<GmailDigest | undefined>(saved.gmailDigest)
   const [problem, setProblem] = useState<string | null>(null)
   const heightId = useId()
   const save = useMutation({
     mutationFn: (settings: CoreSettings) => api.put('/api/settings', settings),
-    onSuccess: () => {
-      // BMI needs the height, and which week is this week depends on the Owner Time Zone.
-      queryClient.invalidateQueries({ queryKey: ['settings'] })
-      queryClient.invalidateQueries({ queryKey: ['body'] })
-    },
+    // Calories' Weight Home Card follows the height in the settings, for the BMI.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
   })
 
   // Every IANA time zone, plus the saved one in case this browser doesn't list it (such as "UTC").
@@ -76,7 +62,7 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
       return
     }
     setProblem(null)
-    save.mutate({ timeZone, heightCm, weighInReminder: reminder, ...(digest && { gmailDigest: digest }) })
+    save.mutate({ timeZone, heightCm, ...(digest && { gmailDigest: digest }) })
   }
 
   return (
@@ -105,32 +91,6 @@ function SettingsForm({ saved }: { saved: CoreSettings }) {
             {/^\d+$/.test(height.trim()) && <span aria-hidden="true">cm</span>}
           </span>
         </ListRow>
-        <ListRow className="text-[17px]">
-          <Switch isSelected={reminder.enabled} onChange={(enabled) => setReminder({ ...reminder, enabled })}>
-            Weigh-in reminder
-          </Switch>
-        </ListRow>
-        {reminder.enabled && (
-          <ListRow className="text-[17px]">
-            <span>When</span>
-            <span className="flex min-w-0 items-center gap-1.5">
-              <Picker
-                label="Weekday"
-                value={reminder.weekday}
-                options={weekdays}
-                onChange={(weekday) => setReminder({ ...reminder, weekday: weekday as Weekday })}
-                display={`${weekdays.find(({ value }) => value === reminder.weekday)?.label ?? reminder.weekday}s,`}
-              />
-              <Picker
-                label="Time"
-                value={reminder.time}
-                options={reminderTimeOptions}
-                onChange={(time) => setReminder({ ...reminder, time })}
-                className="tabular-nums"
-              />
-            </span>
-          </ListRow>
-        )}
         {digest && (
           <ListRow className="text-[17px]">
             <Switch isSelected={digest.enabled} onChange={(enabled) => setDigest({ ...digest, enabled })}>

@@ -1,7 +1,6 @@
 import { Outlet, type RouteObject } from 'react-router'
 import { AppearanceProvider } from '../appearance/AppearanceProvider'
 import { Consent } from '../connectors/Consent'
-import { WeighIns } from '../body/WeighIns'
 import { Enroll } from '../identity/Enroll'
 import { SignIn } from '../identity/SignIn'
 import type { Registry } from '../module'
@@ -39,8 +38,6 @@ export function createRoutes(registry: Registry): RouteObject[] {
         { index: true, element: <Home cards={homeCards} /> },
         { path: 'settings', element: <Settings sections={settingsSections} /> },
         ...(more.length > 0 ? [{ path: 'more', element: <More modules={more} /> }] : []),
-        // Core's own screen, opened from the Body Home Card; it has no tab.
-        { path: 'weigh-ins', element: <WeighIns /> },
         ...registry.modules.map((module) => ({ path: module.path, children: module.routes })),
       ],
     },

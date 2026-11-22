@@ -91,7 +91,7 @@ describe('Core shell', () => {
     const { api } = fakeApi({
       'GET /api/settings': {
         status: 200,
-        body: { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } },
+        body: { timeZone: 'Asia/Tokyo', heightCm: 175 },
       },
     })
     renderApp('/', api)
@@ -164,14 +164,5 @@ describe('Core shell', () => {
     expect(screen.getByRole('heading', { name: 'Reading screen' })).toBeInTheDocument()
     // A Module under More keeps More as the current tab.
     expect(within(tabs).getByRole('link', { name: 'More' })).toHaveAttribute('aria-current', 'page')
-  })
-
-  it('keeps Home as the current tab on a Core screen opened from Home, such as Weigh-ins', () => {
-    const { api } = fakeApi({})
-    renderApp('/weigh-ins', api)
-
-    const tabs = screen.getByRole('navigation', { name: 'Tabs' })
-    expect(within(tabs).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
-    expect(within(tabs).getByRole('link', { name: 'Settings' })).not.toHaveAttribute('aria-current')
   })
 })

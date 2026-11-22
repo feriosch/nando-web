@@ -9,7 +9,7 @@ describe('Web Push, retired', () => {
     const { api, sent } = fakeApi({
       'GET /api/settings': {
         status: 200,
-        body: { timeZone: 'UTC', heightCm: null, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } },
+        body: { timeZone: 'UTC', heightCm: null },
       },
     })
     renderApp('/settings', api)
