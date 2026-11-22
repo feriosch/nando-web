@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../../core/api/client'
 import { useLoadedSinceMount } from '../../core/api/loaded'
 import { useApi } from '../../core/services'
@@ -56,7 +56,12 @@ function GmailCareerSyncForm({ sync: savedSync }: { sync: GmailCareerSync }) {
   }
 
   // The Gmail Digest's run files the night's mail, Recruiters' included, so the Sync comes after it.
-  const hint = sync.enabled && <p className="my-0">Set it after your Gmail Digest, which files the night's mail.</p>
+  const hintId = useId()
+  const hint = sync.enabled && (
+    <p id={hintId} className="my-0">
+      Set it after your Gmail Digest, which files the night's mail.
+    </p>
+  )
   const status = saveFooter(save.isSuccess && 'Saved.', save.isError ? describe(save.error) : null)
 
   return (
@@ -83,6 +88,7 @@ function GmailCareerSyncForm({ sync: savedSync }: { sync: GmailCareerSync }) {
             options={reminderTimeOptions}
             onChange={(time) => edit({ ...sync, time })}
             display={<span className="tabular-nums">{sync.time}</span>}
+            describedBy={hintId}
           />
         )}
       </GroupedList>

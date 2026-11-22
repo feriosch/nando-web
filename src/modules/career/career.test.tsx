@@ -977,10 +977,13 @@ describe('Career Settings Section', () => {
     const sync = await within(section).findByRole('switch', { name: 'Gmail Career Sync' })
     expect(sync).not.toBeChecked()
     expect(within(section).queryByLabelText('Every day at')).not.toBeInTheDocument()
+    const hint = "Set it after your Gmail Digest, which files the night's mail."
+    expect(within(section).queryByText(hint)).not.toBeInTheDocument()
 
     await user.click(sync)
-    // The Gmail Digest's run files Recruiters' mail, so the Career Sync comes after it (ADR 0011).
-    expect(within(section).getByText("Set it after your Gmail Digest, which files the night's mail.")).toBeInTheDocument()
+    // The Gmail Digest's run files Recruiters' mail, so the Career Sync comes after it (ADR 0011),
+    // and the time picker says so to VoiceOver too.
+    expect(within(section).getByLabelText('Every day at')).toHaveAccessibleDescription(hint)
     await user.selectOptions(within(section).getByLabelText('Every day at'), '07:00')
     await user.click(within(section).getByRole('button', { name: 'Save' }))
 
