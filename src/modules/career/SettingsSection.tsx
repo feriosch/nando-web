@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../../core/api/client'
 import { useLoadedSinceMount } from '../../core/api/loaded'
 import { useApi } from '../../core/services'
@@ -13,7 +13,8 @@ import { Switch } from '../../core/ui/Switch'
 import type { CareerSettings, GmailCareerSync } from './career'
 
 // The Career Settings Section: the Gmail Career Sync, the daily ask for the Career Assistant to file
-// the mail the Owner labeled Career in Gmail (feriosch/nando-server ADR 0010). A server from before it
+// the mail labeled Career/Recruiters in Gmail, which the Core Assistant applies in the Gmail Digest's
+// run (feriosch/nando-server ADR 0010, ADR 0011). A server from before it
 // answers none, and the section offers nothing.
 export function CareerSettingsSection() {
   const api = useApi()
@@ -54,9 +55,27 @@ function GmailCareerSyncForm({ sync: savedSync }: { sync: GmailCareerSync }) {
     save.mutate(sync)
   }
 
+  // The Gmail Digest's run files the night's mail, Recruiters' included, so the Sync comes after it.
+  const hintId = useId()
+  const hint = sync.enabled && (
+    <p id={hintId} className="my-0">
+      Set it after your Gmail Digest, which files the night's mail.
+    </p>
+  )
+  const status = saveFooter(save.isSuccess && 'Saved.', save.isError ? describe(save.error) : null)
+
   return (
     <form onSubmit={submit} className="my-0">
-      <GroupedList footer={saveFooter(save.isSuccess && 'Saved.', save.isError ? describe(save.error) : null)}>
+      <GroupedList
+        footer={
+          (hint || status) && (
+            <>
+              {hint}
+              {status}
+            </>
+          )
+        }
+      >
         <ListRow className="text-[17px]">
           <Switch isSelected={sync.enabled} onChange={(enabled) => edit({ ...sync, enabled })}>
             Gmail Career Sync
@@ -69,6 +88,7 @@ function GmailCareerSyncForm({ sync: savedSync }: { sync: GmailCareerSync }) {
             options={reminderTimeOptions}
             onChange={(time) => edit({ ...sync, time })}
             display={<span className="tabular-nums">{sync.time}</span>}
+            describedBy={hintId}
           />
         )}
       </GroupedList>

@@ -43,12 +43,15 @@ export function PickerRow({
   options,
   onChange,
   display,
+  describedBy,
 }: {
   label: string
   value: string
   options: PickerOption[]
   onChange: (value: string) => void
   display?: ReactNode
+  // The id of a hint about this choice, such as one in the list's footer, read with the select.
+  describedBy?: string
 }) {
   const id = useId()
   return (
@@ -59,7 +62,7 @@ export function PickerRow({
       <span className="min-w-0 truncate text-sub">
         {display ?? options.find((option) => option.value === value)?.label ?? value}
       </span>
-      <NativeSelect id={id} value={value} options={options} onChange={onChange} />
+      <NativeSelect id={id} value={value} options={options} onChange={onChange} describedBy={describedBy} />
     </ListRow>
   )
 }
@@ -73,17 +76,20 @@ function NativeSelect({
   value,
   options,
   onChange,
+  describedBy,
 }: {
   id?: string
   label?: string
   value: string
   options: PickerOption[]
   onChange: (value: string) => void
+  describedBy?: string
 }) {
   return (
     <select
       id={id}
       aria-label={label}
+      aria-describedby={describedBy}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       className="absolute inset-x-0 top-1/2 m-0 h-full min-h-11 w-full -translate-y-1/2 cursor-pointer appearance-none border-0 p-0 text-[16px] opacity-0"
