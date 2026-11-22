@@ -979,6 +979,8 @@ describe('Career Settings Section', () => {
     expect(within(section).queryByLabelText('Every day at')).not.toBeInTheDocument()
 
     await user.click(sync)
+    // The Gmail Digest's run files Recruiters' mail, so the Career Sync comes after it (ADR 0011).
+    expect(within(section).getByText("Set it after your Gmail Digest, which files the night's mail.")).toBeInTheDocument()
     await user.selectOptions(within(section).getByLabelText('Every day at'), '07:00')
     await user.click(within(section).getByRole('button', { name: 'Save' }))
 
