@@ -15,12 +15,12 @@ import { logWeighInsNote, type WeightCard as WeightCardData } from './calories'
 export function WeightCard() {
   const api = useApi()
   // Today in the Owner Time Zone, for whether the latest Weigh-in's week needs its year. Keyed by the
-  // height in Core's settings too, so the BMI follows a height saved there.
+  // height in Core's settings too, so the BMI follows a height saved there; so it waits for them.
   const { today, settings } = useToday()
-  const heightCm = settings.data?.heightCm
   const card = useQuery({
-    queryKey: ['calories', 'weight-card', heightCm],
+    queryKey: ['calories', 'weight-card', settings.data?.heightCm],
     queryFn: () => api.get<WeightCardData>('/api/calories/weight-card'),
+    enabled: settings.data !== undefined,
   })
   const latest = card.data?.latest
 
@@ -29,10 +29,16 @@ export function WeightCard() {
       <CardHeader icon={<Weight {...lucideProps} />} chevron={card.data !== undefined}>
         Weight
       </CardHeader>
-      {card.isError && (
+      {(settings.isError || card.isError) && (
         // Above the card's link, which stays while a reload of loaded data fails.
         <div className="relative z-10">
-          <LoadProblem message="Couldn't load your Weigh-ins." retry={() => card.refetch()} />
+          <LoadProblem
+            message="Couldn't load your Weigh-ins."
+            retry={() => {
+              if (settings.isError) settings.refetch()
+              if (card.isError) card.refetch()
+            }}
+          />
         </div>
       )}
       {card.data && latest && (

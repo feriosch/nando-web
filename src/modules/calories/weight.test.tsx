@@ -82,6 +82,25 @@ describe('Weight Home Card', () => {
     expect(within(card).queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it("asks for the Weight card only once the settings it is keyed by are loaded, and says when they couldn't be", async () => {
+    const user = userEvent.setup()
+    let settings: Answer = { status: 500 }
+    const { sent } = renderCalories('/', {
+      'GET /api/settings': () => settings,
+      'GET /api/calories/weight-card': { status: 200, body: { latest: { week: '2026-10-19', kg: 72.4 }, bmi: 23.6, change: -0.4 } },
+    })
+
+    const card = await weightCard()
+    expect(await within(card).findByRole('alert')).toHaveTextContent("Couldn't load your Weigh-ins.")
+    expect(sent.filter((request) => request.path === '/api/calories/weight-card')).toEqual([])
+
+    settings = { status: 200, body: tokyo }
+    await user.click(within(card).getByRole('button', { name: 'Try again' }))
+
+    expect(await within(card).findByText('72.4 kg')).toBeInTheDocument()
+    expect(sent.filter((request) => request.path === '/api/calories/weight-card')).toHaveLength(1)
+  })
+
   it('asks for the height, which BMI needs, in the settings', async () => {
     const user = userEvent.setup()
     const { router } = renderCalories('/', {
