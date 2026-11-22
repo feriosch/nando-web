@@ -179,7 +179,7 @@ describe('Connector consent page', () => {
   })
 })
 
-const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
+const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175 }
 
 type Connector = { id: string; name: string; approvedAt: string; lastUsedAt: string | null }
 

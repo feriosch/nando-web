@@ -1,15 +1,27 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeApi, renderApp } from '../../test/app'
 
 // What GET /api/settings answers until the Owner first saves them.
 const defaults = {
   timeZone: 'UTC',
   heightCm: null,
-  weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' },
   gmailDigest: { enabled: false, time: '08:00' },
 }
+
+// Opens Home, which reads the settings, so that they are cached by the time Settings opens.
+async function openHomeFirst(api: ReturnType<typeof fakeApi>['api']) {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-11-09T03:00:00Z'))
+  const router = renderApp('/', api)
+  expect(await screen.findByText('Monday, 9 November')).toBeInTheDocument()
+  return router
+}
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 // Core's Settings Section on the Settings screen, found by its heading.
 async function coreSection() {
@@ -17,7 +29,7 @@ async function coreSection() {
 }
 
 describe('Core Settings Section', () => {
-  it('shows the saved settings and saves the Owner Time Zone, height and Weigh-in reminder', async () => {
+  it('shows the saved settings and saves the Owner Time Zone and height', async () => {
     const user = userEvent.setup()
     const { api, sent } = fakeApi({
       'GET /api/settings': { status: 200, body: defaults },
@@ -29,17 +41,11 @@ describe('Core Settings Section', () => {
     const timeZone = await within(section).findByLabelText('Time zone')
     expect(timeZone).toHaveValue('UTC')
     expect(within(section).getByLabelText('Height (cm)')).toHaveValue('')
-    expect(within(section).getByRole('switch', { name: 'Weigh-in reminder' })).not.toBeChecked()
-    // When it is sent shows only while the reminder is on.
-    expect(within(section).queryByLabelText('Weekday')).not.toBeInTheDocument()
+    // The Weigh-in reminder is Calories', set by its Assistant (ADR 0012).
+    expect(within(section).queryByRole('switch', { name: 'Weigh-in reminder' })).not.toBeInTheDocument()
 
     await user.selectOptions(timeZone, 'Asia/Tokyo')
     await user.type(within(section).getByLabelText('Height (cm)'), '175')
-    await user.click(within(section).getByRole('switch', { name: 'Weigh-in reminder' }))
-    expect(within(section).getByLabelText('Weekday')).toHaveValue('monday')
-    expect(within(section).getByLabelText('Time')).toHaveValue('08:00')
-    await user.selectOptions(within(section).getByLabelText('Weekday'), 'Sunday')
-    await user.selectOptions(within(section).getByLabelText('Time'), '07:30')
     await user.click(within(section).getByRole('button', { name: 'Save' }))
 
     expect(await within(section).findByText('Saved.')).toBeInTheDocument()
@@ -50,7 +56,6 @@ describe('Core Settings Section', () => {
         body: {
           timeZone: 'Asia/Tokyo',
           heightCm: 175,
-          weighInReminder: { enabled: true, weekday: 'sunday', time: '07:30' },
           gmailDigest: { enabled: false, time: '08:00' },
         },
       },
@@ -159,12 +164,9 @@ describe('Core Settings Section', () => {
     let settings = { ...defaults, heightCm: 170 }
     const { api, sent } = fakeApi({
       'GET /api/settings': () => ({ status: 200, body: settings }),
-      'GET /api/weigh-ins': { status: 200, body: [] },
       'PUT /api/settings': { status: 204 },
     })
-    // The Weigh-ins screen reads the settings too, so they are cached by the time Settings opens.
-    const router = renderApp('/weigh-ins', api)
-    await screen.findByRole('form', { name: 'This week' })
+    const router = await openHomeFirst(api)
 
     // Changed from another device in the meantime.
     settings = { ...settings, heightCm: 180 }
@@ -203,10 +205,8 @@ describe('Core Settings Section', () => {
     let fails = false
     const { api } = fakeApi({
       'GET /api/settings': () => (fails ? { status: 500 } : { status: 200, body: defaults }),
-      'GET /api/weigh-ins': { status: 200, body: [] },
     })
-    const router = renderApp('/weigh-ins', api)
-    await screen.findByRole('form', { name: 'This week' })
+    const router = await openHomeFirst(api)
 
     fails = true
     await router.navigate('/settings')
@@ -237,14 +237,14 @@ describe('Core Settings Section', () => {
     expect(within(section).getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 
-  it('offers reminder times only on the hour or half hour, from 00:00 to 23:30', async () => {
+  it('offers Gmail Digest times only on the hour or half hour, from 00:00 to 23:30', async () => {
     const { api } = fakeApi({
-      'GET /api/settings': { status: 200, body: { ...defaults, weighInReminder: { ...defaults.weighInReminder, enabled: true } } },
+      'GET /api/settings': { status: 200, body: { ...defaults, gmailDigest: { enabled: true, time: '08:00' } } },
     })
     renderApp('/settings', api)
 
     const section = await coreSection()
-    const times = within(await within(section).findByLabelText('Time')).getAllByRole('option')
+    const times = within(await within(section).findByLabelText('Every day at')).getAllByRole('option')
     const labels = times.map((option) => option.textContent)
     expect(labels).toHaveLength(48)
     expect(labels.slice(0, 3)).toEqual(['00:00', '00:30', '01:00'])

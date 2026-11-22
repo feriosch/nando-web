@@ -2,41 +2,52 @@ import { useQuery } from '@tanstack/react-query'
 import { Weight } from 'lucide-react'
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { useApi } from '../services'
-import { LoadProblem } from '../shell/LoadProblem'
-import { useToday } from '../today'
-import { CardHeader, CardLink, cardClasses } from '../ui/HomeCard'
-import { lucideProps } from '../ui/icons'
-import type { Body } from './body'
-import { formatWeekShort } from './weeks'
+import { useApi } from '../../core/services'
+import { LoadProblem } from '../../core/shell/LoadProblem'
+import { useToday } from '../../core/today'
+import { CardHeader, CardLink, cardClasses } from '../../core/ui/HomeCard'
+import { lucideProps } from '../../core/ui/icons'
+import { formatWeekShort } from '../../core/weeks'
+import { logWeighInsNote, type WeightCard as WeightCardData } from './calories'
 
-// The Body Home Card: the latest Weigh-in, its BMI and the change since the week before. Once
+// The Weight Home Card: the latest Weigh-in, its BMI and the change since the week before. Once
 // loaded, the whole card opens Weigh-ins.
-export function BodyCard() {
+export function WeightCard() {
   const api = useApi()
-  const body = useQuery({ queryKey: ['body'], queryFn: () => api.get<Body>('/api/body') })
-  const latest = body.data?.latest
-  // Today in the Owner Time Zone, for whether the latest Weigh-in's week needs its year.
-  const { today } = useToday()
+  // Today in the Owner Time Zone, for whether the latest Weigh-in's week needs its year. Keyed by the
+  // height in Core's settings too, so the BMI follows a height saved there; so it waits for them.
+  const { today, settings } = useToday()
+  const card = useQuery({
+    queryKey: ['calories', 'weight-card', settings.data?.heightCm],
+    queryFn: () => api.get<WeightCardData>('/api/calories/weight-card'),
+    enabled: settings.data !== undefined,
+  })
+  const latest = card.data?.latest
 
   return (
     <div className={`${cardClasses} bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04)]`}>
-      <CardHeader icon={<Weight {...lucideProps} />} chevron={body.data !== undefined}>
-        Body
+      <CardHeader icon={<Weight {...lucideProps} />} chevron={card.data !== undefined}>
+        Weight
       </CardHeader>
-      {body.isError && (
+      {(settings.isError || card.isError) && (
         // Above the card's link, which stays while a reload of loaded data fails.
         <div className="relative z-10">
-          <LoadProblem message="Couldn't load your Weigh-ins." retry={() => body.refetch()} />
+          <LoadProblem
+            message="Couldn't load your Weigh-ins."
+            retry={() => {
+              if (settings.isError) settings.refetch()
+              if (card.isError) card.refetch()
+            }}
+          />
         </div>
       )}
-      {body.data && latest && (
+      {card.data && latest && (
         <>
           <p className="mt-2 mb-0 text-[30px] leading-tight font-bold tabular-nums">{latest.kg.toFixed(1)} kg</p>
           <Details>
             <span>Week of {formatWeekShort(latest.week, today)}</span>
-            {body.data.bmi !== null ? (
-              <span>BMI {body.data.bmi.toFixed(1)}</span>
+            {card.data.bmi !== null ? (
+              <span>BMI {card.data.bmi.toFixed(1)}</span>
             ) : (
               // A tap target 44px tall around the 13px line, above the card's own link.
               <Link
@@ -47,22 +58,20 @@ export function BodyCard() {
                 Set your height for BMI
               </Link>
             )}
-            {body.data.change !== null && <span>{signed(body.data.change)} kg vs the week before</span>}
+            {card.data.change !== null && <span>{signed(card.data.change)} kg vs the week before</span>}
           </Details>
-          <CardLink to="/weigh-ins">
-            <span className="sr-only">Weigh-ins</span>
-          </CardLink>
         </>
       )}
-      {body.data && !latest && (
+      {card.data && !latest && (
         <>
           <p className="mt-2 mb-0 text-[17px]">No Weigh-ins yet.</p>
-          <p className="mt-1 mb-0 text-[15px]">
-            <CardLink to="/weigh-ins" className="text-accent no-underline">
-              Log a Weigh-in
-            </CardLink>
-          </p>
+          <p className="mt-1 mb-0 text-[15px] text-sub">{logWeighInsNote}</p>
         </>
+      )}
+      {card.data && (
+        <CardLink to="/calories/weigh-ins">
+          <span className="sr-only">Weigh-ins</span>
+        </CardLink>
       )}
     </div>
   )

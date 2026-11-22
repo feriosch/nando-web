@@ -1,4 +1,4 @@
-import { addDays, dayOf, formatDayAs, formatDayShort, mondayOf } from '../days'
+import { addDays, dayOf, formatDayAs, formatDayShort, mondayOf } from './days'
 
 // A week is named by the Monday it starts on, as YYYY-MM-DD.
 

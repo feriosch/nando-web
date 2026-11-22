@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeApi, fakeClipboard, noClipboard, renderAppWith, type Answer, type Answers } from '../../test/app'
 import { career } from '.'
 
-const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
+const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175 }
 
 type NextStep = { kind: string; date: string; time: string | null }
 type TopOpportunity = {

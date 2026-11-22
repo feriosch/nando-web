@@ -5,7 +5,7 @@ import { fakeApi, fakeConnection, noPush, renderApp, type Answer, type Answers }
 import { addDays } from '../../core/days'
 import { calories } from '.'
 
-const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175, weighInReminder: { enabled: false, weekday: 'monday', time: '08:00' } }
+const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175 }
 
 type Entry = { id: string; day: string; mealId: string | null; name: string; kcalPerServing: number; servings: number; kcal: number; loggedAt: string }
 

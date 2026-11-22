@@ -44,7 +44,6 @@ async function iPhoneKeyboard(page: Page) {
 const settings: CoreSettings = {
   timeZone: 'Asia/Tokyo',
   heightCm: null,
-  weighInReminder: { enabled: false, weekday: 'sunday', time: '08:00' },
 }
 const nothingFound: SearchResults = { words: [], kanji: [] }
 const noWordRequests: WordRequest[] = []
