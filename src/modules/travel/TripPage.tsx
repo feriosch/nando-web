@@ -20,6 +20,7 @@ import {
   partyName,
   route,
   statusName,
+  stayLine,
   yen,
   type Fare,
   type PartyPage,
@@ -51,7 +52,7 @@ export function TripPage() {
   const { trip, parties } = page.data
   return (
     <>
-      <ScreenHeader back={back} title={trip.name} subtitle={`${route(trip)} · ${trip.nights.min}–${trip.nights.max} nights`} />
+      <ScreenHeader back={back} title={trip.name} subtitle={`${route(trip)} · ${stayLine(trip.nights)}`} />
       {trip.status !== 'watching' && (
         <p className="my-1">
           <span className="rounded-full bg-fill px-2.5 py-0.5 text-[13px] font-semibold text-sub">{statusName(trip.status)}</span>
@@ -83,8 +84,8 @@ function Party({ party }: { party: PartyPage }) {
         <>
           {party.history.length > 0 && <PriceChart history={party.history} target={party.targetFare} />}
           {party.byWeek.length > 0 && <WeekMap weeks={party.byWeek} />}
-          {party.top.length > 0 && <TopFares fares={party.top} adults={party.adults} />}
-          {party.top[0]?.separateTickets && party.bestSingleTicket && <SingleTicket fare={party.bestSingleTicket} adults={party.adults} />}
+          {party.top.length > 0 && <TopFares fares={party.top} />}
+          {party.top[0]?.separateTickets && party.bestSingleTicket && <SingleTicket fare={party.bestSingleTicket} />}
         </>
       )}
     </section>
@@ -124,7 +125,8 @@ function PriceChart({ history, target }: { history: { day: string; perPerson: nu
   )
 }
 
-// The cheapest Fare departing in each week: the cheaper, the stronger its colour.
+// The cheapest Fare departing in each week: the cheaper, the stronger its colour. The strongest stays
+// light enough for the ink on it to read, in dark too.
 function WeekMap({ weeks }: { weeks: { week: string; fare: Fare }[] }) {
   const id = useId()
   const prices = weeks.map((w) => w.fare.perPerson)
@@ -143,7 +145,7 @@ function WeekMap({ weeks }: { weeks: { week: string; fare: Fare }[] }) {
               aria-label={`Week of ${day}: ${yen(fare.perPerson)}`}
               className="relative overflow-hidden rounded-[10px] bg-surface px-2 py-1.5 text-center"
             >
-              <span aria-hidden className="absolute inset-0 bg-accent" style={{ opacity: 0.12 + 0.6 * strength }} />
+              <span aria-hidden className="absolute inset-0 bg-accent" style={{ opacity: 0.08 + 0.37 * strength }} />
               <span aria-hidden className="relative block text-[11px] text-ink">{day}</span>
               <span aria-hidden className="relative block text-[13px] font-semibold text-ink tabular-nums">{`¥${Math.round(fare.perPerson / 1000)}k`}</span>
             </li>
@@ -154,14 +156,14 @@ function WeekMap({ weeks }: { weeks: { week: string; fare: Fare }[] }) {
   )
 }
 
-function TopFares({ fares, adults }: { fares: Fare[]; adults: number }) {
+function TopFares({ fares }: { fares: Fare[] }) {
   const id = useId()
   return (
     <>
       <SectionHeader id={id}>Top fares</SectionHeader>
       <GroupedList as="ul" labelledBy={id}>
         {fares.map((fare) => (
-          <FareRow key={fare.id} fare={fare} adults={adults} />
+          <FareRow key={fare.id} fare={fare} />
         ))}
       </GroupedList>
     </>
@@ -169,25 +171,25 @@ function TopFares({ fares, adults }: { fares: Fare[]; adults: number }) {
 }
 
 // The best current Fare on one ticket, beside a cheapest one on Separate Tickets.
-function SingleTicket({ fare, adults }: { fare: Fare; adults: number }) {
+function SingleTicket({ fare }: { fare: Fare }) {
   const id = useId()
   return (
     <section aria-labelledby={id}>
       <SectionHeader id={id}>Best on one ticket</SectionHeader>
-      <GroupedList as="ul">
-        <FareRow fare={fare} adults={adults} />
+      <GroupedList as="ul" labelledBy={id}>
+        <FareRow fare={fare} />
       </GroupedList>
     </section>
   )
 }
 
-function FareRow({ fare, adults }: { fare: Fare; adults: number }) {
+function FareRow({ fare }: { fare: Fare }) {
   return (
     <ListRow as="li" className="flex-col items-stretch gap-1 py-3">
       <span className="flex items-baseline justify-between gap-2">
-        <span className="text-[17px] font-semibold tabular-nums">{farePrice(fare, adults)}</span>
+        <span className="text-[17px] font-semibold tabular-nums">{farePrice(fare)}</span>
         {fare.bookingUrl && (
-          <a href={fare.bookingUrl} target="_blank" rel="noopener noreferrer" className="flex shrink-0 items-center gap-1 text-[15px] whitespace-nowrap text-accent no-underline">
+          <a href={fare.bookingUrl} target="_blank" rel="noopener noreferrer" className="-my-3 flex min-h-11 shrink-0 items-center gap-1 text-[15px] whitespace-nowrap text-accent no-underline">
             Open to book
             <ExternalLink {...lucideProps} className="size-4" />
           </a>

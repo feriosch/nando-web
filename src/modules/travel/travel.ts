@@ -124,9 +124,19 @@ export function shortDay(day: string): string {
   return `${formatDayAs(day, { weekday: 'short' })} ${formatDayAs(day, { day: 'numeric', month: 'short' })}`
 }
 
+// A number of nights, such as "1 night" or "7 nights".
+export function nightsLine(nights: number): string {
+  return `${nights} night${nights === 1 ? '' : 's'}`
+}
+
+// A Trip's stay, such as "6–9 nights", or "7 nights" when it can only be one length.
+export function stayLine({ min, max }: { min: number; max: number }): string {
+  return min === max ? nightsLine(min) : `${min}–${max} nights`
+}
+
 // A Fare's dates, such as "Wed 12 May → Wed 19 May · 7 nights".
 export function fareDates(fare: Pick<Fare, 'departDate' | 'returnDate' | 'nights'>): string {
-  return `${shortDay(fare.departDate)} → ${shortDay(fare.returnDate)} · ${fare.nights} nights`
+  return `${shortDay(fare.departDate)} → ${shortDay(fare.returnDate)} · ${nightsLine(fare.nights)}`
 }
 
 // How a way flies, such as "Nonstop, 8h" or "1 stop, 21h 30m".
@@ -142,8 +152,11 @@ export function carriers(fare: Fare): string {
   return [...new Set([...fare.outbound.flights, ...fare.inbound.flights].map((f) => f.carrier))].join(', ')
 }
 
-// A Fare's price for the Owner to read: "¥112,000", or "¥110,231 each, ¥220,461 for 2".
-export function farePrice(fare: Fare, adults: number): string {
+// A Fare's price for the Owner to read: "¥112,000", or "¥110,231 each, ¥220,461 for 2". The adults
+// are the Fare's own, as it was priced (Nando rounds perPerson from total), not the Party's now,
+// which may have changed since.
+export function farePrice(fare: Pick<Fare, 'total' | 'perPerson'>): string {
+  const adults = Math.round(fare.total / fare.perPerson)
   return adults > 1 ? `${yen(fare.perPerson)} each, ${yen(fare.total)} for ${adults}` : yen(fare.total)
 }
 

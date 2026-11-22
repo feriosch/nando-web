@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { fakeApi, renderAppWith, type Answers } from '../../test/app'
 import { travel } from '.'
+import { farePrice, fareDates, stayLine } from './travel'
 
 const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175 }
 
@@ -167,5 +168,18 @@ describe('Travel Settings Section', () => {
     expect(within(section).getByText('Weekly Fare Check').closest('div')).toHaveTextContent('Off')
     expect(within(section).getByText('Companion').closest('div')).toHaveTextContent('Sam')
     expect(section).toHaveTextContent('Travel chat')
+  })
+})
+
+describe('Travel wording', () => {
+  it('prices a Fare for the adults it was priced for, whatever the Party has now', () => {
+    expect(farePrice({ total: 220461, perPerson: 110231 })).toBe('¥110,231 each, ¥220,461 for 2')
+    expect(farePrice({ total: 112000, perPerson: 112000 })).toBe('¥112,000')
+  })
+
+  it('counts nights in the singular for one, and a stay of one length once', () => {
+    expect(fareDates({ departDate: '2027-05-12', returnDate: '2027-05-13', nights: 1 })).toBe('Wed 12 May → Thu 13 May · 1 night')
+    expect(stayLine({ min: 6, max: 9 })).toBe('6–9 nights')
+    expect(stayLine({ min: 7, max: 7 })).toBe('7 nights')
   })
 })
