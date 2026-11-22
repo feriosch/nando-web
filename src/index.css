@@ -135,6 +135,30 @@
   --accent-ink: #0b1a2b;
 }
 
+/* Horizon (Travel): sand and sea, a calm teal for the way out. */
+.theme-travel {
+  --bg: #f6f3ee;
+  --surface: #ffffff;
+  --ink: #1b2a33;
+  --sub: #5c6a73;
+  --line: #e3dcd2;
+  --fill: #ece6dd;
+  --accent: #0b7a83;
+  --accent-ink: #ffffff;
+  --display-font: var(--body-font);
+}
+
+.dark .theme-travel {
+  --bg: #0c1417;
+  --surface: #162024;
+  --ink: #e6eef0;
+  --sub: #92a3aa;
+  --line: #24323a;
+  --fill: #1e2a2f;
+  --accent: #4cc4cc;
+  --accent-ink: #052124;
+}
+
 /* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
 .on-board {
   --ink: var(--board-ink);
