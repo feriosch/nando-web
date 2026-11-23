@@ -6,7 +6,8 @@ import { formatDayAs } from '../../core/days'
 export type MoneyCard = {
   month: string
   spending: { total: number; average3: number | null; essential: number; optional: number; unmarked: number }
-  netWorth: { total: number; previous: number | null }
+  // missing names the Accounts with no balance near the month's end, left out of total.
+  netWorth: { total: number; previous: number | null; missing?: { id: string; name: string }[] }
   unconfirmed: number
 }
 

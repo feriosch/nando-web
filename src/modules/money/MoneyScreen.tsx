@@ -5,7 +5,7 @@ import { LoadProblem } from '../../core/shell/LoadProblem'
 import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
-import { monthName, yen, yenChange, type MoneyCard } from './money'
+import { joinNames, monthName, yen, yenChange, type MoneyCard } from './money'
 
 // The Money screen: for now, the latest Complete month in rows. Each month's breakdown and graphs
 // come once a few months are in (feriosch/nando-server#216). The Money Assistant writes, in Telegram.
@@ -28,7 +28,10 @@ export function MoneyScreen() {
             <Row label="Optional" value={yen(card.data.spending.optional)} />
             {card.data.spending.unmarked > 0 && <Row label="Not marked yet" value={yen(card.data.spending.unmarked)} />}
             <Row label="Net worth" value={yen(card.data.netWorth.total)} />
-            {card.data.netWorth.previous !== null && (
+            {(card.data.netWorth.missing ?? []).length > 0 && (
+              <Row label="Without" value={joinNames((card.data.netWorth.missing ?? []).map((a) => a.name))} />
+            )}
+            {card.data.netWorth.previous !== null && (card.data.netWorth.missing ?? []).length === 0 && (
               <Row label="Since the month before" value={yenChange(card.data.netWorth.total - card.data.netWorth.previous)} />
             )}
             {card.data.unconfirmed > 0 && <Row label="To confirm in the Money chat" value={String(card.data.unconfirmed)} />}

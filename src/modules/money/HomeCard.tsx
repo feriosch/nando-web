@@ -3,7 +3,7 @@ import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { CardHeader, CardLink, cardClasses } from '../../core/ui/HomeCard'
 import { BanknoteIcon } from './icon'
-import { againstAverage, monthName, yen, yenChange, type MoneyCard } from './money'
+import { againstAverage, joinNames, monthName, yen, yenChange, type MoneyCard } from './money'
 
 // Money's Home Card: the latest Complete month's spending against the average of the months
 // before, Essential against Optional, net worth, and how many Transactions wait to be confirmed.
@@ -40,6 +40,8 @@ export function MoneyHomeCard() {
   const { month, spending, netWorth, unconfirmed } = card.data
   const comparison = againstAverage(spending.total, spending.average3)
   const shown = spending.essential + spending.optional
+  // A change with an Account left out would read as a drop that never happened.
+  const missing = netWorth.missing ?? []
   return (
     <div className={`${cardClasses} bg-surface`}>
       <CardHeader icon={<BanknoteIcon />}>Money</CardHeader>
@@ -60,8 +62,13 @@ export function MoneyHomeCard() {
         </span>
         <span className="mt-3 flex items-baseline justify-between text-[15px] tabular-nums">
           <span>Net worth {yen(netWorth.total)}</span>
-          {netWorth.previous !== null && <span className="text-sub">{yenChange(netWorth.total - netWorth.previous)}</span>}
+          {netWorth.previous !== null && missing.length === 0 && (
+            <span className="text-sub">{yenChange(netWorth.total - netWorth.previous)}</span>
+          )}
         </span>
+        {missing.length > 0 && (
+          <span className="block text-[13px] text-sub">Without {joinNames(missing.map((a) => a.name))}: no balance at the month's end</span>
+        )}
         {unconfirmed > 0 && <span className="mt-2 block text-[15px] text-accent">{unconfirmed} to confirm in the Money chat</span>}
       </CardLink>
     </div>

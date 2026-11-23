@@ -34,6 +34,20 @@ describe('Money Home Card', () => {
     expect(card).toHaveTextContent('2 to confirm in the Money chat')
   })
 
+  it('names the Accounts left out of net worth, without a change that would mislead', async () => {
+    renderMoney('/', {
+      'GET /api/money/card': {
+        status: 200,
+        body: { ...october, netWorth: { total: 5000, previous: 110000, missing: [{ id: 'a2', name: 'Other bank' }] } },
+      },
+    })
+
+    const card = await screen.findByRole('link', { name: /October 2026/ })
+    expect(card).toHaveTextContent('Net worth ¥5,000')
+    expect(card).toHaveTextContent('Without Other bank')
+    expect(card).not.toHaveTextContent('−¥105,000')
+  })
+
   it('says Money fills in once a month is in, before any is Complete', async () => {
     renderMoney('/', { 'GET /api/money/card': { status: 200, body: null } })
 
