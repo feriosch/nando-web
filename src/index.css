@@ -159,6 +159,30 @@
   --accent-ink: #052124;
 }
 
+/* Ledger (Money): a ledger's cream paper, ruled in soft green, with a calm money-green accent. */
+.theme-money {
+  --bg: #f4f2ea;
+  --surface: #ffffff;
+  --ink: #1c2a22;
+  --sub: #5d6b62;
+  --line: #dedbcd;
+  --fill: #eae7da;
+  --accent: #1f7a4d;
+  --accent-ink: #ffffff;
+  --display-font: var(--body-font);
+}
+
+.dark .theme-money {
+  --bg: #0d1410;
+  --surface: #16201a;
+  --ink: #e5eee8;
+  --sub: #93a59a;
+  --line: #24322a;
+  --fill: #1d2a22;
+  --accent: #4cc38a;
+  --accent-ink: #04210f;
+}
+
 /* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
 .on-board {
   --ink: var(--board-ink);
