@@ -32,7 +32,7 @@ A **theme** is a palette plus a display font, applied by a class on a container 
 
 Calories adds `board`, `board-ink`, `board-sub`, `board-track` (the walnut board: the Day view's summary and the Home Card), `bar-fill` and `warn-bar` (over the Daily Limit). On the board, `on-board` has `ink`, `sub` and `fill` read the board's own, so blocks such as `LoadProblem` and `CardHeader` stay legible there. Japanese adds `level-basic`, `level-n3`, `level-n2` and `level-n1` (green, blue, purple, red: easiest to hardest), the colours of the Basic and JLPT Groups' chips. Body text is always `font-sans`, the system font.
 
-Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font), **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Maru Gothic display font, Zen Kaku Gothic New for Japanese display text) **Slate** (`theme-career`, office-calm: cool bluish-gray paper, dark-gray ink and a professional blue, minimal, the system font for display text) and **Horizon** (`theme-travel`, sand and sea with a calm teal, the system font for display text).
+Themes today: **Paper** (`theme-paper`, Core), **Kitchen wood** (`theme-calories`, Zen Maru Gothic display font), **Ai-zome** (`theme-japanese`, washi paper in indigo ink, Zen Maru Gothic display font, Zen Kaku Gothic New for Japanese display text) **Slate** (`theme-career`, office-calm: cool bluish-gray paper, dark-gray ink and a professional blue, minimal, the system font for display text) **Horizon** (`theme-travel`, sand and sea with a calm teal, the system font for display text) and **Ledger** (`theme-money`, a ledger's cream paper with a calm money green, the system font for display text).
 
 ## A Module's theme and icon
 
