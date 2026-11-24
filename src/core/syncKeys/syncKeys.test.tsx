@@ -125,6 +125,17 @@ describe('Sync Keys Settings Section', () => {
     expect(sent.some((r) => r.path === '/api/sync-keys/finish')).toBe(false)
   })
 
+  it("says when the Passkey wasn't accepted, and keeps the Owner signed in", async () => {
+    const user = userEvent.setup()
+    renderSettings([], { answers: { 'POST /api/sync-keys/finish': { status: 403, body: 'that passkey is unknown or could not be verified' } } })
+
+    const section = await syncKeysSection()
+    await user.click(await within(section).findByRole('button', { name: 'Create with Face ID' }))
+
+    expect(await within(section).findByRole('alert')).toHaveTextContent("This Passkey wasn't accepted, or Face ID took too long, so no Sync Key was created.")
+    expect(screen.getByRole('region', { name: 'Sync Keys' })).toBeInTheDocument()
+  })
+
   it('asks before removing a Sync Key, then removes it', async () => {
     const user = userEvent.setup()
     const { sent } = renderSettings([{ id: 'k1', name: 'Old iPhone', createdAt: '2026-10-01T03:00:00Z', lastUsedAt: null }])

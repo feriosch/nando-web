@@ -96,6 +96,19 @@ describe('Day view', () => {
     expect(screen.getByText('Burned Calories are an estimate, and never change the Daily Limit.')).toBeInTheDocument()
   })
 
+  it('dates the Health Sync of a Day last synced on a later Day', async () => {
+    renderCalories('/calories?day=2026-11-08', {
+      'GET /api/calories/days/2026-11-08': {
+        status: 200,
+        // Synced on 9 November at 04:30 in Tokyo.
+        body: activeDay('2026-11-08', { steps: 11402, activeKcal: 380, syncedAt: '2026-11-08T19:30:00Z' }),
+      },
+    })
+
+    const rows = within(await screen.findByRole('list', { name: 'Activity' })).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('iPhone, Synced 9 Nov, 04:30: 11,402 steps · 380 kcal')
+  })
+
   it('says the iPhone hasn’t synced the Day, and has no Steps rather than 0', async () => {
     renderCalories('/calories', { 'GET /api/calories/days/2026-11-09': { status: 200, body: activeDay('2026-11-09', null) } })
 

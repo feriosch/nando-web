@@ -193,7 +193,17 @@ describe('Weigh-ins', () => {
       'GET /api/calories/weigh-ins': { status: 200, body: [] },
       'GET /api/calories/days/2026-11-09': {
         status: 200,
-        body: { day: '2026-11-09', consumedCalories: null, dailyLimit: null, remaining: null, overLimit: null, entries: [] },
+        body: {
+          day: '2026-11-09',
+          consumedCalories: null,
+          dailyLimit: null,
+          remaining: null,
+          overLimit: null,
+          steps: null,
+          burnedCalories: null,
+          entries: [],
+          activity: { healthSync: null, walks: [] },
+        },
       },
       'GET /api/calories/meals': { status: 200, body: [] },
     })

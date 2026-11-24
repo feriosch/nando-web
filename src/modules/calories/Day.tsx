@@ -49,7 +49,8 @@ export function Day() {
           }}
         />
       )}
-      {view.data && <ReadOnlyDay view={view.data} note={noteOn(view.data, today)} timeZone={settings.data?.timeZone} />}
+      {/* Once the settings are in too: the Activity's times are in the Owner Time Zone. */}
+      {view.data && settings.data && <ReadOnlyDay view={view.data} note={noteOn(view.data, today)} timeZone={settings.data.timeZone} />}
     </>
   )
 }
@@ -110,12 +111,12 @@ function DayPicker({ day, today, pick }: { day: string; today: string; pick: (da
   )
 }
 
-function ReadOnlyDay({ view, note, timeZone }: { view: DayView; note?: string; timeZone: string | undefined }) {
+function ReadOnlyDay({ view, note, timeZone }: { view: DayView; note?: string; timeZone: string }) {
   return (
     <>
       <Board view={view} />
       <Entries entries={view.entries} footer={note} />
-      <Activity activity={view.activity} timeZone={timeZone} />
+      <Activity day={view.day} activity={view.activity} timeZone={timeZone} />
     </>
   )
 }

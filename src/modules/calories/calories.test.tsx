@@ -427,7 +427,7 @@ describe('Calories Home Card', () => {
     const { router } = renderCalories('/', {
       'GET /api/calories/home-card': {
         status: 200,
-        body: { day: '2026-11-09', consumedCalories: 460, dailyLimit: 2000, remaining: 1540, overLimit: false },
+        body: { day: '2026-11-09', consumedCalories: 460, dailyLimit: 2000, remaining: 1540, overLimit: false, steps: null, burnedCalories: null },
       },
       ...caloriesServer({ day: '2026-11-09' }),
     })
@@ -445,7 +445,7 @@ describe('Calories Home Card', () => {
     renderCalories('/', {
       'GET /api/calories/home-card': {
         status: 200,
-        body: { day: '2026-11-09', consumedCalories: null, dailyLimit: 2000, remaining: null, overLimit: null },
+        body: { day: '2026-11-09', consumedCalories: null, dailyLimit: 2000, remaining: null, overLimit: null, steps: null, burnedCalories: null },
       },
     })
 
@@ -462,7 +462,7 @@ describe('Calories Home Card', () => {
     const card = await caloriesCard()
     expect(await within(card).findByRole('alert')).toHaveTextContent("Couldn't load today's Calories.")
 
-    answer = { status: 200, body: { day: '2026-11-09', consumedCalories: 2100, dailyLimit: 2000, remaining: -100, overLimit: true } }
+    answer = { status: 200, body: { day: '2026-11-09', consumedCalories: 2100, dailyLimit: 2000, remaining: -100, overLimit: true, steps: null, burnedCalories: null } }
     await user.click(within(card).getByRole('button', { name: 'Try again' }))
 
     await waitFor(() => expect(card).toHaveTextContent('2,100 / 2,000 kcal'))
@@ -473,14 +473,14 @@ describe('Calories Home Card', () => {
   it('moves on to the new Day at midnight while Home stays open', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
     vi.setSystemTime(new Date('2026-11-09T14:58:00Z'))
-    let answer: Answer = { status: 200, body: { day: '2026-11-09', consumedCalories: 1700, dailyLimit: 1800, remaining: 100, overLimit: false } }
+    let answer: Answer = { status: 200, body: { day: '2026-11-09', consumedCalories: 1700, dailyLimit: 1800, remaining: 100, overLimit: false, steps: null, burnedCalories: null } }
     renderCalories('/', { 'GET /api/calories/home-card': () => answer })
 
     const card = await caloriesCard()
     await waitFor(() => expect(card).toHaveTextContent('1,700 / 1,800 kcal'))
 
     // Tuesday 10 November, 00:00 in Tokyo: nothing logged yet.
-    answer = { status: 200, body: { day: '2026-11-10', consumedCalories: null, dailyLimit: 1800, remaining: null, overLimit: null } }
+    answer = { status: 200, body: { day: '2026-11-10', consumedCalories: null, dailyLimit: 1800, remaining: null, overLimit: null, steps: null, burnedCalories: null } }
     vi.setSystemTime(new Date('2026-11-09T15:00:00Z'))
     vi.advanceTimersByTime(60_000)
 
@@ -507,6 +507,8 @@ function historyServer(logged: Record<string, { consumedCalories: number; dailyL
         dailyLimit,
         remaining: consumedCalories === null || dailyLimit === null ? null : dailyLimit - consumedCalories,
         overLimit: consumedCalories === null ? null : dailyLimit !== null && consumedCalories > dailyLimit,
+        steps: null,
+        burnedCalories: null,
       })
     }
     return { status: 200, body: days }

@@ -133,14 +133,17 @@ function NewSyncKey() {
     if (busy) return
     setBusy(true)
     setProblem(null)
+    // Only `begin` checks the name, so only its 400 is about the name.
+    let step: 'begin' | 'finish' = 'begin'
     try {
       const { publicKey } = await api.post<Begin<PublicKeyCredentialRequestOptionsJSON>>('/api/sync-keys/begin', { name })
+      step = 'finish'
       const credential = await passkeys.get(publicKey)
       setCopy('idle')
       setCreated(await api.post<CreatedSyncKey>('/api/sync-keys/finish', credential))
       queryClient.invalidateQueries({ queryKey: ['sync-keys'] })
     } catch (error) {
-      setProblem(describe(error))
+      setProblem(describe(error, step))
     }
     setBusy(false)
   }
@@ -161,7 +164,13 @@ function NewSyncKey() {
           Create with Face ID
         </button>
       </div>
-      <Sheet isOpen={created !== null} onOpenChange={(open) => !open && setCreated(null)} title={shownCreated?.name ?? ''}>
+      {/* Not dismissable: a stray tap on the scrim would lose the key, which is never shown again. */}
+      <Sheet
+        isOpen={created !== null}
+        onOpenChange={(open) => !open && setCreated(null)}
+        title={shownCreated?.name ?? ''}
+        dismissable={false}
+      >
         {shownCreated && (
           <>
             <p className="mt-0 mb-3 text-[17px]">Copy this key into the Shortcut. Nando shows it only now.</p>
@@ -193,11 +202,12 @@ function NewSyncKey() {
 }
 
 // Why no Sync Key was created.
-function describe(error: unknown): string {
+function describe(error: unknown, step: 'begin' | 'finish'): string {
   if (error instanceof DOMException && error.name === 'NotAllowedError') return 'Face ID was cancelled, so no Sync Key was created.'
   if (error instanceof DOMException) return "Face ID didn't finish, so no Sync Key was created."
-  if (error instanceof ApiError && error.status === 401) return "This Passkey wasn't accepted, so no Sync Key was created."
-  if (error instanceof ApiError && error.status === 400) return 'Give the Sync Key a name of up to 50 characters.'
+  // 403, not 401: a 401 under /api/ means the Session is gone, and signs the Owner out.
+  if (error instanceof ApiError && error.status === 403) return "This Passkey wasn't accepted, or Face ID took too long, so no Sync Key was created."
+  if (error instanceof ApiError && error.status === 400 && step === 'begin') return 'Give the Sync Key a name of up to 50 characters.'
   return "Couldn't reach Nando. Try again."
 }
 
