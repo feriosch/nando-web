@@ -39,7 +39,9 @@ export function TabBar({ modules }: { modules: Module[] }) {
     >
       {tabs.map(({ to, label, icon: TabIcon, current }) => (
         <Link
-          key={to}
+          // Keyed by label: the Modules tab's `to` changes as the Owner moves, and a new key would remount
+          // the link and lose its focus.
+          key={label}
           to={to}
           viewTransition
           aria-current={current ? 'page' : undefined}

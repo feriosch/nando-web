@@ -26,7 +26,7 @@ const maxQueryLength = 100
 // a Word or Kanji page, or another tab, finds the same search.
 const lastSearchKey = ['japanese', 'last-search']
 
-// The Japanese tab: one search field, focused, finding Words and then Kanji as it is typed in.
+// Japanese search, at /japanese, where the Module opens: one search field, focused, finding Words and then Kanji as it is typed in.
 export function Search() {
   const api = useApi()
   const queryClient = useQueryClient()
