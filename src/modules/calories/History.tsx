@@ -10,14 +10,14 @@ import { lucideProps } from '../../core/ui/icons'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { Bar } from './Board'
-import { consumedAgainstLimit, formatDay, usedOf, weekName, type DaySummary } from './calories'
+import { activityLine, consumedAgainstLimit, formatDay, usedOf, weekName, type DayTotals } from './calories'
 import { rowLinkClasses } from './rows'
 
 // How many Days the list shows at first, and how many more each "Show older" adds.
 const pageDays = 30
 
-// History: past Days, newest first and grouped by week, each against the Daily Limit it had and
-// opening in the Day view.
+// History: past Days, newest first and grouped by week, each against the Daily Limit it had, with its
+// Steps and Burned Calories, and opening in the Day view.
 export function History() {
   const api = useApi()
   const { today, settings } = useToday()
@@ -27,7 +27,7 @@ export function History() {
     queryFn: ({ pageParam }) => {
       const to = addDays(today!, -pageParam * pageDays)
       const from = addDays(to, -(pageDays - 1))
-      return api.get<DaySummary[]>(`/api/calories/history?from=${from}&to=${to}`)
+      return api.get<DayTotals[]>(`/api/calories/history?from=${from}&to=${to}`)
     },
     initialPageParam: 0,
     getNextPageParam: (_last, _all, pageParam) => pageParam + 1,
@@ -73,8 +73,8 @@ export function History() {
 }
 
 // `days`, newest first, in runs of the same week, each named by its Monday.
-function byWeek(days: DaySummary[]): { monday: string; days: DaySummary[] }[] {
-  const weeks: { monday: string; days: DaySummary[] }[] = []
+function byWeek(days: DayTotals[]): { monday: string; days: DayTotals[] }[] {
+  const weeks: { monday: string; days: DayTotals[] }[] = []
   for (const day of days) {
     const monday = mondayOf(day.day)
     const last = weeks.at(-1)
@@ -85,7 +85,7 @@ function byWeek(days: DaySummary[]): { monday: string; days: DaySummary[] }[] {
 }
 
 // One week's Days, under "This week", "Last week" or "Week of 26 Oct".
-function Week({ monday, today, days }: { monday: string; today: string; days: DaySummary[] }) {
+function Week({ monday, today, days }: { monday: string; today: string; days: DayTotals[] }) {
   const headingId = `calories-week-${monday}`
   return (
     <>
@@ -105,8 +105,9 @@ function Week({ monday, today, days }: { monday: string; today: string; days: Da
 }
 
 // Such as "Mon 9 Nov: 1,620 / 2,000 kcal" over a bar of how much of the Daily Limit it used, or
-// "not logged" with no bar for an Unlogged Day. The colon is for screen readers only.
-function DayLine({ day }: { day: DaySummary }) {
+// "not logged" with no bar for an Unlogged Day, then its Steps and Burned Calories when it has
+// either. The colon and comma are for screen readers only.
+function DayLine({ day }: { day: DayTotals }) {
   const { consumedCalories, dailyLimit } = day
   return (
     <span className="min-w-0 flex-1">
@@ -126,6 +127,12 @@ function DayLine({ day }: { day: DaySummary }) {
           className="mt-1.5 h-1 bg-fill"
           fill="bg-accent"
         />
+      )}
+      {(day.steps != null || day.burnedCalories != null) && (
+        <span className="mt-1 block text-[13px] text-sub tabular-nums">
+          <span className="sr-only">, </span>
+          {activityLine(day)}
+        </span>
       )}
     </span>
   )

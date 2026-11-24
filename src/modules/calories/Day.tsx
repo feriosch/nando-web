@@ -8,11 +8,13 @@ import { useToday } from '../../core/today'
 import { GroupedList, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { HeaderLink, ScreenHeader } from '../../core/ui/ScreenHeader'
+import { Activity } from './Activity'
 import { Board } from './Board'
 import { formatDay, kcal, type DayView, type Entry, type Meal } from './calories'
 import { rowClasses, Tile } from './rows'
 
-// The Day view: a Day's Entries and how it stands against its Daily Limit.
+// The Day view: a Day's Entries and how it stands against its Daily Limit, and its Steps and Burned
+// Calories with what they come from.
 export function Day() {
   const api = useApi()
   const { today, settings } = useToday()
@@ -47,7 +49,7 @@ export function Day() {
           }}
         />
       )}
-      {view.data && <ReadOnlyDay view={view.data} note={noteOn(view.data, today)} />}
+      {view.data && <ReadOnlyDay view={view.data} note={noteOn(view.data, today)} timeZone={settings.data?.timeZone} />}
     </>
   )
 }
@@ -108,11 +110,12 @@ function DayPicker({ day, today, pick }: { day: string; today: string; pick: (da
   )
 }
 
-function ReadOnlyDay({ view, note }: { view: DayView; note?: string }) {
+function ReadOnlyDay({ view, note, timeZone }: { view: DayView; note?: string; timeZone: string | undefined }) {
   return (
     <>
       <Board view={view} />
       <Entries entries={view.entries} footer={note} />
+      <Activity activity={view.activity} timeZone={timeZone} />
     </>
   )
 }

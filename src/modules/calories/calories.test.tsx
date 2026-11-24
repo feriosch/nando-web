@@ -23,7 +23,10 @@ function dayView(day: string, entries: Entry[], dailyLimit: number | null = 2000
     dailyLimit,
     remaining: consumedCalories === null || dailyLimit === null ? null : dailyLimit - consumedCalories,
     overLimit: consumedCalories === null ? null : dailyLimit !== null && consumedCalories > dailyLimit,
+    steps: null,
+    burnedCalories: null,
     entries,
+    activity: { healthSync: null, walks: [] },
   }
 }
 
