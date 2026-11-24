@@ -9,7 +9,7 @@ import { calories } from '.'
 const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175 }
 
 type Walk = { id: string; day: string; km: number; steps: number | null; kcal: number; kcalEstimated: boolean; loggedAt: string }
-type HealthSync = { steps: number; activeKcal: number; syncedAt: string; corrected?: boolean }
+type HealthSync = { steps: number; activeKcal: number; syncedAt: string; corrected: boolean }
 
 function walk(fields: Partial<Walk> & Pick<Walk, 'id' | 'km' | 'kcal'>): Walk {
   return { day: '2026-11-09', steps: null, kcalEstimated: false, loggedAt: '2026-11-09T03:00:00Z', ...fields }
@@ -55,7 +55,7 @@ afterEach(() => {
 
 describe('Calories Home Card', () => {
   it("shows today's Steps and Burned Calories, as an estimate", async () => {
-    const { steps, burnedCalories, ...rest } = activeDay('2026-11-09', { steps: 9812, activeKcal: 312, syncedAt: '2026-11-08T19:30:00Z' }, [
+    const { steps, burnedCalories, ...rest } = activeDay('2026-11-09', { steps: 9812, activeKcal: 312, syncedAt: '2026-11-08T19:30:00Z', corrected: false }, [
       walk({ id: 'w1', km: 3.2, kcal: 210 }),
     ])
     renderCalories('/', { 'GET /api/calories/home-card': { status: 200, body: { ...rest, steps, burnedCalories } } })
@@ -78,7 +78,7 @@ describe('Day view', () => {
     renderCalories('/calories', {
       'GET /api/calories/days/2026-11-09': {
         status: 200,
-        body: activeDay('2026-11-09', { steps: 9812, activeKcal: 312, syncedAt: '2026-11-08T19:30:00Z' }, [
+        body: activeDay('2026-11-09', { steps: 9812, activeKcal: 312, syncedAt: '2026-11-08T19:30:00Z', corrected: false }, [
           walk({ id: 'w1', km: 3.2, steps: 4406, kcal: 210 }),
           walk({ id: 'w2', km: 2, steps: null, kcal: 72, kcalEstimated: true }),
         ]),
@@ -101,7 +101,7 @@ describe('Day view', () => {
       'GET /api/calories/days/2026-11-08': {
         status: 200,
         // Synced on 9 November at 04:30 in Tokyo.
-        body: activeDay('2026-11-08', { steps: 11402, activeKcal: 380, syncedAt: '2026-11-08T19:30:00Z' }),
+        body: activeDay('2026-11-08', { steps: 11402, activeKcal: 380, syncedAt: '2026-11-08T19:30:00Z', corrected: false }),
       },
     })
 
