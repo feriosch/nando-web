@@ -37,7 +37,17 @@ function longDay(day: string): DayView {
     kcal: 100,
     loggedAt: `${day}T03:00:00Z`,
   }))
-  return { day, consumedCalories: 1600, dailyLimit: 2000, remaining: 400, overLimit: false, entries }
+  return {
+    day,
+    consumedCalories: 1600,
+    dailyLimit: 2000,
+    remaining: 400,
+    overLimit: false,
+    steps: null,
+    burnedCalories: null,
+    entries,
+    activity: { healthSync: null, walks: [] },
+  }
 }
 
 // What any search finds: enough Words to scroll, the last of them 待ち望む.

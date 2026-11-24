@@ -1,17 +1,24 @@
 import type { ReactNode } from 'react'
-import { kcal, usedOf, type DaySummary } from './calories'
+import { activityLine, kcal, usedOf, type DaySummary, type DayTotals } from './calories'
 
 // The walnut board's look: the board colour and its ink, lifted off the screen. `on-board`
 // (src/index.css) has the theme's ink, sub and fill read the board's own inside it.
 export const boardClasses = 'on-board bg-board text-board-ink shadow-[0_2px_8px_rgb(0_0_0/0.12)]'
 
-// The Day view's summary card, on the walnut board.
-export function Board({ view }: { view: DaySummary }) {
+// The Day view's summary card, on the walnut board, with the Day's Steps and Burned Calories under
+// what it ate.
+export function Board({ view }: { view: DayTotals }) {
   return (
     <section aria-label="Summary" className={`mt-3 mb-1 rounded-[20px] px-5 py-4 ${boardClasses}`}>
       <Figures view={view} unlogged="Nothing logged for this Day yet." />
+      <ActivityLine view={view} />
     </section>
   )
+}
+
+// A board's line of the Day's Steps and Burned Calories, as an estimate.
+export function ActivityLine({ view }: { view: DayTotals }) {
+  return <p className="mt-2 mb-0 text-[15px] text-board-sub tabular-nums">{activityLine(view)}</p>
 }
 
 // What a board shows of a Day: the Consumed Calories against the Daily Limit, a bar of how much of it

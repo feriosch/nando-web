@@ -23,8 +23,42 @@ export type Entry = {
   loggedAt: string
 }
 
+// A Day's Steps and Burned Calories (ADR 0015): the iPhone's Health Sync plus the Treadmill Walks the
+// Calories Assistant logs. Each is null for a Day with neither, never 0. Burned Calories are an
+// estimate, and never change the Daily Limit.
+export type ActivityTotals = { steps: number | null; burnedCalories: number | null }
+
+// A Day's steps and active kcal from Apple Health, as the iPhone last synced them.
+export type HealthSync = { steps: number; activeKcal: number; syncedAt: string }
+
+// A walk on the treadmill, which the iPhone never counts. `steps` is null when the Owner's height
+// wasn't set; `kcalEstimated` when its kcal wasn't read off the treadmill's screen.
+export type TreadmillWalk = {
+  id: string
+  day: string
+  km: number
+  steps: number | null
+  kcal: number
+  kcalEstimated: boolean
+  loggedAt: string
+}
+
+// What a Day's Steps and Burned Calories come from.
+export type Activity = { healthSync: HealthSync | null; walks: TreadmillWalk[] }
+
 // What GET /api/calories/days/{day} answers.
-export type DayView = DaySummary & { entries: Entry[] }
+export type DayView = DaySummary & ActivityTotals & { entries: Entry[]; activity: Activity }
+
+// What GET /api/calories/home-card answers, and each Day of the history.
+export type DayTotals = DaySummary & ActivityTotals
+
+// A Day's Steps and Burned Calories in one line, such as "9,812 steps · 522 kcal burned (est.)", with
+// "—" for either the Day has none of, never 0.
+export function activityLine({ steps, burnedCalories }: ActivityTotals): string {
+  const stepsPart = steps === null ? '— steps' : `${kcal(steps)} steps`
+  const burnedPart = burnedCalories === null ? '— kcal burned' : `${kcal(burnedCalories)} kcal burned (est.)`
+  return `${stepsPart} · ${burnedPart}`
+}
 
 // `n` with thousands separators, such as 2,150.
 export function kcal(n: number): string {
