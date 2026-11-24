@@ -1,31 +1,32 @@
-import { Ellipsis, House, Settings } from 'lucide-react'
-import type { ComponentType } from 'react'
+import { House, LayoutGrid, Settings } from 'lucide-react'
+import { useState, type ComponentType } from 'react'
 import { Link, useLocation } from 'react-router'
 import { lucideProps } from '../ui/icons'
 import type { Module } from '../module'
-import { isWithin, splitTabs } from './tabs'
+import { isWithin } from './tabs'
 
 type Tab = { to: string; label: string; icon: ComponentType<{ className?: string }>; current: boolean }
 
 const HomeIcon = (props: { className?: string }) => <House {...lucideProps} {...props} />
+const ModulesIcon = (props: { className?: string }) => <LayoutGrid {...lucideProps} {...props} />
 const SettingsIcon = (props: { className?: string }) => <Settings {...lucideProps} {...props} />
-const MoreIcon = (props: { className?: string }) => <Ellipsis {...lucideProps} {...props} />
 
-// The tabs along the bottom of the screen: Home, one per Module (or More), then Settings. It sits in
-// the theme of the screen on view: translucent surface, a hairline on top, the accent on the current tab.
+// The tabs along the bottom of the screen: Home, Modules and Settings, whatever the number of Modules.
+// It sits in the theme of the screen on view: translucent surface, a hairline on top, the accent on the
+// current tab.
 export function TabBar({ modules }: { modules: Module[] }) {
-  const { pathname } = useLocation()
-  const { tabbed, more } = splitTabs(modules)
-  const onMore = isWithin(pathname, '/more') || more.some((module) => isWithin(pathname, module.path))
+  const { pathname, search } = useLocation()
+  const onModuleScreen = modules.some((module) => isWithin(pathname, module.path))
+  const onModules = isWithin(pathname, '/modules') || onModuleScreen
+
+  // As iOS tabs do, Modules remembers where the Owner was under it: away from it, it returns to the
+  // last Module screen open (or the Modules screen); on a Module's screen, it opens the Modules screen.
+  const [lastUnderModules, setLastUnderModules] = useState('/modules')
+  const here = onModuleScreen ? `${pathname}${search}` : onModules ? '/modules' : null
+  if (here && here !== lastUnderModules) setLastUnderModules(here)
 
   const others: Tab[] = [
-    ...tabbed.map((module) => ({
-      to: module.path,
-      label: module.name,
-      icon: module.icon,
-      current: isWithin(pathname, module.path),
-    })),
-    ...(more.length > 0 ? [{ to: '/more', label: 'More', icon: MoreIcon, current: onMore }] : []),
+    { to: onModules ? '/modules' : lastUnderModules, label: 'Modules', icon: ModulesIcon, current: onModules },
     { to: '/settings', label: 'Settings', icon: SettingsIcon, current: isWithin(pathname, '/settings') },
   ]
   // Home is current on Home and on every screen no other tab claims.

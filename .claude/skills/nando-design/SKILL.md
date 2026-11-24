@@ -9,7 +9,7 @@ Nando looks like an iPhone app: large titles, grouped inset lists, a bottom tab 
 
 ## Building a screen
 
-1. **Theme.** The screen sits in its theme already: the shell puts Core's screens in `theme-paper` and a Module's screens, tab and Home Cards in that Module's `theme`. Colour everything with the token utilities below and nothing else.
+1. **Theme.** The screen sits in its theme already: the shell puts Core's screens in `theme-paper` and a Module's screens, its tile on the Modules screen, the tab bar over its screens and its Home Cards in that Module's `theme`. Colour everything with the token utilities below and nothing else.
 2. **Compose** from the building blocks. A screen is a `ScreenHeader`, then `SectionHeader` + `GroupedList` pairs, then actions as `Button`s; choices in a sheet are a `Sheet`. Reach for an ad-hoc style only for what the blocks don't cover, and when two screens need the same thing, make it a block in `src/core/ui/`.
 3. **Check** every screen you touched with the `pr-media` skill at 402×874 (iPhone 17), in light **and** dark: for dark, start the shot with `await page.emulateMedia({ colorScheme: 'dark' })`. Done when every changed screen, in every state, has a light and a dark shot that you have opened and that reads well: text legible on its background, nothing under the tab bar or the status bar.
 
@@ -71,7 +71,7 @@ Interactive parts are React Aria Components (`Modal`/`Dialog`, `Switch`, `Number
 
 ## Motion
 
-- Screen changes are View Transitions with a short slide: put `viewTransition` on every `Link` that changes screens (the tab bar, `ScreenHeader`'s back link and More already do). Where the API is missing, the change is instant.
+- Screen changes are View Transitions with a short slide: put `viewTransition` on every `Link` that changes screens (the tab bar, `ScreenHeader`'s back link and the Modules screen's tiles already do). Where the API is missing, the change is instant.
 - Sheets slide up and switches slide; keep any new motion under 300ms.
 - Everything is off under `prefers-reduced-motion`: `src/index.css` zeroes animations and transitions, so new motion needs nothing extra as long as it is CSS.
 

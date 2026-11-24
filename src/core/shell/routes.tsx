@@ -6,9 +6,8 @@ import { SignIn } from '../identity/SignIn'
 import type { Registry } from '../module'
 import { Home } from './Home'
 import { Layout, SignedOut } from './Layout'
-import { More } from './More'
+import { Modules } from './Modules'
 import { Settings, type TintedSettingsSection } from './Settings'
-import { splitTabs } from './tabs'
 import { coreTheme } from './theme'
 
 export function createRoutes(registry: Registry): RouteObject[] {
@@ -24,8 +23,6 @@ export function createRoutes(registry: Registry): RouteObject[] {
       module.settingsSections.map((section) => ({ ...section, tint: { theme: module.theme, icon: module.icon } })),
     ),
   ]
-  const { more } = splitTabs(registry.modules)
-
   const screens: RouteObject[] = [
     { path: '/sign-in', element: <SignedOut><SignIn /></SignedOut> },
     { path: '/enroll', element: <SignedOut><Enroll /></SignedOut> },
@@ -37,7 +34,7 @@ export function createRoutes(registry: Registry): RouteObject[] {
       children: [
         { index: true, element: <Home cards={homeCards} /> },
         { path: 'settings', element: <Settings sections={settingsSections} /> },
-        ...(more.length > 0 ? [{ path: 'more', element: <More modules={more} /> }] : []),
+        { path: 'modules', element: <Modules modules={registry.modules} /> },
         ...registry.modules.map((module) => ({ path: module.path, children: module.routes })),
       ],
     },
