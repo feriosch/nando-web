@@ -9,7 +9,7 @@ import { calories } from '.'
 const tokyo = { timeZone: 'Asia/Tokyo', heightCm: 175 }
 
 type Walk = { id: string; day: string; km: number; steps: number | null; kcal: number; kcalEstimated: boolean; loggedAt: string }
-type HealthSync = { steps: number; activeKcal: number; syncedAt: string }
+type HealthSync = { steps: number; activeKcal: number; syncedAt: string; corrected?: boolean }
 
 function walk(fields: Partial<Walk> & Pick<Walk, 'id' | 'km' | 'kcal'>): Walk {
   return { day: '2026-11-09', steps: null, kcalEstimated: false, loggedAt: '2026-11-09T03:00:00Z', ...fields }
@@ -145,5 +145,20 @@ describe('History', () => {
     })
     expect(rows[0]).toHaveTextContent(/^Mon 9 Nov: 460 \/ 2,000 kcal$/)
     expect(rows[1]).toHaveTextContent(/^Sun 8 Nov: not logged, 11,402 steps · 380 kcal burned \(est\.\)$/)
+  })
+})
+
+describe('A corrected Health Sync', () => {
+  it('says the Day was corrected, not synced by the iPhone', async () => {
+    renderCalories('/calories?day=2026-11-08', {
+      'GET /api/calories/days/2026-11-08': {
+        status: 200,
+        // Corrected through the Calories Assistant at 09:10 on 9 November in Tokyo.
+        body: activeDay('2026-11-08', { steps: 12400, activeKcal: 410, syncedAt: '2026-11-09T00:10:00Z', corrected: true }),
+      },
+    })
+
+    const rows = within(await screen.findByRole('list', { name: 'Activity' })).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('iPhone, Corrected 9 Nov, 09:10: 12,400 steps · 410 kcal')
   })
 })

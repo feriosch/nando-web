@@ -19,7 +19,7 @@ export function Activity({ day, activity, timeZone }: { day: string; activity: D
             ) : (
               <Line
                 name="iPhone"
-                detail={`Synced ${syncedWhen(healthSync.syncedAt, day, timeZone)}`}
+                detail={`${healthSync.corrected ? 'Corrected' : 'Synced'} ${syncedWhen(healthSync.syncedAt, day, timeZone)}`}
                 steps={healthSync.steps}
                 kcalText={`${kcal(healthSync.activeKcal)} kcal`}
               />
