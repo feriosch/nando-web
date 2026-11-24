@@ -111,15 +111,19 @@ test('comes back from a Word to where the search was scrolled, with its back lin
 
 test('opens a tab at its top', async ({ page }) => {
   await fakeApi(page)
-  await page.goto('/japanese/words/w3')
-  // The Day seen once, so it's cached and drawn at full height straight away.
-  await page.getByRole('link', { name: 'Calories' }).click()
+  // A short screen, so Settings, with no Module's section loaded, scrolls well down.
+  await page.setViewportSize({ width: 402, height: 480 })
+  // The Day seen once, so it's cached and drawn at full height straight away; and it's the last Module
+  // screen open, where the Modules tab returns.
+  await page.goto('/calories')
   await expect(page.getByText('Onigiri 16')).toBeAttached()
-  await page.goBack()
-  await page.getByRole('link', { name: /待ち望む/ }).scrollIntoViewIfNeeded()
+  const tabs = page.getByRole('navigation', { name: 'Tabs' })
+  await tabs.getByRole('link', { name: 'Settings' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
   expect(await scrollY(page)).toBeGreaterThan(300)
 
-  await page.getByRole('link', { name: 'Calories' }).click()
+  await tabs.getByRole('link', { name: 'Modules' }).click()
 
   await expect(page.getByText('Onigiri 16')).toBeAttached()
   await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeInViewport()
