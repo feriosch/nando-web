@@ -28,8 +28,9 @@ export type Entry = {
 // estimate, and never change the Daily Limit.
 export type ActivityTotals = { steps: number | null; burnedCalories: number | null }
 
-// A Day's steps and active kcal from Apple Health, as the iPhone last synced them.
-export type HealthSync = { steps: number; activeKcal: number; syncedAt: string }
+// A Day's steps and active kcal from Apple Health, as the iPhone last synced them, or as the Calories
+// Assistant `corrected` them from the Health app's numbers when the iPhone missed the Day's last sync.
+export type HealthSync = { steps: number; activeKcal: number; syncedAt: string; corrected: boolean }
 
 // A walk on the treadmill, which the iPhone never counts. `steps` is null when the Owner's height
 // wasn't set; `kcalEstimated` when its kcal wasn't read off the treadmill's screen.
