@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -118,51 +118,69 @@ describe('Core shell', () => {
     expect(within(screen.getByRole('main')).getByText(appVersionLabel)).toBeInTheDocument()
   })
 
-  it('has a tab bar with Home, every Module and Settings, and a tab opens its screen and shows as current', async () => {
-    const user = userEvent.setup()
-    const router = renderShell(registry, '/')
+  it('has a tab bar with Home, Modules and Settings, whatever the number of Modules', () => {
+    renderShell(withModules('Calories'), '/')
+    expect(tabNames()).toEqual(['Home', 'Modules', 'Settings'])
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
+    cleanup()
 
-    const tabs = screen.getByRole('navigation', { name: 'Tabs' })
-    expect(within(tabs).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Home',
-      'Calories',
-      'Settings',
-    ])
-    expect(within(tabs).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
-
-    await user.click(within(tabs).getByRole('link', { name: 'Calories' }))
-
-    expect(router.state.location.pathname).toBe('/calories')
-    expect(screen.getByRole('heading', { name: "Today's Entries" })).toBeInTheDocument()
-    expect(within(tabs).getByRole('link', { name: 'Calories' })).toHaveAttribute('aria-current', 'page')
-    expect(within(tabs).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
+    renderShell(withModules('Calories', 'Habits', 'Money', 'Reading', 'Sleep'), '/')
+    expect(tabNames()).toEqual(['Home', 'Modules', 'Settings'])
   })
 
-  it('gives each of 3 Modules its own tab', () => {
-    renderShell(withModules('Calories', 'Habits', 'Money'), '/')
-
-    expect(tabNames()).toEqual(['Home', 'Calories', 'Habits', 'Money', 'Settings'])
-  })
-
-  it('with more than 3 Modules, puts the rest under More, which opens them and shows as current', async () => {
+  it('opens the Modules screen from its tab, listing every Module, and a Module opens with Modules still current', async () => {
     const user = userEvent.setup()
     const router = renderShell(withModules('Calories', 'Habits', 'Money', 'Reading', 'Sleep'), '/')
 
-    expect(tabNames()).toEqual(['Home', 'Calories', 'Habits', 'More', 'Settings'])
-
     const tabs = screen.getByRole('navigation', { name: 'Tabs' })
-    await user.click(within(tabs).getByRole('link', { name: 'More' }))
+    await user.click(within(tabs).getByRole('link', { name: 'Modules' }))
 
-    const more = screen.getByRole('main')
-    expect(within(more).getByRole('heading', { level: 1, name: 'More' })).toBeInTheDocument()
-    expect(within(more).getAllByRole('link').map((link) => link.textContent)).toEqual(['Money', 'Reading', 'Sleep'])
-    expect(within(tabs).getByRole('link', { name: 'More' })).toHaveAttribute('aria-current', 'page')
+    const modules = screen.getByRole('main')
+    expect(within(modules).getByRole('heading', { level: 1, name: 'Modules' })).toBeInTheDocument()
+    expect(within(modules).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Calories',
+      'Habits',
+      'Money',
+      'Reading',
+      'Sleep',
+    ])
+    expect(within(tabs).getByRole('link', { name: 'Modules' })).toHaveAttribute('aria-current', 'page')
 
-    await user.click(within(more).getByRole('link', { name: 'Reading' }))
+    await user.click(within(modules).getByRole('link', { name: 'Reading' }))
 
     expect(router.state.location.pathname).toBe('/reading')
     expect(screen.getByRole('heading', { name: 'Reading screen' })).toBeInTheDocument()
-    // A Module under More keeps More as the current tab.
-    expect(within(tabs).getByRole('link', { name: 'More' })).toHaveAttribute('aria-current', 'page')
+    expect(within(tabs).getByRole('link', { name: 'Modules' })).toHaveAttribute('aria-current', 'page')
+    expect(within(tabs).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('returns to the last Module screen from the Modules tab, and opens the Modules screen when tapped on a Module', async () => {
+    const user = userEvent.setup()
+    const habits: Module = {
+      ...module('Habits'),
+      routes: [{ path: 'streaks/:id', element: <h1>Streak page</h1> }],
+    }
+    const router = renderShell({ core: { homeCards: [], settingsSections: [] }, modules: [module('Calories'), habits] }, '/')
+    const tabs = screen.getByRole('navigation', { name: 'Tabs' })
+
+    // With no Module visited yet, it opens the Modules screen.
+    await user.click(within(tabs).getByRole('link', { name: 'Modules' }))
+    expect(router.state.location.pathname).toBe('/modules')
+
+    await router.navigate('/habits/streaks/7')
+    await user.click(within(tabs).getByRole('link', { name: 'Home' }))
+    expect(router.state.location.pathname).toBe('/')
+
+    await user.click(within(tabs).getByRole('link', { name: 'Modules' }))
+    expect(router.state.location.pathname).toBe('/habits/streaks/7')
+    expect(screen.getByRole('heading', { name: 'Streak page' })).toBeInTheDocument()
+
+    await user.click(within(tabs).getByRole('link', { name: 'Modules' }))
+    expect(router.state.location.pathname).toBe('/modules')
+
+    // Back on the Modules screen, the tab keeps it there.
+    await user.click(within(tabs).getByRole('link', { name: 'Settings' }))
+    await user.click(within(tabs).getByRole('link', { name: 'Modules' }))
+    expect(router.state.location.pathname).toBe('/modules')
   })
 })

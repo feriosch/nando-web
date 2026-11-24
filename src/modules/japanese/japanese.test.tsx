@@ -101,8 +101,9 @@ describe('Search', () => {
     await screen.findByRole('heading', { level: 1, name: '待ち望む' })
     page.scrollTo(400)
 
-    // Opened afresh, from the tab bar: this Word's back link goes back to the Word it came from.
-    await user.click(screen.getByRole('link', { name: 'Japanese' }))
+    // Opened afresh, from the Modules screen: this Word's back link goes back to the Word it came from.
+    await user.click(within(screen.getByRole('navigation', { name: 'Tabs' })).getByRole('link', { name: 'Modules' }))
+    await user.click(within(screen.getByRole('main')).getByRole('link', { name: 'Japanese' }))
 
     expect(await screen.findByRole('searchbox', { name: 'Search' })).toBeInTheDocument()
     expect(page.y).toBe(0)

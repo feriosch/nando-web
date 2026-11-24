@@ -211,7 +211,8 @@ describe('Pending strip', () => {
     now = { ...waiting, state: 'working', attempts: 1 }
     const tabs = screen.getByRole('navigation', { name: 'Tabs' })
     await user.click(within(tabs).getByRole('link', { name: 'Home' }))
-    await user.click(within(tabs).getByRole('link', { name: 'Japanese' }))
+    // The Modules tab returns to Japanese search, the last Module screen open.
+    await user.click(within(tabs).getByRole('link', { name: 'Modules' }))
 
     await expect.poll(async () => (await pendingRows()).map((row) => row.textContent)).toEqual(['たべたClaude is on it'])
 
