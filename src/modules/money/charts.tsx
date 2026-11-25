@@ -6,6 +6,29 @@ import { joinNames, monthName, shortMonth, yen, type MonthSummary } from './mone
 
 const width = 340
 
+// What a chart's label adds about One-offs, such as " One-offs: ¥20,000 in October 2026.", or "".
+function oneOffsLabel(months: { month: string; oneOff?: number }[]): string {
+  const marked = months.filter((m) => (m.oneOff ?? 0) !== 0)
+  if (marked.length === 0) return ''
+  return ` One-offs: ${joinNames(marked.map((m) => `${yen(m.oneOff ?? 0)} in ${monthName(m.month)}`))}.`
+}
+
+// The top of a bar, from `top` down, drawn lighter over it: its One-offs.
+function OneOffCap({ x, top, height, barWidth }: { x: number; top: number; height: number; barWidth: number }) {
+  if (height <= 0) return null
+  return (
+    <rect
+      x={x - barWidth / 2 + 0.75}
+      y={top + 0.75}
+      width={barWidth - 1.5}
+      height={Math.max(0, height - 1.5)}
+      className="fill-bg stroke-sub opacity-70"
+      strokeWidth={1.5}
+      strokeDasharray="3 2"
+    />
+  )
+}
+
 // The label of a run of months, such as "from August 2026 to October 2026", or one month's name.
 function span(months: string[]): string {
   if (months.length === 1) return `in ${monthName(months[0])}`
@@ -29,7 +52,8 @@ export function SpendingChart({ months, current }: { months: MonthSummary[]; cur
   const incomes = months.map((m, i) => `${x(i)},${y(m.income)}`).join(' ')
   const label =
     `Spending by month ${span(months.map((m) => m.month))}: ${joinNames(months.map((m) => yen(m.spending.total)))}. ` +
-    `Income: ${joinNames(months.map((m) => yen(m.income)))}.`
+    `Income: ${joinNames(months.map((m) => yen(m.income)))}.` +
+    oneOffsLabel(months.map((m) => ({ month: m.month, oneOff: m.spending.oneOff })))
   return (
     <GroupedList>
       <div className="px-4 py-3">
@@ -49,6 +73,7 @@ export function SpendingChart({ months, current }: { months: MonthSummary[]; cur
                   at -= h
                   return <rect key={j} x={x(i) - barWidth / 2} y={at} width={barWidth} height={h} className={part.className} />
                 })}
+                <OneOffCap x={x(i)} top={at} height={Math.min(base - at, base - y(m.spending.oneOff ?? 0))} barWidth={barWidth} />
                 <text
                   x={x(i)}
                   y={height - 6}
@@ -69,6 +94,7 @@ export function SpendingChart({ months, current }: { months: MonthSummary[]; cur
           <Key className="bg-accent">Essential</Key>
           <Key className="bg-optional">Optional</Key>
           <Key className="bg-sub opacity-40">Not marked</Key>
+          {months.some((m) => (m.spending.oneOff ?? 0) > 0) && <Key className="border border-dashed border-sub bg-bg">One-off</Key>}
           <span className="inline-flex items-center gap-1">
             <svg viewBox="0 0 12 8" className="h-2 w-3">
               <line x1={0} x2={12} y1={4} y2={4} className="stroke-ink" strokeWidth={1.5} strokeDasharray="3 2" />
@@ -92,7 +118,15 @@ function Key({ className, children }: { className: string; children: string }) {
 
 // One amount a month, oldest first, as bars, the `current` month's in the accent and the rest
 // lighter: a Category's spending.
-export function MonthBars({ months, current, what }: { months: { month: string; total: number }[]; current: string; what: string }) {
+export function MonthBars({
+  months,
+  current,
+  what,
+}: {
+  months: { month: string; total: number; oneOff?: number }[]
+  current: string
+  what: string
+}) {
   const height = 110
   const top = 8
   const bottom = 22
@@ -101,7 +135,7 @@ export function MonthBars({ months, current, what }: { months: { month: string; 
   const barWidth = Math.min(22, slot * 0.6)
   const x = (i: number) => 8 + slot * i + slot / 2
   const y = (amount: number) => top + ((high - Math.max(0, amount)) * (height - top - bottom)) / high
-  const label = `${what} by month ${span(months.map((m) => m.month))}: ${joinNames(months.map((m) => yen(m.total)))}.`
+  const label = `${what} by month ${span(months.map((m) => m.month))}: ${joinNames(months.map((m) => yen(m.total)))}.${oneOffsLabel(months)}`
   return (
     <GroupedList>
       <div className="px-4 py-3">
@@ -116,6 +150,7 @@ export function MonthBars({ months, current, what }: { months: { month: string; 
                 rx={2}
                 className={m.month === current ? 'fill-accent' : 'fill-accent opacity-35'}
               />
+              <OneOffCap x={x(i)} top={y(m.total)} height={Math.min(y(0) - y(m.total), y(0) - y(m.oneOff ?? 0))} barWidth={barWidth} />
               <text
                 x={x(i)}
                 y={height - 6}

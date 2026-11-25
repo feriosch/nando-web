@@ -5,7 +5,8 @@ import { formatDayAs, isDay } from '../../core/days'
 // The Money Home Card, from GET /api/money/card: the latest Complete month, or null before any.
 export type MoneyCard = {
   month: string
-  spending: { total: number; average3: number | null; essential: number; optional: number; unmarked: number }
+  // oneOff is the part of total that is One-offs, which average3 leaves out (see oneOffs below).
+  spending: { total: number; oneOff?: number; average3: number | null; essential: number; optional: number; unmarked: number }
   // missing names the Accounts with no balance near the month's end, left out of total.
   netWorth: { total: number; previous: number | null; missing?: { id: string; name: string }[] }
   unconfirmed: number
@@ -60,10 +61,22 @@ export function joinNames(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
+// A One-off (feriosch/nando-server#241) still counts in its month's spending, but the comparisons
+// with the months before leave it out: previous and average3 are compared with total less oneOff.
+// What a total compares with the average.
+export function withoutOneOffs(total: number, oneOff = 0): number {
+  return total - oneOff
+}
+
+// "including ¥20,000 One-off" under a total that has One-offs in it, or null.
+export function oneOffLine(oneOff = 0): string | null {
+  return oneOff === 0 ? null : `including ${yen(oneOff)} One-off`
+}
+
 // One Complete month as GET /api/money/months lists it, newest first.
 export type MonthSummary = {
   month: string
-  spending: { total: number; essential: number; optional: number; unmarked: number }
+  spending: { total: number; oneOff?: number; essential: number; optional: number; unmarked: number }
   income: number
   savingRate: number | null
   netWorth: { total: number; missing: { id: string; name: string }[] }
@@ -75,6 +88,7 @@ export type CategoryTotal = {
   category: string
   name: string
   total: number
+  oneOff?: number
   previous?: number | null
   average3?: number | null
 }
@@ -84,6 +98,7 @@ export type MonthTotals = {
   month: string
   spending: {
     total: number
+    oneOff?: number
     previous: number | null
     average3: number | null
     essential: number
@@ -108,6 +123,7 @@ export type ScreenTransaction = {
   subcategory: string
   essential: boolean | null
   unconfirmed: boolean
+  oneOff?: boolean
   note: string
 }
 
@@ -117,11 +133,12 @@ export type CategoryPage = {
   category: string
   name: string
   total: number
+  oneOff?: number
   previous: number | null
   average3: number | null
   subcategories: { subcategory: string; name: string; total: number }[]
   transactions: ScreenTransaction[]
-  history: { month: string; total: number }[]
+  history: { month: string; total: number; oneOff?: number }[]
 }
 
 // A Subscription, with what it costs a month in yen while active.

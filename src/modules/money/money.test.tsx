@@ -354,3 +354,58 @@ describe('Net worth', () => {
     expect(within(screen.getByRole('list', { name: 'Return' })).getByText('Pot').parentElement).toHaveTextContent('+¥900')
   })
 })
+
+describe('One-offs', () => {
+  it('compare the rest of a month with the average on the Home Card, and are named', async () => {
+    renderMoney('/', { 'GET /api/money/card': { status: 200, body: { ...october, spending: { ...october.spending, oneOff: 20000 } } } })
+
+    const card = await screen.findByRole('link', { name: /October 2026/ })
+    expect(card).toHaveTextContent('including ¥20,000 One-off')
+    expect(card).toHaveTextContent('¥13,000 below your 3-month average')
+  })
+
+  it('compare the rest of a month and of each Category with the average on the Money screen', async () => {
+    const withOneOff = {
+      ...octoberTotals,
+      spending: {
+        ...octoberTotals.spending,
+        oneOff: 20000,
+        byCategory: [{ category: 'shopping', name: 'Shopping', total: 25000, oneOff: 20000, previous: 4000, average3: 6000 }, ...octoberTotals.spending.byCategory],
+      },
+    }
+    renderMoney('/money', { ...screenAnswers, 'GET /api/money/months/2026-10': { status: 200, body: withOneOff } })
+
+    const month = await screen.findByRole('region', { name: 'October 2026' })
+    expect(month).toHaveTextContent('including ¥20,000 One-off')
+    expect(month).toHaveTextContent('¥13,000 below your 3-month average')
+    const shopping = within(screen.getByRole('list', { name: 'Categories' })).getByRole('link', { name: /Shopping/ })
+    expect(shopping).toHaveTextContent('including ¥20,000 One-off')
+    expect(shopping).toHaveTextContent('−¥1,000 against the average')
+  })
+
+  it('are named in the spending chart', async () => {
+    const withOneOff = [{ ...months[0], spending: { ...months[0].spending, oneOff: 20000 } }, ...months.slice(1)]
+    renderMoney('/money', { ...screenAnswers, 'GET /api/money/months': { status: 200, body: withOneOff } })
+
+    const chart = await screen.findByRole('img', { name: /Spending by month/ })
+    expect(chart.getAttribute('aria-label')).toContain('One-offs: ¥20,000 in October 2026.')
+  })
+
+  it('are named on a Category’s page, compared without, and tagged', async () => {
+    const page = {
+      ...eatingOut,
+      total: 20000,
+      oneOff: 8000,
+      transactions: [{ ...eatingOut.transactions[0], oneOff: true }, ...eatingOut.transactions.slice(1)],
+      history: eatingOut.history.map((h) => (h.month === '2026-10' ? { ...h, total: 20000, oneOff: 8000 } : h)),
+    }
+    renderMoney('/money/2026-10/eating_out', { 'GET /api/money/months/2026-10/categories/eating_out': { status: 200, body: page } })
+
+    expect(await screen.findByText('including ¥8,000 One-off')).toBeInTheDocument()
+    expect(screen.getByText('¥2,000 above your 3-month average')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /One-offs: ¥8,000 in October 2026/ })).toBeInTheDocument()
+    const rows = within(screen.getByRole('list', { name: 'Transactions' })).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('One-off')
+    expect(rows[1]).not.toHaveTextContent('One-off')
+  })
+})
