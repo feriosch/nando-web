@@ -151,6 +151,24 @@ describe('Money screen', () => {
     expect(screen.getByRole('link', { name: /Net worth/ })).toHaveTextContent('¥400,000')
   })
 
+  it('names the Accounts left out of net worth', async () => {
+    renderMoney('/money', {
+      ...screenAnswers,
+      'GET /api/money/months': {
+        status: 200,
+        body: [{ ...months[0], netWorth: { total: 5000, missing: [{ id: 'a2', name: 'Other bank' }] } }, ...months.slice(1)],
+      },
+    })
+
+    expect(await screen.findByText(/Without Other bank: no balance at the month's end/)).toBeInTheDocument()
+  })
+
+  it('says there is no such month for a path that isn’t one', async () => {
+    renderMoney('/money/2026-13', screenAnswers)
+
+    expect(await screen.findByText("There's no such month.")).toBeInTheDocument()
+  })
+
   it('says Money fills in once a month is in, before any is Complete', async () => {
     renderMoney('/money', { 'GET /api/money/months': { status: 200, body: [] } })
 

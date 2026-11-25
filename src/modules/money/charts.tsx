@@ -18,7 +18,9 @@ export function SpendingChart({ months, current }: { months: MonthSummary[]; cur
   const height = 150
   const top = 10
   const bottom = 22
-  const high = Math.max(1, ...months.map((m) => Math.max(m.spending.total, m.income)))
+  // A bar stacks only the parts above 0, which can come to more than the total when one is below 0.
+  const stacked = (m: MonthSummary) => [m.spending.essential, m.spending.optional, m.spending.unmarked].reduce((sum, part) => sum + Math.max(0, part), 0)
+  const high = Math.max(1, ...months.map((m) => Math.max(stacked(m), m.income)))
   const slot = (width - 16) / months.length
   const barWidth = Math.min(22, slot * 0.6)
   const x = (i: number) => 8 + slot * i + slot / 2

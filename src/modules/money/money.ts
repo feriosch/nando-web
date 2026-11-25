@@ -1,4 +1,4 @@
-import { formatDayAs } from '../../core/days'
+import { formatDayAs, isDay } from '../../core/days'
 
 // The types below mirror nando-server's internal/money/API.md.
 
@@ -170,4 +170,22 @@ export function shortMonth(month: string): string {
 // A saving rate for the Owner to read, such as "12%".
 export function percent(rate: number): string {
   return `${Math.round(rate * 100)}%`
+}
+
+// Whether `text` is a month as the server names one, `YYYY-MM`, with a real month in it.
+export function isMonth(text: string): boolean {
+  return /^\d{4}-\d{2}$/.test(text) && isDay(`${text}-01`)
+}
+
+// The month `n` months before `month` (`YYYY-MM`), such as "2025-11" for 11 before "2026-10".
+export function monthsBefore(month: string, n: number): string {
+  const [year, number] = month.split('-').map(Number)
+  const index = year * 12 + (number - 1) - n
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`
+}
+
+// "ja" when `text` has Japanese in it (kana, kanji, Japanese punctuation or full-width and
+// half-width forms), so iOS picks Japanese glyphs for it: a Merchant's name, say.
+export function langOf(text: string): 'ja' | undefined {
+  return /[　-ヿ㐀-鿿豈-﫿＀-￯]/.test(text) ? 'ja' : undefined
 }

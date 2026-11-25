@@ -170,6 +170,7 @@
   --accent: #1f7a4d;
   --accent-ink: #ffffff;
   --optional: #c58a2e;
+  --optional-ink: #24180a;
   --display-font: var(--body-font);
 }
 
@@ -183,6 +184,7 @@
   --accent: #4cc38a;
   --accent-ink: #04210f;
   --optional: #e3ad5c;
+  --optional-ink: #24180a;
 }
 
 /* On the walnut board: the theme's ink, sub and fill read the board's own, so blocks on it stay legible. */
@@ -225,6 +227,7 @@
   --color-level-n2: var(--level-n2);
   --color-level-n1: var(--level-n1);
   --color-optional: var(--optional);
+  --color-optional-ink: var(--optional-ink);
   --font-display: var(--display-font);
 }
 

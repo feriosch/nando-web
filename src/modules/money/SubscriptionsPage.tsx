@@ -8,7 +8,7 @@ import { useBackLink } from '../../core/ui/cameFrom'
 import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
-import { inCurrency, yen, type Subscription, type SubscriptionsPage as SubscriptionsData } from './money'
+import { inCurrency, langOf, yen, type Subscription, type SubscriptionsPage as SubscriptionsData } from './money'
 
 // The Subscriptions, at /money/subscriptions: the active ones, late ones first, each costed a month in
 // yen, their monthly total, and the stopped ones in a closed section below.
@@ -64,8 +64,8 @@ function SubscriptionRow({ subscription: s }: { subscription: Subscription }) {
     <ListRow as="li" className="items-start">
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className="truncate">{s.merchantName}</span>
-          {s.late && <span className="rounded-full bg-optional px-2 py-px text-[12px] font-semibold text-accent-ink">Late</span>}
+          <span lang={langOf(s.merchantName)} className="truncate">{s.merchantName}</span>
+          {s.late && <span className="rounded-full bg-optional px-2 py-px text-[12px] font-semibold text-optional-ink">Late</span>}
         </span>
         <span className="block text-[13px] text-sub tabular-nums">
           {inCurrency(s.amount, s.currency)} {s.every === 'yearly' ? 'a year' : 'a month'}

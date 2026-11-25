@@ -13,7 +13,10 @@ import { SpendingChart } from './charts'
 import {
   againstAverage,
   categoryPath,
+  isMonth,
+  joinNames,
   monthName,
+  monthsBefore,
   percent,
   yen,
   yenChange,
@@ -35,12 +38,22 @@ export function MoneyScreen() {
   const api = useApi()
   const list = useQuery({ queryKey: ['money', 'months'], queryFn: () => api.get<MonthSummary[]>('/api/money/months') })
   const month = params.month ?? list.data?.[0]?.month
+  // A month in the path that isn't one, such as /money/2026-13, has no name to show.
+  const valid = month === undefined || isMonth(month)
   const totals = useQuery({
     queryKey: ['money', 'months', month],
     queryFn: () => api.get<MonthTotals>(`/api/money/months/${month}`),
-    enabled: month !== undefined,
+    enabled: month !== undefined && valid,
   })
 
+  if (!valid) {
+    return (
+      <>
+        <ScreenHeader title="Money" />
+        <EmptyNote>There's no such month.</EmptyNote>
+      </>
+    )
+  }
   if (list.isError) {
     return (
       <>
@@ -74,7 +87,7 @@ export function MoneyScreen() {
         <Month
           totals={totals.data}
           summary={months[at]}
-          chart={months.filter((m) => m.month <= month).slice(0, chartMonths).reverse()}
+          chart={months.filter((m) => m.month <= month && m.month > monthsBefore(month, chartMonths)).reverse()}
         />
       )}
     </>
@@ -161,6 +174,12 @@ function Month({ totals, summary, chart }: { totals: MonthTotals; summary?: Mont
             <span>Net worth</span>
             {summary && <span className="text-sub tabular-nums">{yen(summary.netWorth.total)}</span>}
           </span>
+          {/* A total with an Account left out would read as a drop that never happened. */}
+          {summary && summary.netWorth.missing.length > 0 && (
+            <span className="block text-[13px] text-sub">
+              Without {joinNames(summary.netWorth.missing.map((a) => a.name))}: no balance at the month's end
+            </span>
+          )}
         </RowLink>
       </GroupedList>
     </>
@@ -169,7 +188,8 @@ function Month({ totals, summary, chart }: { totals: MonthTotals; summary?: Mont
 
 // Essential against Optional against not marked, as one bar with its amounts under it.
 function Split({ essential, optional, unmarked }: { essential: number; optional: number; unmarked: number }) {
-  const whole = essential + optional + unmarked
+  // A part below 0 (more refunded than spent) takes no room, so the others never overflow the bar.
+  const whole = Math.max(0, essential) + Math.max(0, optional) + Math.max(0, unmarked)
   if (whole <= 0) return null
   const share = (amount: number) => `${(Math.max(0, amount) / whole) * 100}%`
   return (

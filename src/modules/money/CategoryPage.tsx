@@ -10,7 +10,7 @@ import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { MonthBars } from './charts'
-import { againstAverage, inCurrency, monthName, yen, type CategoryPage as CategoryPageData, type ScreenTransaction } from './money'
+import { againstAverage, inCurrency, langOf, monthName, yen, type CategoryPage as CategoryPageData, type ScreenTransaction } from './money'
 
 // A Category's page for a Complete month, at /money/:month/:category: its total against the average,
 // its last 12 months as bars, its Subcategories when it has any, and its Transactions by Day.
@@ -85,9 +85,9 @@ function TransactionRow({ transaction: t }: { transaction: ScreenTransaction }) 
   return (
     <ListRow as="li" className="items-start">
       <span className="min-w-0 flex-1">
-        <span className="block truncate">{t.merchant}</span>
+        <span lang={langOf(t.merchant)} className="block truncate">{t.merchant}</span>
         <span className="block text-[13px] text-sub">{details}</span>
-        {t.note && <span className="block text-[13px] text-sub">{t.note}</span>}
+        {t.note && <span lang={langOf(t.note)} className="block text-[13px] text-sub">{t.note}</span>}
         <span className="mt-0.5 flex gap-1.5">
           {refund && <Tag>Refund</Tag>}
           {t.unconfirmed && <Tag>Unconfirmed</Tag>}

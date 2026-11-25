@@ -36,7 +36,9 @@ export function NetWorthPage() {
                 <span>{a.name}</span>
                 <span className="text-right tabular-nums">
                   <span className="block">{a.yen < 0 ? `${yen(-a.yen)} owed` : yen(a.yen)}</span>
-                  {a.currency !== 'JPY' && <span className="block text-[13px] text-sub">{inCurrency(a.balance, a.currency)}</span>}
+                  {a.currency !== 'JPY' && (
+                    <span className="block text-[13px] text-sub">{a.balance < 0 ? `${inCurrency(-a.balance, a.currency)} owed` : inCurrency(a.balance, a.currency)}</span>
+                  )}
                 </span>
               </ListRow>
             ))}
