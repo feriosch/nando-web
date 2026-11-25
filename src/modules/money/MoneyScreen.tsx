@@ -16,10 +16,12 @@ import {
   isMonth,
   joinNames,
   monthName,
+  oneOffLine,
   monthsBefore,
   percent,
   yen,
   yenChange,
+  withoutOneOffs,
   type CategoryTotal,
   type MonthSummary,
   type MonthTotals,
@@ -121,7 +123,8 @@ function MonthSwitcher({ month, older, newer }: { month: string; older?: string;
 function Month({ totals, summary, chart }: { totals: MonthTotals; summary?: MonthSummary; chart: MonthSummary[] }) {
   const id = useId()
   const { spending } = totals
-  const comparison = againstAverage(spending.total, spending.average3)
+  const comparison = againstAverage(withoutOneOffs(spending.total, spending.oneOff), spending.average3)
+  const oneOffs = oneOffLine(spending.oneOff)
   const categories = [...spending.byCategory].sort((a, b) => b.total - a.total)
   return (
     <>
@@ -129,6 +132,7 @@ function Month({ totals, summary, chart }: { totals: MonthTotals; summary?: Mont
         <GroupedList>
           <div className="px-4 py-3">
             <p className="m-0 text-[28px] font-semibold tabular-nums">{yen(spending.total)}</p>
+            {oneOffs && <p className="m-0 text-[13px] text-sub">{oneOffs}</p>}
             {comparison && <p className="m-0 text-[15px] text-sub">{comparison}</p>}
             <Split essential={spending.essential} optional={spending.optional} unmarked={spending.unmarked} />
           </div>
@@ -220,7 +224,12 @@ function CategoryRow({ month, category, largest }: { month: string; category: Ca
       <span aria-hidden className="mt-1 block h-1.5 overflow-hidden rounded-full bg-fill">
         <span className="block h-full bg-accent" style={{ width: `${(Math.max(0, category.total) / Math.max(1, largest)) * 100}%` }} />
       </span>
-      {average !== null && <span className="mt-0.5 block text-[13px] text-sub tabular-nums">{yenChange(category.total - average)} against the average</span>}
+      {oneOffLine(category.oneOff) && <span className="mt-0.5 block text-[13px] text-sub tabular-nums">{oneOffLine(category.oneOff)}</span>}
+      {average !== null && (
+        <span className="mt-0.5 block text-[13px] text-sub tabular-nums">
+          {yenChange(withoutOneOffs(category.total, category.oneOff) - average)} against the average
+        </span>
+      )}
     </RowLink>
   )
 }

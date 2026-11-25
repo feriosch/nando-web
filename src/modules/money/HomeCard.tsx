@@ -3,7 +3,7 @@ import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
 import { CardHeader, CardLink, cardClasses } from '../../core/ui/HomeCard'
 import { BanknoteIcon } from './icon'
-import { againstAverage, joinNames, monthName, yen, yenChange, type MoneyCard } from './money'
+import { againstAverage, joinNames, monthName, oneOffLine, withoutOneOffs, yen, yenChange, type MoneyCard } from './money'
 
 // Money's Home Card: the latest Complete month's spending against the average of the months
 // before, Essential against Optional, net worth, and how many Transactions wait to be confirmed.
@@ -38,7 +38,8 @@ export function MoneyHomeCard() {
     )
   }
   const { month, spending, netWorth, unconfirmed } = card.data
-  const comparison = againstAverage(spending.total, spending.average3)
+  const comparison = againstAverage(withoutOneOffs(spending.total, spending.oneOff), spending.average3)
+  const oneOffs = oneOffLine(spending.oneOff)
   const shown = spending.essential + spending.optional
   // A change with an Account left out would read as a drop that never happened.
   const missing = netWorth.missing ?? []
@@ -48,6 +49,7 @@ export function MoneyHomeCard() {
       <CardLink to="/money" className="mt-2 block text-ink">
         <span className="block text-[15px] text-sub">{monthName(month)}</span>
         <span className="block text-[28px] font-semibold tabular-nums">{yen(spending.total)}</span>
+        {oneOffs && <span className="block text-[13px] text-sub">{oneOffs}</span>}
         {comparison && <span className="block text-[15px] text-sub">{comparison}</span>}
         {shown > 0 && (
           <span className="mt-3 block" aria-hidden="true">

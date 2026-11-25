@@ -10,7 +10,7 @@ import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
 import { MonthBars } from './charts'
-import { againstAverage, inCurrency, langOf, monthName, yen, type CategoryPage as CategoryPageData, type ScreenTransaction } from './money'
+import { againstAverage, inCurrency, langOf, monthName, oneOffLine, withoutOneOffs, yen, type CategoryPage as CategoryPageData, type ScreenTransaction } from './money'
 
 // A Category's page for a Complete month, at /money/:month/:category: its total against the average,
 // its last 12 months as bars, its Subcategories when it has any, and its Transactions by Day.
@@ -39,13 +39,15 @@ export function CategoryPage() {
     )
   }
   const data = page.data
-  const comparison = againstAverage(data.total, data.average3)
+  const comparison = againstAverage(withoutOneOffs(data.total, data.oneOff), data.average3)
+  const oneOffs = oneOffLine(data.oneOff)
   return (
     <>
       <ScreenHeader back={back} title={data.name} subtitle={monthName(data.month)} />
       <GroupedList>
         <div className="px-4 py-3">
           <p className="m-0 text-[28px] font-semibold tabular-nums">{yen(data.total)}</p>
+          {oneOffs && <p className="m-0 text-[13px] text-sub">{oneOffs}</p>}
           {comparison && <p className="m-0 text-[15px] text-sub">{comparison}</p>}
         </div>
       </GroupedList>
@@ -89,6 +91,7 @@ function TransactionRow({ transaction: t }: { transaction: ScreenTransaction }) 
         <span className="block text-[13px] text-sub">{details}</span>
         {t.note && <span lang={langOf(t.note)} className="block text-[13px] text-sub">{t.note}</span>}
         <span className="mt-0.5 flex gap-1.5">
+          {t.oneOff && <Tag>One-off</Tag>}
           {refund && <Tag>Refund</Tag>}
           {t.unconfirmed && <Tag>Unconfirmed</Tag>}
         </span>
