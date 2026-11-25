@@ -1,54 +1,206 @@
 import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useId } from 'react'
+import { Link, useParams } from 'react-router'
+import { ApiError } from '../../core/api/client'
 import { useApi } from '../../core/services'
 import { LoadProblem } from '../../core/shell/LoadProblem'
-import { GroupedList, ListRow, SectionHeader } from '../../core/ui/List'
+import { lucideProps } from '../../core/ui/icons'
+import { GroupedList, ListRow, RowLink, SectionHeader } from '../../core/ui/List'
 import { EmptyNote } from '../../core/ui/Notice'
 import { ScreenHeader } from '../../core/ui/ScreenHeader'
-import { joinNames, monthName, yen, yenChange, type MoneyCard } from './money'
+import { SpendingChart } from './charts'
+import {
+  againstAverage,
+  categoryPath,
+  monthName,
+  percent,
+  yen,
+  yenChange,
+  type CategoryTotal,
+  type MonthSummary,
+  type MonthTotals,
+} from './money'
 
-// The Money screen: for now, the latest Complete month in rows. Each month's breakdown and graphs
-// come once a few months are in (feriosch/nando-server#216). The Money Assistant writes, in Telegram.
+// How many months the spending chart shows, ending with the month on screen.
+const chartMonths = 12
+
+// The Money screen, at /money for the latest Complete month and /money/:month for any other: the
+// month's spending against the average, Essential against Optional, income, its Categories largest
+// first, spending over time, and the way to Subscriptions and Net worth. Only Complete months:
+// Statements arrive a month late (feriosch/nando-server ADR 0014). The Money Assistant writes, in
+// Telegram.
 export function MoneyScreen() {
+  const params = useParams()
   const api = useApi()
-  const card = useQuery({ queryKey: ['money', 'card'], queryFn: () => api.get<MoneyCard | null>('/api/money/card') })
-  const id = useId()
+  const list = useQuery({ queryKey: ['money', 'months'], queryFn: () => api.get<MonthSummary[]>('/api/money/months') })
+  const month = params.month ?? list.data?.[0]?.month
+  const totals = useQuery({
+    queryKey: ['money', 'months', month],
+    queryFn: () => api.get<MonthTotals>(`/api/money/months/${month}`),
+    enabled: month !== undefined,
+  })
+
+  if (list.isError) {
+    return (
+      <>
+        <ScreenHeader title="Money" />
+        <LoadProblem message="Couldn't load Money." retry={() => list.refetch()} />
+      </>
+    )
+  }
+  if (list.data?.length === 0) {
+    return (
+      <>
+        <ScreenHeader title="Money" />
+        <EmptyNote>Money fills in once a month's Statements are in. Send them to the Money Assistant in Telegram.</EmptyNote>
+      </>
+    )
+  }
+  if (!list.data || month === undefined) return <ScreenHeader title="Money" />
+
+  const months = list.data
+  const at = months.findIndex((m) => m.month === month)
+  const older = at === -1 ? months.find((m) => m.month < month) : months[at + 1]
+  const newer = at === -1 ? [...months].reverse().find((m) => m.month > month) : months[at - 1]
+  const notComplete = totals.error instanceof ApiError && totals.error.status === 404
   return (
     <>
       <ScreenHeader title="Money" />
-      {card.isError && <LoadProblem message="Couldn't load Money." retry={() => card.refetch()} />}
-      {card.data === null && <EmptyNote>Nothing here yet. Send your Statements to the Money Assistant in Telegram.</EmptyNote>}
-      {card.data && (
-        <section>
-          <SectionHeader id={id}>{monthName(card.data.month)}</SectionHeader>
-          <GroupedList as="ul" labelledBy={id} footer="Statements go to the Money Assistant, in the Money chat.">
-            <Row label="Spending" value={yen(card.data.spending.total)} />
-            {card.data.spending.average3 !== null && <Row label="3-month average" value={yen(card.data.spending.average3)} />}
-            <Row label="Essential" value={yen(card.data.spending.essential)} />
-            <Row label="Optional" value={yen(card.data.spending.optional)} />
-            {card.data.spending.unmarked > 0 && <Row label="Not marked yet" value={yen(card.data.spending.unmarked)} />}
-            <Row label="Net worth" value={yen(card.data.netWorth.total)} />
-            {(card.data.netWorth.missing ?? []).length > 0 && (
-              <Row label="Without" value={joinNames((card.data.netWorth.missing ?? []).map((a) => a.name))} />
-            )}
-            {card.data.netWorth.previous !== null && (card.data.netWorth.missing ?? []).length === 0 && (
-              <Row label="Since the month before" value={yenChange(card.data.netWorth.total - card.data.netWorth.previous)} />
-            )}
-            {card.data.unconfirmed > 0 && <Row label="To confirm in the Money chat" value={String(card.data.unconfirmed)} />}
-          </GroupedList>
-        </section>
+      <MonthSwitcher month={month} older={older?.month} newer={newer?.month} />
+      {notComplete && <EmptyNote>{monthName(month)} isn't Complete: its Statements aren't all in yet.</EmptyNote>}
+      {totals.isError && !notComplete && <LoadProblem message="Couldn't load this month." retry={() => totals.refetch()} />}
+      {totals.data && (
+        <Month
+          totals={totals.data}
+          summary={months[at]}
+          chart={months.filter((m) => m.month <= month).slice(0, chartMonths).reverse()}
+        />
       )}
     </>
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+// The month's name, with arrows to the Complete months before and after it.
+function MonthSwitcher({ month, older, newer }: { month: string; older?: string; newer?: string }) {
+  const arrow = 'flex size-11 items-center justify-center rounded-full text-accent active:bg-fill'
   return (
-    <li>
-      <ListRow>
-        <span>{label}</span>
-        <span className="text-sub tabular-nums">{value}</span>
-      </ListRow>
-    </li>
+    <div className="mt-1 flex items-center justify-between">
+      {older ? (
+        <Link to={`/money/${older}`} viewTransition aria-label={monthName(older)} className={arrow}>
+          <ChevronLeft {...lucideProps} />
+        </Link>
+      ) : (
+        <span className="size-11" />
+      )}
+      <h2 className="m-0 font-display text-[22px] font-bold">{monthName(month)}</h2>
+      {newer ? (
+        <Link to={`/money/${newer}`} viewTransition aria-label={monthName(newer)} className={arrow}>
+          <ChevronRight {...lucideProps} />
+        </Link>
+      ) : (
+        <span className="size-11" />
+      )}
+    </div>
+  )
+}
+
+function Month({ totals, summary, chart }: { totals: MonthTotals; summary?: MonthSummary; chart: MonthSummary[] }) {
+  const id = useId()
+  const { spending } = totals
+  const comparison = againstAverage(spending.total, spending.average3)
+  const categories = [...spending.byCategory].sort((a, b) => b.total - a.total)
+  return (
+    <>
+      <section aria-label={monthName(totals.month)}>
+        <GroupedList>
+          <div className="px-4 py-3">
+            <p className="m-0 text-[28px] font-semibold tabular-nums">{yen(spending.total)}</p>
+            {comparison && <p className="m-0 text-[15px] text-sub">{comparison}</p>}
+            <Split essential={spending.essential} optional={spending.optional} unmarked={spending.unmarked} />
+          </div>
+          <ListRow>
+            <span>Income</span>
+            <span className="text-sub tabular-nums">{yen(totals.income.total)}</span>
+          </ListRow>
+          {totals.savingRate !== null && (
+            <ListRow>
+              <span>Saving rate</span>
+              <span className="text-sub tabular-nums">{percent(totals.savingRate)}</span>
+            </ListRow>
+          )}
+          {totals.unconfirmed.count > 0 && (
+            <ListRow>
+              <span className="text-accent">{totals.unconfirmed.count} to confirm in the Money chat</span>
+            </ListRow>
+          )}
+        </GroupedList>
+      </section>
+      {categories.length > 0 && (
+        <>
+          <SectionHeader id={id}>Categories</SectionHeader>
+          <GroupedList as="ul" labelledBy={id}>
+            {categories.map((c) => (
+              <li key={c.category}>
+                <CategoryRow month={totals.month} category={c} largest={categories[0].total} />
+              </li>
+            ))}
+          </GroupedList>
+        </>
+      )}
+      {chart.length > 1 && (
+        <>
+          <SectionHeader>Over time</SectionHeader>
+          <SpendingChart months={chart} current={totals.month} />
+        </>
+      )}
+      <GroupedList>
+        <RowLink to="/money/subscriptions">Subscriptions</RowLink>
+        <RowLink to="/money/net-worth">
+          <span className="flex justify-between gap-3">
+            <span>Net worth</span>
+            {summary && <span className="text-sub tabular-nums">{yen(summary.netWorth.total)}</span>}
+          </span>
+        </RowLink>
+      </GroupedList>
+    </>
+  )
+}
+
+// Essential against Optional against not marked, as one bar with its amounts under it.
+function Split({ essential, optional, unmarked }: { essential: number; optional: number; unmarked: number }) {
+  const whole = essential + optional + unmarked
+  if (whole <= 0) return null
+  const share = (amount: number) => `${(Math.max(0, amount) / whole) * 100}%`
+  return (
+    <>
+      <div aria-hidden className="mt-3 flex h-2 overflow-hidden rounded-full bg-fill">
+        <span className="bg-accent" style={{ width: share(essential) }} />
+        <span className="bg-optional" style={{ width: share(optional) }} />
+      </div>
+      <p className="m-0 mt-1.5 flex flex-wrap justify-between gap-x-3 text-[13px] text-sub tabular-nums">
+        <span>Essential {yen(essential)}</span>
+        <span>Optional {yen(optional)}</span>
+        {unmarked !== 0 && <span>Not marked {yen(unmarked)}</span>}
+      </p>
+    </>
+  )
+}
+
+// A Category's row: its name and total, a bar against the largest, and its change against the
+// average of the months before.
+function CategoryRow({ month, category, largest }: { month: string; category: CategoryTotal; largest: number }) {
+  const average = category.average3 ?? null
+  return (
+    <RowLink to={categoryPath(month, category.category)}>
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="truncate">{category.name}</span>
+        <span className="shrink-0 tabular-nums">{yen(category.total)}</span>
+      </span>
+      <span aria-hidden className="mt-1 block h-1.5 overflow-hidden rounded-full bg-fill">
+        <span className="block h-full bg-accent" style={{ width: `${(Math.max(0, category.total) / Math.max(1, largest)) * 100}%` }} />
+      </span>
+      {average !== null && <span className="mt-0.5 block text-[13px] text-sub tabular-nums">{yenChange(category.total - average)} against the average</span>}
+    </RowLink>
   )
 }
