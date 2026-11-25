@@ -408,4 +408,12 @@ describe('One-offs', () => {
     expect(rows[0]).toHaveTextContent('One-off')
     expect(rows[1]).not.toHaveTextContent('One-off')
   })
+
+  it('say a One-off refund in a month of its own comes off', async () => {
+    renderMoney('/', { 'GET /api/money/card': { status: 200, body: { ...october, spending: { ...october.spending, oneOff: -4000 } } } })
+
+    const card = await screen.findByRole('link', { name: /October 2026/ })
+    expect(card).toHaveTextContent('less ¥4,000 One-off refund')
+    expect(card).toHaveTextContent('¥11,000 above your 3-month average')
+  })
 })
